@@ -1,0 +1,23 @@
+- name: rooted patterns
+  description: Patterns with leading slash (root-anchored)
+  gitignore: |
+    /hello.txt
+  cases:
+    - path: "hello.txt"
+      description: rooted pattern matches at root
+      ignored: true
+    - path: "a/hello.txt"
+      description: rooted pattern doesn't match in subdirectory
+      ignored: false
+
+- name: rooted wildcard patterns
+  description: Root-anchored wildcard patterns
+  gitignore: |
+    /hello.*
+  cases:
+    - path: "hello.c"
+      description: rooted wildcard pattern
+      ignored: true
+    - path: "a/hello.java"
+      description: rooted wildcard pattern doesn't match in subdirectory
+      ignored: false

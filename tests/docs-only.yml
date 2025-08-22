@@ -1,0 +1,21 @@
+- name: documentation files only
+  description: Only allow documentation files
+  gitignore: |
+    *
+    !*/
+    !*.md
+    !*.txt
+    !LICENSE
+  cases:
+    - path: "README.md"
+      description: "* !*/ !*.md !*.txt !LICENSE - md file allowed"
+      ignored: false
+    - path: "LICENSE"
+      description: "* !*/ !*.md !*.txt !LICENSE - LICENSE allowed"
+      ignored: false
+    - path: "docs/api.md"
+      description: "* !*/ !*.md !*.txt !LICENSE - nested md allowed"
+      ignored: false
+    - path: "main.go"
+      description: "* !*/ !*.md !*.txt !LICENSE - go file ignored"
+      ignored: true

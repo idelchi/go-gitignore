@@ -1,0 +1,138 @@
+- name: git anchoring behavior
+  description: Verify correct Git anchoring behavior
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: doc/frotz should match only at repo root
+      ignored: true
+    - path: "a/doc/frotz"
+      description: doc/frotz must NOT match in subdir
+      ignored: false
+
+- name: foo bar anchoring
+  description: Another anchoring test
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/bar"
+      description: foo/bar should match only at repo root
+      ignored: true
+    - path: "x/y/foo/bar"
+      description: foo/bar must NOT match at deeper levels
+      ignored: false
+
+- name: double asterisk anchoring
+  description: Use double asterisk for any depth matching
+  gitignore: |
+    **/doc/frotz
+  cases:
+    - path: "a/doc/frotz"
+      description: to match at any depth, use **/ prefix
+      ignored: true
+
+- name: anchored file vs sibling lookalike
+  description: Ensure "doc/frotz" doesn't hit "doc/frotz.txt"
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz.txt"
+      description: sibling lookalike must NOT match
+      ignored: false
+    - path: "doc/frotz/inner.txt"
+      description: descendants of matched dir are ignored via parent exclusion
+      ignored: true
+
+- name: anchored directory form
+  description: Trailing slash only matches the directory, not "doc/frotz.txt"
+  gitignore: |
+    doc/frotz/
+  cases:
+    - path: "doc/frotz"
+      description: directory itself is ignored
+      ignored: true
+    - path: "doc/frotz/file.md"
+      description: children under ignored dir are ignored
+      ignored: true
+    - path: "doc/frotz.txt"
+      description: not the dir; must NOT match
+      ignored: false
+    - path: "a/doc/frotz"
+      description: anchored to root; must NOT match deeper
+      ignored: false
+
+- name: leading-slash equivalence at root
+  description: /doc/frotz behaves the same as doc/frotz at repo root
+  gitignore: |
+    /doc/frotz
+  cases:
+    - path: "doc/frotz"
+      ignored: true
+    - path: "a/doc/frotz"
+      ignored: false
+    - path: "doc/frotz/file"
+      description: child still ignored due to excluded parent
+      ignored: true
+
+- name: single-star depth anchoring
+  description: '*/doc/frotz hits exactly one segment deep, not deeper'
+  gitignore: |
+    */doc/frotz
+  cases:
+    - path: "x/doc/frotz"
+      description: one directory down matches
+      ignored: true
+    - path: "x/y/doc/frotz"
+      description: two directories down must NOT match with single *
+      ignored: false
+    - path: "x/doc/frotz/file"
+      description: child under matched dir inherits ignore
+      ignored: true
+    - path: "doc/frotz"
+      description: root is zero segments; must NOT match
+      ignored: false
+
+- name: mid-segment anchored with wildcard
+  description: Only the rooted "doc/*/frotz" path shape matches
+  gitignore: |
+    doc/*/frotz
+  cases:
+    - path: "doc/x/frotz"
+      ignored: true
+    - path: "doc/x/y/frotz"
+      ignored: false
+    - path: "a/doc/x/frotz"
+      ignored: false
+    - path: "doc/x/frotz/file"
+      description: descendants of matched dir ignored
+      ignored: true
+
+- name: double-asterisk at any depth (root too)
+  description: '**/doc/frotz matches root and deeper; non-matching suffixes do not'
+  gitignore: |
+    **/doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: zero-depth (root) should match with **/
+      ignored: true
+    - path: "x/y/z/doc/frotz"
+      description: deep match
+      ignored: true
+    - path: "x/doc/frotzx"
+      description: suffix must not spuriously match
+      ignored: false
+    - path: "x/doc/frotz/file"
+      description: child under matched dir ignored
+      ignored: true
+
+- name: segment-exactness under anchoring
+  description: foo/bar must not bleed into foo/barbaz
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/barbaz"
+      description: segment boundary must be respected
+      ignored: false
+    - path: "foo/bar/baz.txt"
+      description: child under matched dir ignored
+      ignored: true

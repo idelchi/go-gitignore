@@ -1,0 +1,28 @@
+- name: gitignore file exception
+  description: Special handling for .gitignore files
+  gitignore: |
+    *
+    !*/
+    !.gitignore
+  cases:
+    - path: ".gitignore"
+      description: "* !*/ !.gitignore - .gitignore allowed"
+      ignored: false
+    - path: ".env"
+      description: "* !*/ !.gitignore - other hidden file matched by *"
+      ignored: true
+    - path: "subdir/.gitignore"
+      description: "* !*/ !.gitignore - nested .gitignore allowed"
+      ignored: false
+
+- name: git directory exception
+  description: Special handling for .git directory
+  gitignore: |
+    *
+    !*/
+    !.git/
+  cases:
+    - path: ".git"
+      description: "* !*/ !.git/ - .git dir allowed"
+      isDir: true
+      ignored: false

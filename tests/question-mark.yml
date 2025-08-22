@@ -1,0 +1,11 @@
+- name: question mark patterns
+  description: Single character wildcard patterns
+  gitignore: |
+    file.?
+  cases:
+    - path: "file.c"
+      description: "? matches single character"
+      ignored: true
+    - path: "file.cc"
+      description: "? doesn't match multiple characters"
+      ignored: false

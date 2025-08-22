@@ -1,0 +1,20 @@
+- name: comments and blank lines
+  description: Handling of comments and blank lines in patterns
+  gitignore: |
+    # this is a comment
+    actual-pattern
+  cases:
+    - path: "actual-pattern"
+      description: pattern after comment
+      ignored: true
+
+- name: blank line handling
+  description: Patterns separated by blank lines
+  gitignore: |
+    pattern1
+
+    pattern2
+  cases:
+    - path: "pattern2"
+      description: pattern after blank line
+      ignored: true

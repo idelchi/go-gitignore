@@ -1,0 +1,18 @@
+- name: vmlinux patterns
+  description: Complex pattern examples from test suite
+  gitignore: |
+    vmlinux*
+  cases:
+    - path: "arch/foo/kernel/vmlinux.lds.S"
+      description: "vmlinux* pattern"
+      ignored: true
+
+- name: vmlinux negation patterns
+  description: Complex negation override patterns
+  gitignore: |
+    vmlinux*
+    !vmlinux*
+  cases:
+    - path: "arch/foo/kernel/vmlinux.lds.S"
+      description: "negation overrides globally with single root gitignore"
+      ignored: false

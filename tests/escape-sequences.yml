@@ -1,0 +1,44 @@
+- name: literal backslash
+  description: Escaped backslash patterns
+  gitignore: |
+    file\\
+  cases:
+    - path: "file\\"
+      description: literal backslash
+      ignored: true
+
+- name: escaped wildcards
+  description: Escaped wildcard characters
+  gitignore: |
+    \*.txt
+  cases:
+    - path: "*.txt"
+      description: escaped wildcard * should be literal
+      ignored: true
+    - path: "file.txt"
+      description: escaped wildcard should NOT match as wildcard
+      ignored: false
+
+- name: escaped question mark
+  description: Escaped question mark patterns
+  gitignore: |
+    file\?.txt
+  cases:
+    - path: "file?.txt"
+      description: escaped wildcard ? should be literal
+      ignored: true
+    - path: "filea.txt"
+      description: escaped ? should NOT match as wildcard
+      ignored: false
+
+- name: escaped brackets
+  description: Escaped bracket patterns
+  gitignore: |
+    \[test\]
+  cases:
+    - path: "[test]"
+      description: escaped bracket should be literal
+      ignored: true
+    - path: "atest]"
+      description: escaped bracket should NOT match as range
+      ignored: false

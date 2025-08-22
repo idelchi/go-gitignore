@@ -1,0 +1,17 @@
+- name: escaped special characters
+  description: Patterns with escaped special characters
+  gitignore: |
+    \!important!.txt
+  cases:
+    - path: "!important!.txt"
+      description: escaped exclamation mark
+      ignored: true
+
+- name: escaped hash patterns
+  description: Escaped hash character patterns
+  gitignore: |
+    \#hashtag
+  cases:
+    - path: "#hashtag"
+      description: escaped hash
+      ignored: true

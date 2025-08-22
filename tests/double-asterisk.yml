@@ -1,0 +1,50 @@
+- name: double asterisk anywhere patterns
+  description: Double asterisk matching at any depth
+  gitignore: |
+    **/foo
+  cases:
+    - path: "foo"
+      description: "**/foo matches foo anywhere"
+      ignored: true
+    - path: "a/b/c/foo"
+      description: "**/foo matches foo in subdirectory"
+      ignored: true
+
+- name: double asterisk path patterns
+  description: Double asterisk in path patterns
+  gitignore: |
+    **/foo/bar
+  cases:
+    - path: "foo/bar"
+      description: "**/foo/bar matches bar under any foo"
+      ignored: true
+    - path: "a/b/foo/bar"
+      description: "**/foo/bar matches bar under any foo in subdirectory"
+      ignored: true
+
+- name: double asterisk suffix patterns
+  description: Double asterisk as suffix
+  gitignore: |
+    abc/**
+  cases:
+    - path: "abc/file.txt"
+      description: "abc/** matches everything inside abc"
+      ignored: true
+    - path: "abc/x/y/z/file.txt"
+      description: "abc/** matches deeply nested file"
+      ignored: true
+
+- name: double asterisk middle patterns
+  description: Double asterisk in the middle of patterns
+  gitignore: |
+    a/**/b
+  cases:
+    - path: "a/b"
+      description: "a/**/b matches a/b"
+      ignored: true
+    - path: "a/x/b"
+      description: "a/**/b matches a/x/b"
+      ignored: true
+    - path: "a/x/y/b"
+      description: "a/**/b matches a/x/y/b"
+      ignored: true

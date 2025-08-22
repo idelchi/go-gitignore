@@ -1,0 +1,20 @@
+- name: parent directory exclusion
+  description: Rules about parent directory exclusion preventing re-inclusion
+  gitignore: |
+    build/
+    !build/important.txt
+  cases:
+    - path: "build/important.txt"
+      description: Cannot re-include file if parent dir excluded
+      ignored: true
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+    !build/
+  cases:
+    - path: "build"
+      description: Can re-include directory itself
+      isDir: true
+      ignored: false

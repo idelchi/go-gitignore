@@ -1,0 +1,56 @@
+- name: curly brace literal treatment
+  description: Git treats braces as literal characters, not expansion syntax
+  gitignore: |
+    {foo,bar}
+  cases:
+    - path: "foo"
+      description: "Git treats braces literally - 'foo' NOT matched"
+      ignored: false
+    - path: "bar"
+      description: "Git treats braces literally - 'bar' NOT matched"
+      ignored: false
+    - path: "{foo,bar}"
+      description: literal {foo,bar} pattern matches exact string
+      ignored: true
+
+- name: complex brace patterns
+  description: Complex patterns with braces treated literally
+  gitignore: |
+    lib/{braces}.txt
+  cases:
+    - path: "lib/{braces}.txt"
+      description: complex pattern with braces treated literally
+      ignored: true
+    - path: "lib/braces.txt"
+      description: complex pattern does not expand braces
+      ignored: false
+
+- name: nested braces
+  description: Nested braces treated literally
+  gitignore: |
+    config/{local,{prod,dev}}.json
+  cases:
+    - path: "config/{local,{prod,dev}}.json"
+      description: nested braces treated literally
+      ignored: true
+    - path: "config/local.json"
+      description: nested braces don't match expanded forms
+      ignored: false
+
+- name: escaped braces
+  description: Escaped braces in patterns
+  gitignore: |
+    \{escaped\}.txt
+  cases:
+    - path: "{escaped}.txt"
+      description: escaped braces in pattern
+      ignored: true
+
+- name: mixed escaped braces
+  description: Mixed escaped and unescaped braces
+  gitignore: |
+    \{{a,b}\}
+  cases:
+    - path: "{{a,b}}"
+      description: mixed escaped and unescaped braces
+      ignored: true

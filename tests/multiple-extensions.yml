@@ -1,0 +1,24 @@
+- name: multiple go extensions allowed
+  description: Allow multiple Go-related file extensions
+  gitignore: |
+    *
+    !*/
+    !*.go
+    !*.mod
+    !*.sum
+  cases:
+    - path: "main.go"
+      description: "* !*/ !*.go !*.mod !*.sum - go file allowed"
+      ignored: false
+    - path: "go.mod"
+      description: "* !*/ !*.go !*.mod !*.sum - mod file allowed"
+      ignored: false
+    - path: "cmd/app/main.go"
+      description: "* !*/ !*.go !*.mod !*.sum - nested go file allowed"
+      ignored: false
+    - path: "readme.txt"
+      description: "* !*/ !*.go !*.mod !*.sum - txt file ignored"
+      ignored: true
+    - path: "app"
+      description: "* !*/ !*.go !*.mod !*.sum - binary ignored"
+      ignored: true
