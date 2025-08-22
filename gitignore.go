@@ -24,6 +24,7 @@
 package gitignore
 
 import (
+	"os"
 	"path"
 	"strings"
 
@@ -230,6 +231,18 @@ func trimTrailingSpaces(str string) string {
 
 	// Return the pattern - all other escape sequences are preserved for doublestar
 	return result
+}
+
+// IsIgnoredStat behaves like IsIgnored but checks whether the path leads to a directory.
+// Will fall back to "not dir" in case of errors.
+func (g *GitIgnore) IsIgnoredStat(path string) bool {
+	isDir := false
+
+	if info, err := os.Stat(path); err == nil {
+		isDir = info.IsDir()
+	}
+
+	return g.IsIgnored(path, isDir)
 }
 
 // IsIgnored determines whether a path should be ignored according to the gitignore patterns.
