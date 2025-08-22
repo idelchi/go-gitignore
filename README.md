@@ -8,6 +8,7 @@
 
 Package **gitignore** provides `.gitignore` pattern matching with close parity to git's behavior.
 
+Tests are compared to the behavior of `git check-ignore`, and are available in [the tests directory](./tests).
 
 ## Installation
 
