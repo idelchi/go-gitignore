@@ -5,23 +5,14 @@ package gitignore_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"testing"
 )
 
-// TestGitCheckIgnoreValidator validates YAML test specifications against actual git check-ignore behavior.
-// It provides comprehensive validation of gitignore pattern matching by:
-//  1. Loading test files from the tests/ directory (optionally filtered)
-//  2. Parsing YAML test specifications using shared utilities
-//  3. Creating temporary git repositories with specified .gitignore patterns
-//  4. Running git check-ignore commands and comparing results with expected outcomes
-//  5. Providing detailed error messages and validation summaries
-//
-// The test can be run in two modes:
-//   - With -yaml flag: validates a specific YAML file (e.g., go test -yaml basic.yml)
-//   - Without flag: validates all YAML files in ./tests directory
+// TestGitCheckIgnore validates YAML test specifications against actual Git check-ignore behavior.
 func TestGitCheckIgnore(t *testing.T) {
 	t.Parallel()
 
@@ -35,11 +26,13 @@ func TestGitCheckIgnore(t *testing.T) {
 		t.Skip("no test files found")
 	}
 
-	var totalPass, totalFail int
-
+	// Process each test file concurrently
 	for _, file := range files {
-		file := file
-		t.Run(BaseNameWithoutExt(file), func(t *testing.T) {
+		file := file // capture range variable for closure
+		base := BaseNameWithoutExt(file)
+
+		// Each test file runs as a separate subtest
+		t.Run(base, func(t *testing.T) {
 			t.Parallel()
 
 			specs, err := LoadGitIgnoreSpecs(file)
@@ -47,23 +40,51 @@ func TestGitCheckIgnore(t *testing.T) {
 				t.Fatalf("load specs from %s: %v", file, err)
 			}
 
+			// Process each test group within the file
 			for _, spec := range specs {
-				spec := spec
+				spec := spec // capture range variable for closure
+
+				// Each test group runs as a separate subtest
 				t.Run(spec.Name, func(t *testing.T) {
 					t.Parallel()
 
-					var results []validatorResult
-					for ci, c := range spec.Cases {
-						result := runGitCheckIgnoreTest(t, spec, c, ci+1)
-						results = append(results, result)
-
-						if result.Pass {
-							totalPass++
-						} else {
-							totalFail++
-							t.Errorf("path=%q expected=%v got=%v (exit=%d)",
-								c.Path, c.Ignored, result.Actual, result.ExitCode)
+					// Process each individual test case
+					for _, c := range spec.Cases {
+						// Format test name to clearly indicate directories
+						testName := c.Path
+						if c.Dir {
+							testName += "/"
 						}
+
+						// Each test case runs as a separate subtest for precise failure reporting
+						t.Run(testName, func(t *testing.T) {
+							result := runGitCheckIgnoreTest(t, spec, c)
+
+							if !result.Pass {
+								// Create detailed error message with hierarchical context
+								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
+
+								// Include descriptions from YAML for better context
+								if spec.Description != "" {
+									errorMsg += fmt.Sprintf("Group: %s\n", spec.Description)
+								}
+
+								if c.Description != "" {
+									errorMsg += fmt.Sprintf("Case: %s\n", c.Description)
+								}
+
+								// Provide specific details about the Git validation failure
+								errorMsg += fmt.Sprintf(
+									"Git check-ignore validation failed: expected=%v got=%v (exit=%d)\nGitignore patterns:\n%s",
+									c.Ignored,
+									result.Actual,
+									result.ExitCode,
+									spec.Gitignore,
+								)
+
+								t.Error(errorMsg)
+							}
+						})
 					}
 				})
 			}
@@ -71,14 +92,12 @@ func TestGitCheckIgnore(t *testing.T) {
 	}
 }
 
-// runGitCheckIgnoreTest executes a single git check-ignore test case
-func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case, caseIdx int) validatorResult {
+// runGitCheckIgnoreTest executes a single git check-ignore test case by creating
+// a temporary git repository, writing the gitignore patterns, materializing the test path,
+// and running the actual git check-ignore command to validate behavior.
+func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case) validatorResult {
 	// Fresh temp repo per case to avoid file/dir collisions across cases
-	tmp, err := os.MkdirTemp("", "gitignore-verify-*")
-	if err != nil {
-		t.Fatalf("mktemp: %v", err)
-	}
-	defer os.RemoveAll(tmp)
+	tmp := t.TempDir()
 
 	// Init repo
 	if out, err := runValidatorCmd(tmp, "git", "init", "-q"); err != nil {
@@ -108,7 +127,7 @@ func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case, caseIdx int) va
 		}
 	}
 
-	// Run: git -c core.excludesfile=/dev/null check-ignore -q -- <path>
+	// Run: git check-ignore -q -- <path> to only get the exit code
 	argPath := filepath.ToSlash(c.Path) // relative to repo root
 	args := []string{
 		"-c", "core.excludesfile=/dev/null",
@@ -121,7 +140,6 @@ func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case, caseIdx int) va
 	actualIgnored := code == 0
 
 	return validatorResult{
-		CaseIdx:   caseIdx,
 		TestName:  spec.Name,
 		TestDesc:  spec.Description,
 		Gitignore: spec.Gitignore,
@@ -133,18 +151,21 @@ func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case, caseIdx int) va
 	}
 }
 
+// validatorResult holds the result of a git check-ignore validation test case.
 type validatorResult struct {
-	CaseIdx   int
-	TestName  string
-	TestDesc  string
-	Gitignore string
-	Case      Case
-	ExitCode  int
-	Actual    bool
-	Expected  bool
-	Pass      bool
+	TestName  string // Name of the test group
+	TestDesc  string // Description of the test group
+	Gitignore string // The gitignore patterns being tested
+	Case      Case   // The individual test case details
+	ExitCode  int    // Exit code from git check-ignore command
+	Actual    bool   // Actual result from git check-ignore
+	Expected  bool   // Expected result from YAML specification
+	Pass      bool   // Whether the test passed (actual == expected)
 }
 
+// runValidatorGit executes a git command in the specified working directory
+// and returns stdout, stderr, and exit code. This is used specifically for
+// running git check-ignore commands during validation.
 func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, exitCode int) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = workingDir
@@ -168,6 +189,8 @@ func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, 
 	return outBuf.String(), errBuf.String(), exitCode
 }
 
+// runValidatorCmd executes a generic command in the specified working directory.
+// This is used for setup commands like git init during test preparation.
 func runValidatorCmd(workingDir, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
 	cmd.Dir = workingDir

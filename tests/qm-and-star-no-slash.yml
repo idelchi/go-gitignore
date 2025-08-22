@@ -1,0 +1,8 @@
+- name: wildcards never cross slash
+  description: '? and * must not match /'
+  gitignore: |
+    a?c
+    a*c
+  cases:
+    - path: "a/b/c"
+      ignored: false

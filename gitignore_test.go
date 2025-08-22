@@ -1,9 +1,8 @@
-// Package gitignore_test provides comprehensive testing for the gitignore package.
+// Package gitignore_test provides testing for the gitignore package.
 //
-// This package contains YAML-driven integration tests that verify Git-compatible
-// gitignore pattern matching behavior across a wide range of edge cases and scenarios.
-// The test suite is designed to ensure perfect compatibility with Git's actual
-// gitignore implementation.
+// This package contains YAML-driven tests that verify Git-compatible
+// gitignore pattern matching behavior across a range of edge cases and scenarios.
+// It additionally validates the YAML tests against Git's actual check-ignore command.
 //
 // Test Structure:
 //   - YAML test files in tests/ directory define test cases
@@ -26,16 +25,7 @@ import (
 	gitignore "github.com/idelchi/go-gitignore"
 )
 
-// TestGitIgnore_YAML is the main test function that loads and executes all YAML-based tests.
-// It provides comprehensive testing of gitignore pattern matching behavior by:
-//  1. Loading test files from the tests/ directory (optionally filtered)
-//  2. Parsing YAML test specifications
-//  3. Creating gitignore instances with specified patterns
-//  4. Running test cases and comparing results
-//  5. Providing detailed error messages with hierarchical context
-//
-// The test uses t.Parallel() extensively for concurrent execution and better performance.
-// Error messages follow the format: "test_file -> test_group -> test_case" with descriptions.
+// TestGitIgnore is the main test function that loads and executes all YAML-based tests.
 func TestGitIgnore(t *testing.T) {
 	t.Parallel()
 
