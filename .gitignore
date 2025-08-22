@@ -14,4 +14,4 @@
 .build
 .cache
 .task
-foo/*
+.assets
