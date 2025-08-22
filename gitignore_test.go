@@ -2138,7 +2138,7 @@ func TestGitIgnore(t *testing.T) {
 			t.Parallel()
 
 			g := gitignore.New(tc.Patterns)
-			isIgnored := g.IsIgnored(tc.Path, tc.IsDir)
+			isIgnored := g.Ignored(tc.Path, tc.IsDir)
 
 			if isIgnored != tc.ShouldIgnore {
 				t.Errorf("Ignore(patterns=%v, path=%q, isDir=%v) = %v, want %v",

@@ -29,11 +29,13 @@ import (
 func main() {
 	gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
 
-	fmt.Println(gi.IsIgnored("app.log", false))        // true
-	fmt.Println(gi.IsIgnored("important.log", false))  // false
-	fmt.Println(gi.IsIgnored("build/file.txt", false)) // true
+	fmt.Println(gi.Ignored("app.log", false))        // true
+	fmt.Println(gi.Ignored("important.log", false))  // false
+	fmt.Println(gi.Ignored("build/file.txt", false)) // true
 }
 ```
+
+`IgnoredStat` checks itself whether a path is a file or directory.
 
 ## Testing
 

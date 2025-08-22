@@ -19,8 +19,8 @@
 // Usage:
 //
 //	gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
-//	ignored := gi.IsIgnored("app.log", false) // true
-//	ignored = gi.IsIgnored("important.log", false) // false
+//	ignored := gi.Ignored("app.log", false) // true
+//	ignored = gi.Ignored("important.log", false) // false
 package gitignore
 
 import (
@@ -69,8 +69,8 @@ type GitIgnore struct {
 //
 //	lines := []string{"*.log", "build/", "!important.log", "# comment"}
 //	gi := New(lines)
-//	ignored := gi.IsIgnored("app.log", false) // true
-//	ignored = gi.IsIgnored("important.log", false) // false (negated)
+//	ignored := gi.Ignored("app.log", false) // true
+//	ignored = gi.Ignored("important.log", false) // false (negated)
 func New(lines []string) *GitIgnore {
 	if len(lines) == 0 {
 		return &GitIgnore{}
@@ -233,19 +233,7 @@ func trimTrailingSpaces(str string) string {
 	return result
 }
 
-// IsIgnoredStat behaves like IsIgnored but checks whether the path leads to a directory.
-// Will fall back to "not dir" in case of errors.
-func (g *GitIgnore) IsIgnoredStat(path string) bool {
-	isDir := false
-
-	if info, err := os.Stat(path); err == nil {
-		isDir = info.IsDir()
-	}
-
-	return g.IsIgnored(path, isDir)
-}
-
-// IsIgnored determines whether a path should be ignored according to the gitignore patterns.
+// Ignored determines whether a path should be ignored according to the gitignore patterns.
 // This method implements Git's complex two-pass algorithm with precise parent exclusion rules.
 //
 // The algorithm works in two passes:
@@ -277,10 +265,10 @@ func (g *GitIgnore) IsIgnoredStat(path string) bool {
 // Examples:
 //
 //	gi := New([]string{"build/", "*.log", "!important.log"})
-//	gi.IsIgnored("build/file.txt", false)  // true (parent excluded)
-//	gi.IsIgnored("app.log", false)         // true
-//	gi.IsIgnored("important.log", false)   // false (negated)
-func (g *GitIgnore) IsIgnored(path string, isDir bool) bool {
+//	gi.Ignored("build/file.txt", false)  // true (parent excluded)
+//	gi.Ignored("app.log", false)         // true
+//	gi.Ignored("important.log", false)   // false (negated)
+func (g *GitIgnore) Ignored(path string, isDir bool) bool {
 	// Special cases
 	if path == "" || path == "." {
 		return false
@@ -326,6 +314,18 @@ func (g *GitIgnore) IsIgnored(path string, isDir bool) bool {
 	}
 
 	return ignored
+}
+
+// IgnoredStat behaves like Ignored but checks whether the path leads to a directory.
+// Will fall back to "not dir" in case of errors.
+func (g *GitIgnore) IgnoredStat(path string) bool {
+	isDir := false
+
+	if info, err := os.Stat(path); err == nil {
+		isDir = info.IsDir()
+	}
+
+	return g.Ignored(path, isDir)
 }
 
 // Patterns returns the original pattern strings after parsing.
