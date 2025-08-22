@@ -270,7 +270,7 @@ func trimTrailingSpaces(str string) string {
 //	gi.Ignored("important.log", false)   // false (negated)
 func (g *GitIgnore) Ignored(path string, isDir bool) bool {
 	// Special cases
-	if path == "" || path == "." {
+	if path == "" {
 		return false
 	}
 
@@ -430,17 +430,16 @@ func matchesDirectoryPath(pattern pattern, dirPath string) bool {
 // Implements Git's complex rules for rooted vs non-rooted patterns,
 // basename matching, and special handling for wildcard patterns.
 func matchesFilePattern(pattern pattern, filePath string, isDir bool) bool {
-	// Special case: * pattern should only match files/dirs without slashes
-	// BUT if it's rooted (/*), it should only match at root level
+	// Special case: * pattern should match a single path component (including dotfiles)
+	// If it's rooted (/*), it should only match at root level.
 	if pattern.pattern == "*" {
 		if pattern.rooted {
 			// /* should only match top-level entries
 			return !strings.Contains(filePath, "/")
 		}
-		// Unrooted * matches files/dirs without slashes at any depth
+		// Unrooted * matches a single component at any depth (including ".")
 		basename := path.Base(filePath)
-
-		return basename != "." && basename != "" // Don't match current dir or empty
+		return basename != ""
 	}
 
 	if pattern.rooted {
@@ -580,10 +579,14 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 				continue
 			}
 
-			// Check if this pattern EXPLICITLY excludes the directory itself
+			// Check if this pattern EXPLICITLY excludes the directory itself.
+			// Any pattern that matches a directory entry (with or without a trailing '/')
+			// excludes that directory. This includes patterns like "foo/*" which match
+			// "foo/bar" when "bar" is a directory, thereby excluding "foo/bar" and
+			// everything beneath it.
 			if dirMatches := g.patternExcludesDirectory(pattern, checkPath); dirMatches {
 				if pattern.negated {
-					// Issue #2 fix: Allow explicit directory negation to clear exclusion
+					// Allow explicit directory negation to clear exclusion
 					delete(excludedDirs, checkPath)
 				} else {
 					// Directory is excluded - mark it permanently
@@ -597,33 +600,23 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 }
 
 // patternExcludesDirectory determines if a pattern explicitly excludes a directory.
-// The parent exclusion rule only applies when a directory is explicitly excluded,
-// not when patterns like "foo/*" match content inside the directory.
+// The parent exclusion rule applies when a pattern matches the directory entry itself.
+// Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo").
 func (g *GitIgnore) patternExcludesDirectory(pat pattern, dirPath string) bool {
 	if pat.dirOnly {
 		// Directory-only patterns (ending with /) explicitly exclude directories
 		return matchesDirectoryPath(pat, dirPath)
 	}
 
-	// For parent exclusion, only certain patterns actually exclude directories:
-	// - Patterns that match the directory name directly (like "build")
-	// - Rooted wildcard patterns like "/*" that match top-level directories
-	// - NOT patterns like "foo/*" which match content, not the directory
-
-	// Skip patterns that end with "/*" - these match content, not the directory
-	if strings.HasSuffix(pat.pattern, "/*") {
-		return false
-	}
+	// Patterns that match a directory entry (basename or full path) exclude that directory.
 
 	if pat.pattern == "*" {
 		if pat.rooted {
-			// Issue #3 fix: "/*" pattern SHOULD cause parent exclusion
-			// for top-level directories it matches
+			// "/*" excludes top-level directories it matches
 			return !strings.Contains(dirPath, "/")
 		}
-		// "*" pattern can exclude directories by matching their basename
+		// "*" can exclude directories by matching their basename
 		basename := path.Base(dirPath)
-
 		return matchGlob(pat, basename)
 	}
 
@@ -633,15 +626,14 @@ func (g *GitIgnore) patternExcludesDirectory(pat pattern, dirPath string) bool {
 	}
 
 	if strings.Contains(pat.pattern, "/") {
-		// Pattern with slash - only matches if it specifically matches directory path
-		// But NOT if it's a content pattern like "foo/*"
+		// Pattern with slash - matches against the directory path
+		// This includes "foo/*" which matches "foo/bar"
 		return matchGlob(pat, dirPath)
 	}
 
 	// Pattern without slash - check if it matches directory basename
 	// e.g., "build" pattern excludes directory named "build"
 	basename := path.Base(dirPath)
-
 	return matchGlob(pat, basename)
 }
 

@@ -19,12 +19,17 @@
 package gitignore_test
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 	"testing"
 
 	gitignore "github.com/idelchi/go-gitignore"
 )
+
+// testFilter allows filtering which test files to run via command line.
+// Usage: go test -f "basic,directories" to run only basic.yml and directories.yml
+var testFilter = flag.String("f", "", "Comma-separated list of test file names to run (without extension)")
 
 // TestGitIgnore_YAML is the main test function that loads and executes all YAML-based tests.
 // It provides comprehensive testing of gitignore pattern matching behavior by:
@@ -36,7 +41,7 @@ import (
 //
 // The test uses t.Parallel() extensively for concurrent execution and better performance.
 // Error messages follow the format: "test_file -> test_group -> test_case" with descriptions.
-func TestGitIgnore(t *testing.T) {
+func TestGitIgnore_YAML(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)

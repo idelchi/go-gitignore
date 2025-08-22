@@ -7,12 +7,18 @@
 package gitignore_test
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	yaml "github.com/goccy/go-yaml"
 )
+
+// testFilter allows filtering which test files to run via command line.
+// Usage: go test -f "basic,directories" to run only basic.yml and directories.yml
+var testFilter = flag.String("f", "", "YAML file to validate (e.g. 'basic.yml')")
 
 // Case represents a single test case within a gitignore test group.
 // Each case tests a specific path against the gitignore patterns to verify
@@ -128,6 +134,11 @@ func YamlFiles(dir string, filter []string) ([]string, error) {
 			}
 		}
 	}
+
+	if len(out) == 0 {
+		return nil, fmt.Errorf("no YAML files found")
+	}
+
 	return out, nil
 }
 
