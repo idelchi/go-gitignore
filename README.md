@@ -6,7 +6,7 @@
 [![Build Status](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Package **gitignore** provides Git-compatible `.gitignore` pattern matching with close parity to git's behavior.
+Package **gitignore** provides `.gitignore` pattern matching with close parity to git's behavior.
 
 
 ## Installation
