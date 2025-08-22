@@ -5,7 +5,7 @@
   cases:
     - path: "top-level-dir"
       description: directory with trailing slash
-      isDir: true
+      dir: true
       ignored: true
     - path: "top-level-dir"
       description: file not matched by directory pattern
@@ -18,7 +18,7 @@
   cases:
     - path: "a/b/ignored-dir"
       description: nested directory with trailing slash
-      isDir: true
+      dir: true
       ignored: true
     - path: "a/b/ignored-dir/foo"
       description: files inside ignored directory

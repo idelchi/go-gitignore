@@ -252,7 +252,7 @@ func trimTrailingSpaces(str string) string {
 // Parameters:
 //
 //	path: The file or directory path to check (should use forward slashes)
-//	isDir: True if the path represents a directory, false for files
+//	Dir: True if the path represents a directory, false for files
 //
 // Returns true if the path should be ignored, false otherwise.
 //

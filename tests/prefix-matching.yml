@@ -5,14 +5,14 @@
   cases:
     - path: "a/git"
       description: "git/ matches git directory"
-      isDir: true
+      dir: true
       ignored: true
     - path: "a/git/foo"
       description: "git/ matches file in git directory"
       ignored: true
     - path: "a/git-foo"
       description: "git/ doesn't match git-foo directory"
-      isDir: true
+      dir: true
       ignored: false
     - path: "a/git-foo/bar"
       description: "git/ doesn't match file in git-foo"
@@ -25,9 +25,9 @@
   cases:
     - path: "git"
       description: "/git/ matches git at root"
-      isDir: true
+      dir: true
       ignored: true
     - path: "a/git"
       description: "/git/ doesn't match git in subdirectory"
-      isDir: true
+      dir: true
       ignored: false

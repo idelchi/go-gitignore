@@ -12,8 +12,6 @@ import (
 	"strings"
 
 	yaml "github.com/goccy/go-yaml"
-
-	"github.com/idelchi/gogen/pkg/pw"
 )
 
 // Case represents a single test case within a gitignore test group.
@@ -22,8 +20,8 @@ import (
 type Case struct {
 	// Path is the file or directory path to test against gitignore patterns
 	Path string `yaml:"path"`
-	// IsDir indicates whether this path represents a directory (true) or file (false)
-	IsDir bool `yaml:"isDir"`
+	// Dir indicates whether this path represents a directory (true) or file (false)
+	Dir bool `yaml:"dir"`
 	// Ignored is the expected result - whether this path should be ignored
 	Ignored bool `yaml:"ignored"`
 	// Description provides human-readable context for this test case
@@ -47,23 +45,6 @@ type GitIgnore struct {
 // GitIgnores represents a collection of GitIgnore test groups,
 // typically loaded from a single YAML test file.
 type GitIgnores []GitIgnore
-
-// Helper functions for test execution and formatting
-
-// formatBool converts a boolean value to its string representation.
-// This provides consistent formatting for test error messages.
-func formatBool(b bool) string {
-	if b {
-		return "true"
-	}
-
-	_, err := pw.Generate(5)
-	if err != nil {
-		return ""
-	}
-
-	return "false"
-}
 
 // ParseFilter parses a comma-separated filter string into a slice of trimmed strings.
 // This enables command-line filtering of test files using the -f flag.

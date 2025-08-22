@@ -16,7 +16,7 @@
       ignored: false
     - path: "internal"
       description: "* !*/ !*.txt - directory allowed"
-      isDir: true
+      dir: true
       ignored: false
     - path: "readme.txt"
       description: "* !*/ !*.txt - root txt file allowed"
@@ -41,7 +41,7 @@
       ignored: true
     - path: "internal"
       description: "* !*/ !*.txt internal - internal dir ignored"
-      isDir: true
+      dir: true
       ignored: true
     - path: "file.txt"
       description: "* !*/ !*.txt internal - root txt file allowed"

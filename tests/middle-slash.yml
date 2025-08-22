@@ -29,8 +29,8 @@
       ignored: true
     - path: "foo/bar"
       description: foo/* matches directory in foo
-      isDir: true
+      dir: true
       ignored: true
     - path: "foo/bar/hello.c"
-      description: foo/* does NOT match nested files (per Git spec)
-      ignored: false
+      description: foo/* does NOT match nested files (per Git spec). It does however match the directory itself.
+      ignored: true

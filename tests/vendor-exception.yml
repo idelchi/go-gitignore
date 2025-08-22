@@ -14,5 +14,5 @@
       ignored: false
     - path: "vendor"
       description: "* !*/ !*.go vendor/**/*.go - vendor dir allowed"
-      isDir: true
+      dir: true
       ignored: false

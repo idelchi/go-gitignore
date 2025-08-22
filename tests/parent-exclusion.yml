@@ -16,5 +16,5 @@
   cases:
     - path: "build"
       description: Can re-include directory itself
-      isDir: true
+      dir: true
       ignored: false

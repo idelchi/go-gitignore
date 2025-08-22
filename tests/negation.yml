@@ -31,5 +31,5 @@
   cases:
     - path: "foo/bar"
       description: negated directory pattern
-      isDir: true
+      dir: true
       ignored: false

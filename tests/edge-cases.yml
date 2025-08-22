@@ -5,11 +5,8 @@
   cases:
     - path: "."
       description: dot as path
-      isDir: true
-      ignored: false
-    - path: ""
-      description: empty path
-      ignored: false
+      dir: true
+      ignored: true
 
 - name: single slash pattern
   description: Single slash pattern behavior

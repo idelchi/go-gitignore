@@ -11,7 +11,7 @@
       ignored: true
     - path: "build"
       description: "* !*/ !*.go build/ - build dir ignored"
-      isDir: true
+      dir: true
       ignored: true
     - path: "src/main.go"
       description: "* !*/ !*.go build/ - source outside build allowed"

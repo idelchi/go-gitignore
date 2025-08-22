@@ -12,13 +12,15 @@
 //   - Command-line filtering allows running specific test files
 //
 // Usage:
-//   go test                           # Run all tests
-//   go test -f basic,directories      # Run specific test files
-//   go test -v                        # Verbose output with hierarchical errors
+//
+//	go test                           # Run all tests
+//	go test -f basic,directories      # Run specific test files
+//	go test -v                        # Verbose output with hierarchical errors
 package gitignore_test
 
 import (
 	"flag"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -31,11 +33,11 @@ var testFilter = flag.String("f", "", "Comma-separated list of test file names t
 
 // TestGitIgnore_YAML is the main test function that loads and executes all YAML-based tests.
 // It provides comprehensive testing of gitignore pattern matching behavior by:
-//   1. Loading test files from the tests/ directory (optionally filtered)
-//   2. Parsing YAML test specifications
-//   3. Creating gitignore instances with specified patterns
-//   4. Running test cases and comparing results
-//   5. Providing detailed error messages with hierarchical context
+//  1. Loading test files from the tests/ directory (optionally filtered)
+//  2. Parsing YAML test specifications
+//  3. Creating gitignore instances with specified patterns
+//  4. Running test cases and comparing results
+//  5. Providing detailed error messages with hierarchical context
 //
 // The test uses t.Parallel() extensively for concurrent execution and better performance.
 // Error messages follow the format: "test_file -> test_group -> test_case" with descriptions.
@@ -64,7 +66,6 @@ func TestGitIgnore_YAML(t *testing.T) {
 
 			// Process each test group within the file
 			for _, spec := range specs {
-				spec := spec // capture range variable for closure
 				// Each test group runs as a separate subtest
 				t.Run(spec.Name, func(t *testing.T) {
 					t.Parallel()
@@ -73,34 +74,37 @@ func TestGitIgnore_YAML(t *testing.T) {
 
 					// Process each individual test case
 					for _, tc := range spec.Cases {
-						tc := tc // capture range variable for closure
 						// Format test name to clearly indicate directories
 						testName := tc.Path
-						if tc.IsDir {
+						if tc.Dir {
 							testName += "/"
 						}
 
 						// Each test case runs as a separate subtest for precise failure reporting
 						t.Run(testName, func(t *testing.T) {
 							// Test the actual gitignore logic
-							got := g.Ignored(tc.Path, tc.IsDir)
+							got := g.Ignored(tc.Path, tc.Dir)
 							if got != tc.Ignored {
 								// Create detailed error message with hierarchical context
-								errorMsg := base + " -> " + spec.Name + " -> " + testName + "\n"
-								
+								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
+
+								errorMsg += fmt.Sprintf("Pattern: %v\n", g.Patterns())
+
 								// Include descriptions from YAML for better context
 								if spec.Description != "" {
-									errorMsg += "Group: " + spec.Description + "\n"
+									errorMsg += fmt.Sprintf("Group: %s\n", spec.Description)
 								}
+
 								if tc.Description != "" {
-									errorMsg += "Case: " + tc.Description + "\n"
+									errorMsg += fmt.Sprintf("Case: %s\n", tc.Description)
 								}
-								
+
 								// Provide specific details about the failure
-								errorMsg += "Expected Ignored(\"" + tc.Path + "\", isDir=" + 
-									formatBool(tc.IsDir) + ") = " + formatBool(tc.Ignored) + 
-									", got " + formatBool(got)
-								
+								errorMsg += fmt.Sprintf(
+									"Expected Ignored(%q, isDir=%v) = %v, got %v",
+									tc.Path, tc.Dir, tc.Ignored, got,
+								)
+
 								t.Error(errorMsg)
 							}
 						})
