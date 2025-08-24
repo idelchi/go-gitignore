@@ -100,6 +100,8 @@ tasks:
 
   tests: yq 'length' tests/*.yml | awk '{s+=$1} END {print s}'
 
+  testsum: gotestsum
+
   all:
     desc: run all available tasks
     deps:

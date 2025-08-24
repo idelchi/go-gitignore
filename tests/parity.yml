@@ -380,3 +380,208 @@
       ignored: true
     - path: "a/tmp/file"
       ignored: true
+### 
+- name: dotfiles_vs_star
+  description: "'*' must not match leading dots"
+  gitignore: |
+    *
+  cases:
+    - path: a.txt
+      dir: false
+      ignored: true
+      description: "'*' matches regular file"
+    - path: .env
+      dir: false
+      ignored: true
+      description: "'*' must match a dotfile"
+    - path: dir/.hidden
+      dir: false
+      ignored: true
+      description: "'*' must match dotfile basenames in subdirs"
+
+- name: rooted_star_vs_dotfiles
+  description: "'/*' only top-level and must not match top-level dotfiles"
+  gitignore: |
+    /*
+  cases:
+    - path: a
+      dir: false
+      ignored: true
+      description: "'/*' matches top-level entry"
+    - path: .gitignore
+      dir: false
+      ignored: false
+      description: "'/*' must NOT match top-level dotfile"
+    - path: sub/child
+      dir: false
+      ignored: true
+      description: "'/*' does match deeper entries"
+
+- name: escaped_wildcards_literal
+  description: "\"*\" and \"?\" should be literal, not meta"
+  gitignore: |
+    \*
+    \?
+  cases:
+    - path: "*"
+      dir: false
+      ignored: true
+      description: literal star filename ignored by "\*"
+    - path: "?"
+      dir: false
+      ignored: true
+      description: literal question-mark filename ignored by "\?"
+    - path: star
+      dir: false
+      ignored: false
+      description: regular name unaffected
+
+- name: trailing_space_escaped
+  description: "Backslash should preserve one trailing space (and the backslash itself not present in the pattern)"
+  gitignore: |
+    name\ 
+  cases:
+    - path: "name "
+      dir: false
+      ignored: true
+      description: matches filename with a single trailing space
+    - path: "name"
+      dir: false
+      ignored: false
+      description: no trailing space should not match
+
+- name: brace_no_expansion
+  description: "Braces are literals; no {a,b} expansion"
+  gitignore: |
+    {abc,def}
+  cases:
+    - path: abc
+      dir: false
+      ignored: false
+      description: should NOT match 'abc'
+    - path: "{abc,def}"
+      dir: false
+      ignored: true
+      description: literal braces should match
+
+- name: charclass_first_closing_bracket
+  description: "[]] means a class containing ']'"
+  gitignore: |
+    []]
+  cases:
+    - path: "]"
+      dir: false
+      ignored: true
+    - path: "a"
+      dir: false
+      ignored: false
+
+- name: contents_only_doublestar
+  description: "dir/** matches contents, not the dir itself"
+  gitignore: |
+    dir/**
+  cases:
+    - path: dir
+      dir: true
+      ignored: false
+      description: base dir itself is NOT ignored
+    - path: dir/file
+      dir: false
+      ignored: true
+    - path: dir/sub/file
+      dir: false
+      ignored: true
+
+- name: sandwich_middle_contents_only
+  description: "**/node_modules/** matches contents under any node_modules but not the directory entry"
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: node_modules
+      dir: true
+      ignored: false
+    - path: node_modules/x.js
+      dir: false
+      ignored: true
+    - path: a/node_modules
+      dir: true
+      ignored: false
+    - path: a/node_modules/x.js
+      dir: false
+      ignored: true
+
+- name: parent_exclusion_strict
+  description: "Once parent dir is excluded with 'foo/', negations cannot re-include beneath it"
+  gitignore: |
+    foo/
+    !foo/bar/**
+  cases:
+    - path: foo
+      dir: true
+      ignored: true
+    - path: foo/bar
+      dir: true
+      ignored: true
+      description: cannot re-include because parent 'foo/' is excluded
+    - path: foo/bar/baz.txt
+      dir: false
+      ignored: true
+
+- name: reinclude_when_parent_not_excluded
+  description: "Negations can re-include when only children were excluded"
+  gitignore: |
+    foo/*
+    !foo/bar/
+    !foo/bar/**
+  cases:
+    - path: foo/bar
+      dir: true
+      ignored: false
+    - path: foo/bar/x.txt
+      dir: false
+      ignored: false
+    - path: foo/baz
+      dir: true
+      ignored: true
+
+- name: normalize_path_dotslashes
+  description: "Leading './' and duplicate slashes should not affect matching"
+  gitignore: |
+    a/b
+  cases:
+    - path: "./a//b"
+      dir: false
+      ignored: true
+
+- name: rooted_vs_nonrooted_mixed
+  description: "Patterns with '/' are anchored; without '/' can match basenames"
+  gitignore: |
+    /a/b
+    c/d
+  cases:
+    - path: x/a/b
+      dir: false
+      ignored: false
+      description: "'/a/b' anchored at root only"
+    - path: a/b
+      dir: false
+      ignored: true
+    - path: x/c/d
+      dir: false
+      ignored: false
+      description: "'c/d' is anchored to root (contains '/')"
+    - path: c/d
+      dir: false
+      ignored: true
+
+- name: charclass_vs_dotfiles
+  description: "Class components shouldn't match a leading dot unless class includes dot"
+  gitignore: |
+    [a-z]*
+  cases:
+    - path: ".abc"
+      dir: false
+      ignored: false
+    - path: "abc"
+      dir: false
+      ignored: true

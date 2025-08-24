@@ -34,27 +34,14 @@ import (
 
 // normalizeCandidatePath collapses runs of '/' and cleans dot segments like Git does
 func normalizeCandidatePath(p string) string {
+	// Collapse runs of '/' (Git treats multiple slashes as one for matching).
 	if p == "" {
 		return p
 	}
-	
-	// Special case: preserve leading double slash (POSIX behavior)
-	// Leading "//" has special meaning and should not be normalized to "/"
-	if strings.HasPrefix(p, "//") && !strings.HasPrefix(p, "///") {
-		// Keep the leading "//" but normalize the rest
-		rest := p[2:]
-		for strings.Contains(rest, "//") {
-			rest = strings.ReplaceAll(rest, "//", "/")
-		}
-		p = "//" + rest
-	} else {
-		// Normal case: collapse all runs of '/'
-		for strings.Contains(p, "//") {
-			p = strings.ReplaceAll(p, "//", "/")
-		}
+	for strings.Contains(p, "//") {
+		p = strings.ReplaceAll(p, "//", "/")
 	}
-	
-	// Clean dot segments but keep "." behavior stable
+	// Optional: clean dot segments but keep "." behavior stable
 	if p != "." {
 		p = path.Clean(p)
 	}
@@ -231,12 +218,6 @@ func New(lines []string) *GitIgnore {
 func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	// Special cases
 	if p == "" {
-		return false
-	}
-	
-	// Git quirk: paths starting with "//" are never ignored
-	// Leading double slash has special meaning in POSIX and Git doesn't match them
-	if strings.HasPrefix(p, "//") && !strings.HasPrefix(p, "///") {
 		return false
 	}
 
@@ -428,57 +409,29 @@ func matchGlob(p pattern, targetPath string) bool {
 	// which handles escape sequences for trailing spaces.
 	glob := p.pattern
 
-	// Check if this pattern has no wildcards (literal matching)
-	if !hasUnescapedWildcards(glob) {
-		// Process escapes for literal matching - remove all escape backslashes
-		literal := processLiteralEscapes(glob)
-		return literal == targetPath
-	}
-
-	// Process escape sequences before glob matching
-	originalGlob := glob
-	glob = processPatternEscapes(glob)
-	
 	// Git does not support brace expansion, but doublestar does by default.
 	// We need to escape unescaped braces to prevent expansion.
 	glob = escapeBraces(glob)
 
 	// Normalize first-literal ']' inside character classes to avoid engine differences.
 	glob = escapeFirstClosingBracketInCharClass(glob)
-	
-	// Only apply normalizeMetaEscapes if we haven't explicitly escaped wildcards
-	// Check if the original pattern had escaped wildcards that we want to keep literal
-	hasEscapedWildcards := strings.Contains(originalGlob, "\\*") || strings.Contains(originalGlob, "\\?") || strings.Contains(originalGlob, "\\[")
-	if !hasEscapedWildcards {
-		glob = normalizeMetaEscapes(glob)
+	glob = normalizeMetaEscapes(glob)
+	if !strings.ContainsAny(glob, "*?[") && !strings.Contains(glob, "**") {
+		return glob == targetPath
 	}
-	
 	matched, _ := doublestar.Match(glob, targetPath)
 	return matched
 }
 
 // matchRawGlob applies the same escaping/normalization as matchGlob but takes a raw glob string.
 func matchRawGlob(glob, targetPath string) bool {
-	// Check if this pattern has no wildcards
-	if !hasUnescapedWildcards(glob) {
-		literal := processLiteralEscapes(glob)
-		return literal == targetPath
-	}
-	
-	// Process escape sequences
-	originalGlob := glob
-	glob = processPatternEscapes(glob)
-	
 	// Mimic matchGlob's preprocessing
 	glob = escapeBraces(glob)
 	glob = escapeFirstClosingBracketInCharClass(glob)
-	
-	// Only apply normalizeMetaEscapes if we haven't explicitly escaped wildcards
-	hasEscapedWildcards := strings.Contains(originalGlob, "\\*") || strings.Contains(originalGlob, "\\?") || strings.Contains(originalGlob, "\\[")
-	if !hasEscapedWildcards {
-		glob = normalizeMetaEscapes(glob)
+	glob = normalizeMetaEscapes(glob)
+	if !strings.ContainsAny(glob, "*?[") && !strings.Contains(glob, "**") {
+		return glob == targetPath
 	}
-	
 	matched, _ := doublestar.Match(glob, targetPath)
 	return matched
 }
@@ -687,201 +640,52 @@ func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
 	return false
 }
 
-// hasUnescapedWildcards checks if pattern has unescaped wildcards
-func hasUnescapedWildcards(pattern string) bool {
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' && i+1 < len(pattern) {
-			// Skip escaped character
-			i++
-			continue
-		}
-		// Check for unescaped wildcards
-		if pattern[i] == '*' || pattern[i] == '?' || pattern[i] == '[' {
-			return true
-		}
-	}
-	return false
-}
-
-// processLiteralEscapes removes escape backslashes for literal string comparison
-func processLiteralEscapes(pattern string) string {
-	if pattern == "" {
-		return pattern
-	}
-	
-	var result strings.Builder
-	result.Grow(len(pattern))
-	
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' && i+1 < len(pattern) {
-			next := pattern[i+1]
-			switch next {
-			case '*', '?', '[', ']', '#', '{', '}', '!', '\\':
-				// Remove escape backslash, keep the character
-				result.WriteByte(next)
-				i++ // Skip the next character
-			default:
-				// Keep backslash for other cases
-				result.WriteByte(pattern[i])
-			}
-		} else {
-			result.WriteByte(pattern[i])
-		}
-	}
-	
-	return result.String()
-}
-
-// processPatternEscapes handles escape sequences in patterns for matching
-func processPatternEscapes(pattern string) string {
-	if pattern == "" {
-		return pattern
-	}
-	
-	var result strings.Builder
-	result.Grow(len(pattern) + 10) // Extra space for potential escaping
-	
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' && i+1 < len(pattern) {
-			next := pattern[i+1]
-			switch next {
-			case '*', '?', '[', ']':
-				// These wildcards need special handling to be treated literally
-				// We'll use a different approach - keep them escaped for doublestar
-				result.WriteByte('\\')
-				result.WriteByte(next)
-				i++ // Skip the next character
-			case '#', '{', '}', '!':
-				// These are escaped special chars - remove backslash for literal matching
-				result.WriteByte(next)
-				i++ // Skip the next character
-			case '\\':
-				// Double backslash - check what follows the second backslash
-				if i+2 < len(pattern) && (pattern[i+2] == '*' || pattern[i+2] == '?' || pattern[i+2] == '[') {
-					// This is \\* or \\? or \\[ - don't modify, let doublestar handle
-					result.WriteByte('\\')
-					result.WriteByte('\\')
-					i++ // Skip the second backslash, wildcard will be processed next
-				} else {
-					// Regular double backslash becomes single
-					result.WriteByte('\\')
-					i++
-				}
-			default:
-				// Keep backslash for other cases
-				result.WriteByte(pattern[i])
-			}
-		} else {
-			result.WriteByte(pattern[i])
-		}
-	}
-	
-	return result.String()
-}
-
-
 // trimTrailingSpaces removes all unescaped trailing spaces from a gitignore pattern
 // while preserving escaped trailing spaces according to Git's specification.
 //
 // Git treats trailing spaces specially: they are normally trimmed from patterns,
 // but can be preserved by escaping with a backslash. The escape handling follows
 // these rules:
-//   - Each "\\ " sequence is an escaped space - backslash removed, space kept
-//   - Multiple escaped spaces can appear in sequence
-//   - Unescaped trailing spaces are removed
-//   - Internal escaped spaces also have backslash removed
+//   - Odd number of backslashes before a space: space is escaped and kept
+//   - Even number of backslashes before a space: space is not escaped and removed
+//   - The escape backslash itself is removed when preserving an escaped space
 //
 // Examples:
 //
-//	"file   " -> "file"              (unescaped trailing spaces removed)
-//	"file\\ " -> "file "             (escaped space kept, backslash removed)
-//	"file\\ \\ " -> "file  "         (two escaped spaces kept)
-//	"my\\ file" -> "my file"         (internal escaped space)
-//	"test\\\\ " -> "test\\\\"        (escaped backslash then unescaped space - space removed)
-//	"test\\\\\\ " -> "test\\\\ "     (escaped backslash then escaped space - space kept)
+//	"file   " -> "file"           (unescaped trailing spaces removed)
+//	"file\\ " -> "file "          (escaped trailing space kept, escape removed)
+//	"file\\\\ " -> "file\\\\"     (unescaped space after escaped backslash)
+//	"file\\\\\\ " -> "file\\\\ "  (escaped space after escaped backslash)
 //
 // This precise behavior matches Git's exact implementation for gitignore pattern processing.
 func trimTrailingSpaces(str string) string {
 	if str == "" {
 		return str
 	}
-	
-	// Process the string, handling escaped spaces
-	result := []byte{}
-	i := 0
-	input := []byte(str)
-	
-	for i < len(input) {
-		if i < len(input)-1 && input[i] == '\\' && input[i+1] == ' ' {
-			// Found an escaped space - keep the space, skip the backslash
-			result = append(result, ' ')
-			i += 2
-		} else if i < len(input)-1 && input[i] == '\\' && input[i+1] == '\\' {
-			// Escaped backslash - keep both
-			result = append(result, '\\', '\\')
-			i += 2
-		} else {
-			result = append(result, input[i])
-			i++
-		}
+
+	i := len(str) - 1
+	for i >= 0 && str[i] == ' ' {
+		i--
 	}
-	
-	// Now trim any unescaped trailing spaces
-	for len(result) > 0 && result[len(result)-1] == ' ' {
-		// Check if the last character before this is the result of escaped space processing
-		// which means we shouldn't trim it. But since we already processed escapes,
-		// any remaining spaces at the end are unescaped and should be trimmed.
-		
-		// However, we need to be careful: if we have "test\\ \\ " it becomes "test  "
-		// and both spaces should be kept. The issue is that after processing,
-		// we can't tell which spaces came from escapes.
-		
-		// Let's restart with a different approach
-		break
+	// no trailing spaces
+	if i == len(str)-1 {
+		return str
 	}
-	
-	// Actually, let's use a different strategy
-	// First trim unescaped trailing spaces from the original
-	str = string(input)
-	for len(str) > 0 && str[len(str)-1] == ' ' {
-		// Check if this space is escaped by looking at preceding backslashes
-		if len(str) >= 2 && str[len(str)-2] == '\\' {
-			// Count backslashes before the space
-			bs := 0
-			j := len(str) - 2
-			for j >= 0 && str[j] == '\\' {
-				bs++
-				j--
-			}
-			// If odd number of backslashes, the space is escaped
-			if bs%2 == 1 {
-				break
-			}
-		}
-		str = str[:len(str)-1]
+	// count backslashes immediately before the first trailing space
+	j := i
+	bs := 0
+	for j >= 0 && str[j] == '\\' {
+		bs++
+		j--
 	}
-	
-	// Now process escape sequences
-	result = []byte{}
-	i = 0
-	input = []byte(str)
-	
-	for i < len(input) {
-		if i < len(input)-1 && input[i] == '\\' && input[i+1] == ' ' {
-			// Escaped space - remove backslash, keep space
-			result = append(result, ' ')
-			i += 2
-		} else if i < len(input)-1 && input[i] == '\\' && input[i+1] == '\\' {
-			// Escaped backslash - keep both for now, will be processed later in matching
-			result = append(result, '\\', '\\')
-			i += 2
-		} else {
-			result = append(result, input[i])
-			i++
-		}
+	// if bs is odd -> keep ONE trailing space and KEEP the backslash
+	// if bs is even -> trim all trailing spaces
+	if bs%2 == 1 {
+		// slice through all chars up to the last non-space (i), which includes the run
+		// of backslashes, then add exactly one space
+		return str[:i+1] + " "
 	}
-	
-	return string(result)
+	return str[:i+1]
 }
 
 // parsePattern parses a single line from a gitignore file into a pattern struct.
@@ -1062,28 +866,16 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 		return matchGlob(pat, filePath)
 	}
 
-	// Special case: * pattern should match a single path component.
+	// Special case: * pattern should match a single path component (including dotfiles).
 	// If it's rooted (/*), it should only match at root level.
 	if pat.pattern == "*" {
 		if pat.rooted {
 			// /* should only match top-level entries
-			if strings.Contains(filePath, "/") {
-				return false // Not at top level
-			}
-			// In Git, * does not match files starting with . (dotfiles)
-			if strings.HasPrefix(filePath, ".") {
-				return false
-			}
-			matched, _ := doublestar.Match("*", filePath)
-			return matched
+			return !strings.Contains(filePath, "/")
 		}
-		// Unrooted * matches a single component at any depth
+		// Unrooted * matches a single component at any depth (including ".")
 		basename := path.Base(filePath)
-		if basename == "" {
-			return false
-		}
-		matched, _ := doublestar.Match("*", basename)
-		return matched
+		return basename != ""
 	}
 
 	if pat.rooted {
@@ -1189,23 +981,11 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 	if pat.pattern == "*" {
 		if pat.rooted {
 			// "/*" excludes top-level directories it matches
-			if strings.Contains(dirPath, "/") {
-				return false // Not at top level
-			}
-			// In Git, * does not match directories starting with . (dotdirs)
-			if strings.HasPrefix(dirPath, ".") {
-				return false
-			}
-			matched, _ := doublestar.Match("*", dirPath)
-			return matched
+			return !strings.Contains(dirPath, "/")
 		}
 		// "*" can exclude directories by matching their basename
 		basename := path.Base(dirPath)
-		if basename == "" {
-			return false
-		}
-		matched, _ := doublestar.Match("*", basename)
-		return matched
+		return matchGlob(pat, basename)
 	}
 
 	if strings.Contains(pat.pattern, "**") {
