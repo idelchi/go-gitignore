@@ -96,6 +96,10 @@ tasks:
       - task: go:quality
       - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=60s
 
+  benchmark: go test -bench . -benchmem
+
+  tests: yq 'length' tests/*.yml | awk '{s+=$1} END {print s}'
+
   all:
     desc: run all available tasks
     deps:

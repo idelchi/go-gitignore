@@ -19,21 +19,21 @@ func TestGitIgnoreManual(t *testing.T) {
 	tcs := []testCase{
 		// Basic wildcard patterns
 		{
-			name:         "simple_wildcard_match",
+			name:         "simple wildcard match",
 			gitignore:    "*.log",
 			path:         "debug.log",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "simple_wildcard_no_match",
+			name:         "simple wildcard no match",
 			gitignore:    "*.log",
 			path:         "debug.txt",
 			isDir:        false,
 			shouldIgnore: false,
 		},
 		{
-			name:         "nested_wildcard_match",
+			name:         "nested wildcard match",
 			gitignore:    "*.log",
 			path:         "logs/app/debug.log",
 			isDir:        false,
@@ -42,21 +42,21 @@ func TestGitIgnoreManual(t *testing.T) {
 
 		// Directory patterns
 		{
-			name:         "directory_pattern_file",
+			name:         "directory pattern file",
 			gitignore:    "build/",
 			path:         "build",
 			isDir:        false,
 			shouldIgnore: false,
 		},
 		{
-			name:         "directory_pattern_dir",
+			name:         "directory pattern dir",
 			gitignore:    "build/",
 			path:         "build",
 			isDir:        true,
 			shouldIgnore: true,
 		},
 		{
-			name:         "directory_pattern_nested",
+			name:         "directory pattern nested",
 			gitignore:    "build/",
 			path:         "src/build",
 			isDir:        true,
@@ -65,21 +65,21 @@ func TestGitIgnoreManual(t *testing.T) {
 
 		// Negation patterns
 		{
-			name:         "negation_basic",
+			name:         "negation basic",
 			gitignore:    "*.log\n!important.log",
 			path:         "important.log",
 			isDir:        false,
 			shouldIgnore: false,
 		},
 		{
-			name:         "negation_other_file",
+			name:         "negation other file",
 			gitignore:    "*.log\n!important.log",
 			path:         "debug.log",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "negation_parent_excluded",
+			name:         "negation parent excluded",
 			gitignore:    "logs/\n!logs/important.log",
 			path:         "logs/important.log",
 			isDir:        false,
@@ -88,21 +88,21 @@ func TestGitIgnoreManual(t *testing.T) {
 
 		// Rooted patterns
 		{
-			name:         "rooted_pattern_root",
+			name:         "rooted pattern root",
 			gitignore:    "/config",
 			path:         "config",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "rooted_pattern_nested",
+			name:         "rooted pattern nested",
 			gitignore:    "/config",
 			path:         "src/config",
 			isDir:        false,
 			shouldIgnore: false,
 		},
 		{
-			name:         "rooted_directory",
+			name:         "rooted directory",
 			gitignore:    "/tmp/",
 			path:         "tmp",
 			isDir:        true,
@@ -111,28 +111,28 @@ func TestGitIgnoreManual(t *testing.T) {
 
 		// Double star patterns
 		{
-			name:         "double_star_prefix",
+			name:         "double star prefix",
 			gitignore:    "**/cache",
 			path:         "src/app/cache",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "double_star_middle",
+			name:         "double star middle",
 			gitignore:    "src/**/test.txt",
 			path:         "src/a/b/c/test.txt",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "double_star_suffix",
+			name:         "double star suffix",
 			gitignore:    "vendor/**",
 			path:         "vendor/package/lib.go",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "double_star_suffix_base",
+			name:         "double star suffix base",
 			gitignore:    "vendor/**",
 			path:         "vendor",
 			isDir:        true,
@@ -141,28 +141,28 @@ func TestGitIgnoreManual(t *testing.T) {
 
 		// Complex patterns
 		{
-			name:         "node_modules_sandwich",
+			name:         "node modules sandwich",
 			gitignore:    "**/node_modules/**",
 			path:         "project/node_modules/package/index.js",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "node_modules_sandwich_dir_itself",
+			name:         "node modules sandwich dir itself",
 			gitignore:    "**/node_modules/**",
 			path:         "project/node_modules",
 			isDir:        true,
 			shouldIgnore: false, // Directory itself not matched by sandwich pattern
 		},
 		{
-			name:         "multiple_patterns",
+			name:         "multiple patterns",
 			gitignore:    "*.tmp\n*.cache\nbuild/\n!build/keep.txt\nnode_modules/",
 			path:         "src/file.tmp",
 			isDir:        false,
 			shouldIgnore: true,
 		},
 		{
-			name:         "escaped_special_char",
+			name:         "escaped special characters",
 			gitignore:    "\\#README\\#",
 			path:         "#README#",
 			isDir:        false,
@@ -188,14 +188,14 @@ func TestGitIgnoreManual(t *testing.T) {
 }
 
 func TestGitIgnoreEdgeCases(t *testing.T) {
-	t.Run("empty_gitignore", func(t *testing.T) {
+	t.Run("empty gitignore", func(t *testing.T) {
 		gi := gitignore.New([]string{})
 		if gi.Ignored("anyfile.txt", false) {
 			t.Error("Empty gitignore should not ignore any files")
 		}
 	})
 
-	t.Run("comment_lines", func(t *testing.T) {
+	t.Run("comment lines", func(t *testing.T) {
 		gi := gitignore.New([]string{
 			"# This is a comment",
 			"*.log",
@@ -211,7 +211,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("trailing_spaces", func(t *testing.T) {
+	t.Run("trailing spaces", func(t *testing.T) {
 		// Test with escaped trailing space
 		gi := gitignore.New([]string{"file\\ "})
 		if !gi.Ignored("file ", false) {
@@ -222,7 +222,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("dot_files", func(t *testing.T) {
+	t.Run("dot files", func(t *testing.T) {
 		gi := gitignore.New([]string{".*"})
 		if !gi.Ignored(".gitignore", false) {
 			t.Error("Should ignore dot files")
@@ -232,7 +232,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		}
 	})
 
-	t.Run("character_classes", func(t *testing.T) {
+	t.Run("character classes", func(t *testing.T) {
 		gi := gitignore.New([]string{"test[0-9].txt"})
 		if !gi.Ignored("test5.txt", false) {
 			t.Error("Should match test5.txt")

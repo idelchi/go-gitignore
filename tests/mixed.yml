@@ -840,7 +840,7 @@
       description: 'file under matched dir inherits ignore'
       ignored: true
 
-- name: double-sandwich node_modules descendants
+- name: double sandwich node modules descendants
   description: '**/node_modules/** ignores contents, not the directory entry'
   gitignore: |
     **/node_modules/**
@@ -860,7 +860,7 @@
       description: 'descendant under subdir base matched'
       ignored: true
 
-- name: double-sandwich node_modules entries
+- name: double sandwich node modules entries
   description: '**/node_modules/ matches directory entries at any depth'
   gitignore: |
     **/node_modules/

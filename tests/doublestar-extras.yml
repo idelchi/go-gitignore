@@ -21,7 +21,7 @@
       description: 'Files remain ignored unless unignored separately'
       ignored: true
 
-- name: double-sandwich node_modules
+- name: double sandwich node modules
   description: '/**/node_modules/** matches node_modules at any depth'
   gitignore: |
     /**/node_modules/**

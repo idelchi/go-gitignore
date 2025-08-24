@@ -1,4 +1,4 @@
-- name: allowlist_directories_then_some_files
+- name: allowlist directories then some files
   description: "Ensure '!**/' re-exposes directories and later negations can re-include files"
   gitignore: |
     *
@@ -26,7 +26,7 @@
       description: "nested non-allowed still ignored"
       ignored: true
 
-- name: contents_only_vs_directory_entry
+- name: contents only vs directory entry
   description: "'x/**' matches only contents under x, not the x directory entry itself"
   gitignore: |
     x/**
@@ -46,7 +46,7 @@
       description: "outside x not matched"
       ignored: false
 
-- name: dir_descendants_only_double_star_trailing_slash
+- name: directory descendants only double star trailing slash
   description: "'abc/**/' matches directories strictly under abc, not abc itself, and never matches files"
   gitignore: |
     abc/**/
@@ -70,7 +70,7 @@
       description: "files inside matched dir ignored via parent exclusion"
       ignored: true
 
-- name: bare_any_directory_positive_and_negative
+- name: bare any directory positive and negative
   description: "'**' followed by '!**/' does NOT re-expose directories as a general recipe"
   gitignore: |
     **
@@ -88,7 +88,7 @@
       description: "files ignored"
       ignored: true
 
-- name: bare_any_directory_positive_full_ignore
+- name: bare any directory positive full ignore
   description: "'**/' used alone to ignore all directory entries at any depth"
   gitignore: |
     **/
@@ -104,7 +104,7 @@
       description: "files not matched directly by '**/'"
       ignored: false
 
-- name: node_modules_sandwich_vs_entry
+- name: node modules sandwich vs entry
   description: "'**/node_modules/**' should ignore contents; entry not matched unless path ends with a slash per argument"
   gitignore: |
     **/node_modules/**
@@ -124,7 +124,7 @@
       description: "nested contents matched"
       ignored: true
 
-- name: node_modules_entry_then_sandwich
+- name: node modules entry then sandwich
   description: "Combine entry ignore and contents ignore explicitly; trailing slash in query path matches the sandwich"
   gitignore: |
     node_modules/
@@ -149,7 +149,7 @@
       description: "nested contents ignored by sandwich"
       ignored: true
 
-- name: class_first_char_closing_bracket
+- name: class first char closing bracket
   description: "Character class with first listed character as ']' must be treated literally; literal '!' should be escaped outside the class"
   gitignore: |
     file[]].txt
@@ -165,7 +165,7 @@
       description: "non-']' variant must not match"
       ignored: false
 
-- name: escaped_wildcards_and_hash_bang
+- name: escaped wildcards and hash bang
   description: "Escaped special characters are literals"
   gitignore: |
     \*.md
@@ -185,7 +185,7 @@
       description: "literal pattern does not match actual glob"
       ignored: false
 
-- name: question_mark_never_crosses_slash
+- name: question mark never crosses slash
   description: "'?' is single-character wildcard, never crosses '/'"
   gitignore: |
     a?c
@@ -200,7 +200,7 @@
       description: "'?' cannot cross slash"
       ignored: false
 
-- name: single_star_never_crosses_slash
+- name: single star never crosses slash
   description: "'*' matches zero or more chars within a segment; never crosses '/'"
   gitignore: |
     a*c
@@ -215,7 +215,7 @@
       description: "cannot cross '/'"
       ignored: false
 
-- name: rooted_patterns_only_at_root
+- name: rooted patterns only at root
   description: "Patterns with leading slash anchor at repository root"
   gitignore: |
     /hello.txt
@@ -236,7 +236,7 @@
       description: "rooted dir not matched deeper"
       ignored: false
 
-- name: mixed_ordering_specificity
+- name: mixed ordering specificity
   description: "Later patterns override earlier ones when matched"
   gitignore: |
     *.log
@@ -259,7 +259,7 @@
       description: "still ignored due to parent exclusion and '*.log'"
       ignored: true
 
-- name: parent_exclusion_cannot_reinclude_file
+- name: parent exclusion cannot reinclude file
   description: "Once a directory is excluded, files under it cannot be re-included via negation alone"
   gitignore: |
     dist/
@@ -273,7 +273,7 @@
       description: "directory itself is excluded"
       ignored: true
 
-- name: reinclude_directory_then_files
+- name: reinclude directory then files
   description: "Re-include a directory entry, then allowlist some files under it"
   gitignore: |
     dist/
@@ -291,7 +291,7 @@
       description: "no ignore rule now; not ignored"
       ignored: false
 
-- name: dotfiles_are_matched_by_star
+- name: dotfiles are matched by star
   description: "'*' in .gitignore matches dotfiles too"
   gitignore: |
     *
@@ -309,7 +309,7 @@
       description: "directories re-included"
       ignored: false
 
-- name: trailing_spaces_trimmed_unless_escaped
+- name: trailing spaces trimmed unless escaped
   description: "Handle trailing spaces and escaped trailing spaces per Git behavior"
   gitignore: |
     pattern    
@@ -325,7 +325,7 @@
       description: "single space not matched"
       ignored: false
 
-- name: brace_characters_literal
+- name: brace characters literal
   description: "Git treats '{' and '}' literally; no brace expansion"
   gitignore: |
     {foo,bar}
@@ -345,7 +345,7 @@
       description: "escaped braces literal"
       ignored: true
 
-- name: slash_star_root_only
+- name: slash star root only
   description: "'/*' matches only top-level entries (but causes parent exclusion)"
   gitignore: |
     /*
@@ -361,7 +361,7 @@
       description: "top-level file re-included"
       ignored: false
 
-- name: complex_mixture_with_rooted_and_unrooted
+- name: complex mixture with rooted and unrooted
   description: "Rooted/unrooted, dir-only, contents-only, and negations combined"
   gitignore: |
     /*
@@ -388,7 +388,7 @@
       description: "top-level header allowed"
       ignored: false
 
-- name: complex_negation_with_rooting
+- name: complex negation with rooting
   description: "Interplay of '/*' with negations on directories and files"
   gitignore: |
     /*
@@ -415,7 +415,7 @@
       description: "top-level file re-included"
       ignored: false
 
-- name: bracket_ranges_and_literals
+- name: bracket ranges and literals
   description: "Literal '[]' sequence versus class of bracket characters"
   gitignore: |
     file[a-c].txt
@@ -431,7 +431,7 @@
       description: "literal '[]' sequence"
       ignored: true
 
-- name: repeated_negations_order_sensitivity
+- name: repeated negations order sensitivity
   description: "Later negations can re-include if parent is visible"
   gitignore: |
     logs/
@@ -450,7 +450,7 @@
       description: "re-included by '!logs/**/*.md' because parent is visible"
       ignored: false
 
-- name: star_does_match_dotfiles_in_basename
+- name: star does match dotfiles in basename
   description: "'*.rc' requires a literal '.rc' suffix; does not match '.bashrc'"
   gitignore: |
     *.rc
@@ -465,7 +465,7 @@
       description: "not matched"
       ignored: false
 
-- name: overlapping_star_and_double_star
+- name: overlapping star and double star
   description: "Ensure '*' and '**' semantics do not cross slashes incorrectly"
   gitignore: |
     data/*/tmp
@@ -485,7 +485,7 @@
       description: "directory entry not matched by trailing '/**'"
       ignored: false
 
-- name: reinclude_specific_file_under_reexposed_dir
+- name: reinclude specific file under reexposed dir
   description: "Re-expose dirs with '!**/' and add one file allowlist"
   gitignore: |
     *
@@ -503,7 +503,7 @@
       description: "other file still ignored"
       ignored: true
 
-- name: overlapping_negations_multiple_levels
+- name: overlapping negations multiple levels
   description: "Nested directories with mixed negations and allowlists; parent exclusion can still win"
   gitignore: |
     *
@@ -528,7 +528,7 @@
       description: "attempt to re-include; parent exclusion keeps it ignored"
       ignored: true
 
-- name: precise_root_only_star
+- name: precise root only star
   description: "Combine '/*' and '!**/' to ensure directories visible; files under them not auto-ignored"
   gitignore: |
     /*
@@ -545,7 +545,7 @@
       description: "top-level file still ignored by '/*'"
       ignored: true
 
-- name: literal_spaces_in_pattern_end
+- name: literal spaces in pattern end
   description: "Match a filename that ends with two spaces using escaped spaces"
   gitignore: |
     file\ \ 
@@ -557,7 +557,7 @@
       description: "only one space; not matched"
       ignored: false
 
-- name: deep_negation_under_reexposed
+- name: deep negation under reexposed
   description: "Re-expose dirs, then ignore only 'tmp/**' but allow 'tmp/.keep'"
   gitignore: |
     *
@@ -576,7 +576,7 @@
       description: "specific file re-included (parent visible)"
       ignored: false
 
-- name: root_and_any_depth_mix
+- name: root and any depth mix
   description: "Rooted disallow for 'build/**' and allow top-level CHANGELOG plus any LICENSE anywhere"
   gitignore: |
     /build/**
@@ -597,7 +597,7 @@
       description: "allowed anywhere"
       ignored: false
 
-- name: tricky_class_with_caret_and_bang
+- name: tricky class with caret and bang
   description: "Both '^' and '!' as class negators are recognized; only one acts as negator"
   gitignore: |
     name[!0-9].txt
@@ -616,7 +616,7 @@
       description: "letter; not matched"
       ignored: false
 
-- name: end_to_end_project_shape
+- name: end to end project shape
   description: "A mini project layout with common ignore recipes"
   gitignore: |
     *
@@ -651,7 +651,7 @@
 # Stress Test Cases for GitIgnore Implementation
 # Format: Each test group follows the YAML structure from the existing test suite
 
-- name: complex_sandwich_patterns
+- name: complex sandwich patterns
   description: Test sandwich patterns with complex middle parts
   gitignore: |
     **/foo/bar/**
@@ -680,7 +680,7 @@
       description: "sandwich with wildcard pattern in middle"
       ignored: true
 
-- name: multiple_double_stars
+- name: multiple double stars
   description: Test patterns with multiple ** segments
   gitignore: |
     **/**/foo
@@ -701,7 +701,7 @@
       description: "double star within component"
       ignored: true
 
-- name: escape_sequence_torture
+- name: escape sequence torture
   description: Complex escape sequences that might break parsing
   gitignore: |
     file\\\\\ 
@@ -736,7 +736,7 @@
       description: "double escaped hash"
       ignored: false
 
-- name: unicode_and_special_chars
+- name: unicode and special chars
   description: Test Unicode and special characters in patterns
   gitignore: |
     文件*
@@ -773,7 +773,7 @@
       description: "literal tab character"
       ignored: true
 
-- name: parent_exclusion_edge_cases
+- name: parent exclusion edge cases
   description: Complex parent exclusion scenarios
   gitignore: |
     a/
@@ -803,7 +803,7 @@
       description: "directory with /** pattern"
       ignored: false
 
-- name: rooted_vs_unrooted_ambiguity
+- name: rooted vs unrooted ambiguity
   description: Patterns that blur the line between rooted and unrooted
   gitignore: |
     /*/foo
@@ -828,7 +828,7 @@
       description: "rooted alternating wildcards"
       ignored: true
 
-- name: character_class_edge_cases
+- name: character class edge cases
   description: Complex character class patterns
   gitignore: |
     file[!]].txt
@@ -858,7 +858,7 @@
       description: "closing bracket starts range"
       ignored: true
 
-- name: wildcard_boundary_cases
+- name: wildcard boundary cases
   description: Test wildcard behavior at component boundaries
   gitignore: |
     a*b/c
@@ -891,7 +891,7 @@
       description: "triple star degenerates to single"
       ignored: true
 
-- name: negation_ordering_complex
+- name: negation ordering complex
   description: Complex negation ordering scenarios
   gitignore: |
     *
@@ -916,7 +916,7 @@
       description: "different overlap"
       ignored: true
 
-- name: directory_vs_file_confusion
+- name: directory vs file confusion
   description: Patterns that might confuse directory and file matching
   gitignore: |
     test
@@ -955,7 +955,7 @@
       description: "directory version"
       ignored: true
 
-- name: contents_only_edge_cases
+- name: contents only edge cases
   description: Test /** suffix patterns in complex scenarios
   gitignore: |
     a/**
@@ -981,7 +981,7 @@
       description: "redundant double contents"
       ignored: true
 
-- name: path_normalization_issues
+- name: path normalization issues
   description: Test path normalization edge cases
   gitignore: |
     foo
@@ -998,7 +998,7 @@
       description: "rooted pattern"
       ignored: true
 
-- name: performance_stress_patterns
+- name: performance stress patterns
   description: Patterns that might cause performance issues
   gitignore: |
     **/**/**/**/**/**/**/**/**/**
@@ -1016,7 +1016,7 @@
       description: "six character classes"
       ignored: true
 
-- name: real_world_complex_patterns
+- name: real world complex patterns
   description: Complex patterns from real projects
   gitignore: |
     !.env.*.local
@@ -1054,7 +1054,7 @@
       description: "specific vendor binary"
       ignored: false
 
-- name: ambiguous_slash_semantics
+- name: ambiguous slash semantics
   description: Test ambiguous uses of slashes
   gitignore: |
     /a/b/
@@ -1080,7 +1080,7 @@
       description: "leading double slash"
       ignored: false
 
-- name: empty_and_invalid_patterns
+- name: empty and invalid patterns
   description: Test handling of invalid or edge case patterns
   gitignore: |
     
@@ -1114,7 +1114,7 @@
       description: "empty character class"
       ignored: true
 
-- name: git_validated_edge_cases
+- name: git validated edge cases
   description: Edge cases validated against Git's actual behavior
   gitignore: |
     build/
@@ -1124,7 +1124,7 @@
       description: "Cannot re-include file when parent dir excluded"
       ignored: true
       
-- name: directory_reopening
+- name: directory reopening
   description: Reopening directories with negation
   gitignore: |
     dist/
@@ -1139,7 +1139,7 @@
       description: "Other files still ignored"
       ignored: true
 
-- name: wildcard_slash_interactions
+- name: wildcard slash interactions
   description: How wildcards interact with slashes
   gitignore: |
     a/*/c
@@ -1159,7 +1159,7 @@
       description: "deeper than pattern - parent exclusion applies"
       ignored: true
 
-- name: parent_exclusion_inheritance
+- name: parent exclusion inheritance
   description: Demonstrate parent exclusion with wildcard patterns
   gitignore: |
     */dir
