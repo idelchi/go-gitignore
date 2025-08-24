@@ -46,7 +46,7 @@ You are only allowed to edit `gitignore.go`.
 
 If you require to create debug files to run, create them in cmd/debug and not in the root.
 
-Strive to always run all tests so that you don't fixate/isolate on a single test case.
+Strive to always run all tests so that you don't fixate/isolate on a single test case. Keep always a holistic view on the task.
 
 You are done only when 100% of the tests are successful.
 
