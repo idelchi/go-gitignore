@@ -1,4 +1,5 @@
-// Package gitignore implements Git-compatible gitignore pattern matching with an aim to reach parity to Git's behavior.
+// Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach parity to Git's
+// behavior.
 // This package provides gitignore logic including pattern parsing with escape sequences,
 // two-pass ignore checking with parent exclusion detection, complex negation rules that match Git's exact behavior,
 // brace escaping to prevent expansion, and cross-platform path handling using forward slashes only.
@@ -142,10 +143,15 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	}
 
 	// Normalize leading "./" only (Git-compatible for check-ignore usage).
-	for strings.HasPrefix(p, "./") {
-		p = strings.TrimPrefix(p, "./")
-		if p == "" {
-			return false
+	// Special case: "./" for directory should become "."
+	if p == "./" && isDir {
+		p = "."
+	} else {
+		for strings.HasPrefix(p, "./") {
+			p = strings.TrimPrefix(p, "./")
+			if p == "" {
+				return false
+			}
 		}
 	}
 
@@ -268,17 +274,22 @@ func matches(pat pattern, p string, isDir bool) bool {
 			if !isDir {
 				return false
 			}
-			base := strings.TrimSuffix(pat.pattern, "/**") // processed pattern for "<base>/**"
-			// If candidate equals base: do NOT match
-			if m, _ := doublestar.Match(base, p); m {
-				return false
+			base := stripTrailingDirDescSuffixes(pat.pattern) // remove all trailing "/**" groups
+
+			// If base is meaningful, do a strict-descendant match; otherwise fall back to original glob.
+			if base != "" && !endsWithDoubleStarSegment(base) {
+				// If candidate equals base: do NOT match
+				if matchRawGlob(base, p) {
+					return false
+				}
+				// A directory strictly below the base should match
+				return matchRawGlob(base+"/**", p)
 			}
-			// A directory strictly below the base should match
-			m, _ := doublestar.Match(base+"/**", p)
-			return m
+			// Degenerate base like "**": rely on the original glob.
+			return matchGlob(pat, p)
 		}
 
-		// Regular dir-only (e.g., "x/"): matches the directory entry (anchored semantics handled by matchGlob)
+		// Regular dir-only (e.g., "x/"): matches the directory entry
 		if isDir {
 			return matchesDirectoryPath(pat, p)
 		}
@@ -306,108 +317,6 @@ func matchesDirectoryPath(pat pattern, dirPath string) bool {
 	return matchGlob(pat, basename)
 }
 
-// matchesFilePattern handles matching for regular patterns (not directory-only).
-// Implements Git's complex rules for rooted vs non-rooted patterns,
-// basename matching, and special handling for wildcard patterns.
-func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
-	// Handle sandwich patterns like **/node_modules/**
-	// These should match contents under node_modules but NOT node_modules itself
-	if pat.formSandwich {
-		// Check if this IS the sandwich middle directory itself
-		if path.Base(filePath) == pat.sandwichMiddle {
-			// Check if this is exactly the middle directory (not something inside it)
-			// by verifying that removing the middle part leaves either empty or a clean parent path
-			if strings.HasSuffix(filePath, pat.sandwichMiddle) {
-				prefix := strings.TrimSuffix(filePath, pat.sandwichMiddle)
-				// If prefix is empty or ends with /, this IS the directory entry itself
-				if prefix == "" || strings.HasSuffix(prefix, "/") {
-					// The directory entry itself should NOT match
-					return false
-				}
-			}
-		}
-		// Otherwise use normal matching for contents
-		return matchGlob(pat, filePath)
-	}
-
-	// Contents-only patterns (<base>/**) should NOT match the base entry itself.
-	if pat.formContentsOnly {
-		base := strings.TrimSuffix(pat.pattern, "/**")
-
-		// The base entry itself (file or directory) should NOT match
-		if filePath == base {
-			return false
-		}
-
-		if isDir {
-			// Directory strictly below the base is matched.
-			if m, _ := doublestar.Match(base+"/**", filePath); m {
-				return true
-			}
-			return false
-		}
-
-		// Files below the base are matched by the pattern as-is.
-		if m, _ := doublestar.Match(pat.pattern, filePath); m {
-			return true
-		}
-		// No basename fallback: contents-only always includes a slash.
-		return false
-	}
-
-	// Special case: * pattern should match a single path component (including dotfiles).
-	// If it's rooted (/*), it should only match at root level.
-	if pat.pattern == "*" {
-		if pat.rooted {
-			// /* should only match top-level entries
-			return !strings.Contains(filePath, "/")
-		}
-		// Unrooted * matches a single component at any depth (including ".")
-		basename := path.Base(filePath)
-		return basename != ""
-	}
-
-	if pat.rooted {
-		// Rooted patterns match only from the repository root
-		return matchGlob(pat, filePath)
-	}
-
-	// Non-rooted patterns can match at any level
-
-	// Try matching the full path
-	if matchGlob(pat, filePath) {
-		return true
-	}
-
-	// For patterns without slash, also try matching just the basename
-	if !strings.Contains(pat.pattern, "/") {
-		basename := path.Base(filePath)
-		if matchGlob(pat, basename) {
-			return true
-		}
-
-		// For directories: also check if any parent directory matches the pattern
-		// For files: Git only matches the file's basename, not parent directory basenames
-		if isDir {
-			parts := strings.Split(filePath, "/")
-			for i := 1; i < len(parts); i++ {
-				parentPath := strings.Join(parts[:i], "/")
-
-				parentBasename := path.Base(parentPath)
-				if matchGlob(pat, parentBasename) {
-					return true
-				}
-			}
-		}
-
-		return false
-	}
-
-	// For patterns with slash, they should be anchored to root (Git behavior)
-	// Only match the full path since non-rooted slash patterns are treated as root-anchored
-	return matchGlob(pat, filePath)
-}
-
 // matchGlob performs Git-compatible glob pattern matching using the doublestar library.
 // Handles brace escaping to prevent unintended expansion since Git treats braces as
 // literal characters rather than expansion syntax.
@@ -428,6 +337,50 @@ func matchGlob(p pattern, targetPath string) bool {
 	matched, _ := doublestar.Match(glob, targetPath)
 
 	return matched
+}
+
+// matchRawGlob applies the same escaping/normalization as matchGlob but takes a raw glob string.
+func matchRawGlob(glob, targetPath string) bool {
+	// Mimic matchGlob's preprocessing
+	glob = escapeBraces(glob)
+	glob = escapeFirstClosingBracketInCharClass(glob)
+	matched, _ := doublestar.Match(glob, targetPath)
+	return matched
+}
+
+// stripTrailingContentsSuffixes removes all trailing "/**" segments (but not "/**/") from a glob.
+// Examples:
+//
+//	"base/**" -> "base"
+//	"base/**/**" -> "base"
+//	"**/**/**" -> "**"
+func stripTrailingContentsSuffixes(glob string) string {
+	for strings.HasSuffix(glob, "/**") && !strings.HasSuffix(glob, "/**/") {
+		glob = strings.TrimSuffix(glob, "/**")
+	}
+	return glob
+}
+
+// stripTrailingDirDescSuffixes removes all trailing "/**/" groups from a directory-only glob form
+// that was converted to the internal representation without trailing '/' (so it ends with "/**").
+// Example: pattern for "a/**/**/" becomes "a/**/**" internally; this strips to "a".
+func stripTrailingDirDescSuffixes(glob string) string {
+	for strings.HasSuffix(glob, "/**") {
+		glob = strings.TrimSuffix(glob, "/**")
+	}
+	return glob
+}
+
+// endsWithDoubleStarSegment reports whether glob's last path segment is exactly "**".
+func endsWithDoubleStarSegment(glob string) bool {
+	if glob == "**" {
+		return true
+	}
+	i := strings.LastIndex(glob, "/")
+	if i == -1 {
+		return glob == "**"
+	}
+	return glob[i+1:] == "**"
 }
 
 // escapeBraces escapes unescaped brace characters to prevent brace expansion.
@@ -581,88 +534,6 @@ func escapeFirstClosingBracketInCharClass(p string) string {
 	return b.String()
 }
 
-// patternExcludesDirectory determines if a pattern explicitly excludes a directory.
-// The parent exclusion rule applies when a pattern matches the directory entry itself.
-// Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo").
-// Patterns ending with "/**" match only the contents under a base and must NOT match the base entry.
-func patternExcludesDirectory(pat pattern, dirPath string) bool {
-	// Handle sandwich patterns specially for directories
-	if pat.formSandwich {
-		// Check if this IS the sandwich middle directory itself
-		if path.Base(dirPath) == pat.sandwichMiddle {
-			// Check if this is exactly the middle directory
-			if strings.HasSuffix(dirPath, pat.sandwichMiddle) {
-				prefix := strings.TrimSuffix(dirPath, pat.sandwichMiddle)
-				// If prefix is empty or ends with /, this IS the directory entry itself
-				if prefix == "" || strings.HasSuffix(prefix, "/") {
-					// The directory entry itself should NOT be excluded by sandwich patterns
-					return false
-				}
-			}
-		}
-		// Check if it's a directory inside the sandwich middle
-		return matchGlob(pat, dirPath)
-	}
-
-	if pat.dirOnly {
-		// Directory-only patterns (ending with /) explicitly exclude directories.
-		// bareAnyDir (**/) excludes any directory (or un-excludes via negation).
-		if pat.formBareAnyDir {
-			return true
-		}
-		// dirDescendants (<base>/**/) excludes directories strictly below base, not the base
-		if pat.formDirDescendants {
-			base := strings.TrimSuffix(pat.pattern, "/**")
-			if m, _ := doublestar.Match(base, dirPath); m {
-				return false
-			}
-			m, _ := doublestar.Match(base+"/**", dirPath)
-			return m
-		}
-		// Regular dir-only matching
-		return matchesDirectoryPath(pat, dirPath)
-	}
-
-	// Non-dirOnly pattern with trailing "/**" is contents-only:
-	// it must NOT exclude the base directory entry itself, but it DOES
-	// exclude directories strictly below the base.
-	if pat.formContentsOnly {
-		base := strings.TrimSuffix(pat.pattern, "/**")
-		if m, _ := doublestar.Match(base, dirPath); m {
-			return false
-		}
-		m, _ := doublestar.Match(base+"/**", dirPath)
-		return m
-	}
-
-	// Patterns that match a directory entry (basename or full path) exclude that directory.
-
-	if pat.pattern == "*" {
-		if pat.rooted {
-			// "/*" excludes top-level directories it matches
-			return !strings.Contains(dirPath, "/")
-		}
-		// "*" can exclude directories by matching their basename
-		basename := path.Base(dirPath)
-		return matchGlob(pat, basename)
-	}
-
-	if strings.Contains(pat.pattern, "**") {
-		// "**" patterns can match directories at any level
-		return matchGlob(pat, dirPath)
-	}
-
-	if strings.Contains(pat.pattern, "/") {
-		// Pattern with slash - matches against the directory path
-		return matchGlob(pat, dirPath)
-	}
-
-	// Pattern without slash - check if it matches directory basename
-	// e.g., "build" pattern excludes directory named "build"
-	basename := path.Base(dirPath)
-	return matchGlob(pat, basename)
-}
-
 // hasExcludedParent checks if any parent directory is excluded.
 // This applies to both files AND directories.
 func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
@@ -679,6 +550,76 @@ func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
 	}
 
 	return false
+}
+
+// trimTrailingSpaces removes all unescaped trailing spaces from a gitignore pattern
+// while preserving escaped trailing spaces according to Git's specification.
+//
+// Git treats trailing spaces specially: they are normally trimmed from patterns,
+// but can be preserved by escaping with a backslash. The escape handling follows
+// these rules:
+//   - Odd number of backslashes before a space: space is escaped and kept
+//   - Even number of backslashes before a space: space is not escaped and removed
+//   - The escape backslash itself is removed when preserving an escaped space
+//
+// Examples:
+//
+//	"file   " -> "file"           (unescaped trailing spaces removed)
+//	"file\\ " -> "file "          (escaped trailing space kept, escape removed)
+//	"file\\\\ " -> "file\\\\"     (unescaped space after escaped backslash)
+//	"file\\\\\\ " -> "file\\\\ "  (escaped space after escaped backslash)
+//
+// This precise behavior matches Git's exact implementation for gitignore pattern processing.
+func trimTrailingSpaces(str string) string {
+	// Git's behavior: trim trailing spaces unless they are escaped
+	// An escaped space is a backslash followed by a space: "\ "
+	// But we need to be careful with multiple backslashes
+	if str == "" {
+		return str
+	}
+
+	// Find where to trim by scanning backwards through trailing spaces
+	trimEnd := len(str)
+	index := len(str) - 1
+
+	// Scan backwards through trailing spaces
+	for index >= 0 && str[index] == ' ' {
+		// Check if this space is escaped
+		if index > 0 && str[index-1] == '\\' {
+			// Count consecutive backslashes before this space
+			backslashCount := 0
+
+			for j := index - 1; j >= 0 && str[j] == '\\'; j-- {
+				backslashCount++
+			}
+			// If odd number of backslashes, the space is escaped
+			if backslashCount%2 == 1 {
+				// This space is escaped, include it and the escape backslash
+				trimEnd = index + 1
+
+				break
+			}
+		}
+
+		index--
+	}
+
+	// If we found trailing spaces (escaped or not)
+	if index < len(str)-1 {
+		trimEnd = index + 1
+	}
+
+	result := str[:trimEnd]
+
+	// Handle escaped trailing spaces by removing the escape backslash
+	// Only remove the backslash right before a trailing space
+	if len(result) > 1 && result[len(result)-1] == ' ' && result[len(result)-2] == '\\' {
+		// Remove the escape backslash before the trailing space
+		result = result[:len(result)-2] + " "
+	}
+
+	// Return the pattern - all other escape sequences are preserved for doublestar
+	return result
 }
 
 // parsePattern parses a single line from a gitignore file into a pattern struct.
@@ -752,13 +693,10 @@ func parsePattern(line string) *pattern {
 			}
 		}
 	} else {
-		// Contents-only: ends with "/**" and the base before it doesn't contain "**"
+		// Contents-only: ANY pattern that ends with "/**" (but not "/**/") should be treated as
+		// "descendants only" (i.e., does not match the base entry itself). This mirrors Git's behavior.
 		if strings.HasSuffix(classifyNoRoot, "/**") && !strings.HasSuffix(classifyNoRoot, "/**/") {
-			base := strings.TrimSuffix(classifyNoRoot, "/**")
-			// Only set formContentsOnly if the base doesn't contain "**"
-			if !strings.Contains(base, "**") {
-				pat.formContentsOnly = true
-			}
+			pat.formContentsOnly = true
 		}
 	}
 
@@ -782,28 +720,30 @@ func parsePattern(line string) *pattern {
 
 	pat.pattern = line
 
-	// Detect sandwich patterns like **/node_modules/**
-	// These match contents under 'node_modules' but NOT 'node_modules' itself
+	// Detect sandwich patterns like **/node_modules/** or **/foo/bar/**
+	// These match contents under 'node_modules' or 'foo/bar' but NOT those directories themselves
 	if !pat.dirOnly && strings.Contains(pat.pattern, "/**") {
-		// Check for patterns like **/middle/** or /**/middle/**
-		if strings.HasPrefix(pat.pattern, "**/") || strings.Contains(pat.pattern, "/**/") {
-			// Find the middle part
-			var startIdx int
-			if strings.HasPrefix(pat.pattern, "**/") {
-				startIdx = 3
-			} else if idx := strings.Index(pat.pattern, "/**/"); idx != -1 {
-				startIdx = idx + 4
+		// Check for patterns like **/middle/** where middle can contain slashes
+		if strings.HasPrefix(pat.pattern, "**/") && strings.HasSuffix(pat.pattern, "/**") {
+			middle := strings.TrimPrefix(pat.pattern, "**/")
+			middle = strings.TrimSuffix(middle, "/**")
+			// Accept only if middle doesn't contain wildcards or double-stars
+			// This excludes patterns like **/foo/**/bar/** or **/node_modules*/**
+			if middle != "" && middle != "*" && middle != "**" &&
+				!strings.Contains(middle, "*") && !strings.Contains(middle, "**") {
+				pat.formSandwich = true
+				pat.sandwichMiddle = middle
 			}
-
-			if startIdx > 0 && startIdx < len(pat.pattern) {
-				remaining := pat.pattern[startIdx:]
-				if strings.HasSuffix(remaining, "/**") {
-					middle := strings.TrimSuffix(remaining, "/**")
-					// Only treat as sandwich if middle is a simple directory name (no slashes)
-					if middle != "" && !strings.Contains(middle, "/") && middle != "*" && middle != "**" {
-						pat.formSandwich = true
-						pat.sandwichMiddle = middle
-					}
+		} else if idx := strings.Index(pat.pattern, "/**/"); idx != -1 {
+			// Rooted sandwich pattern like /a/**/middle/**
+			remaining := pat.pattern[idx+4:]
+			if strings.HasSuffix(remaining, "/**") {
+				middle := strings.TrimSuffix(remaining, "/**")
+				// Accept only if middle doesn't contain wildcards or double-stars
+				if middle != "" && middle != "*" && middle != "**" &&
+					!strings.Contains(middle, "*") && !strings.Contains(middle, "**") {
+					pat.formSandwich = true
+					pat.sandwichMiddle = middle
 				}
 			}
 		}
@@ -812,73 +752,193 @@ func parsePattern(line string) *pattern {
 	return pat
 }
 
-// trimTrailingSpaces removes all unescaped trailing spaces from a gitignore pattern
-// while preserving escaped trailing spaces according to Git's specification.
-//
-// Git treats trailing spaces specially: they are normally trimmed from patterns,
-// but can be preserved by escaping with a backslash. The escape handling follows
-// these rules:
-//   - Odd number of backslashes before a space: space is escaped and kept
-//   - Even number of backslashes before a space: space is not escaped and removed
-//   - The escape backslash itself is removed when preserving an escaped space
-//
-// Examples:
-//
-//	"file   " -> "file"           (unescaped trailing spaces removed)
-//	"file\\ " -> "file "          (escaped trailing space kept, escape removed)
-//	"file\\\\ " -> "file\\\\"     (unescaped space after escaped backslash)
-//	"file\\\\\\ " -> "file\\\\ "  (escaped space after escaped backslash)
-//
-// This precise behavior matches Git's exact implementation for gitignore pattern processing.
-func trimTrailingSpaces(str string) string {
-	// Git's behavior: trim trailing spaces unless they are escaped
-	// An escaped space is a backslash followed by a space: "\ "
-	// But we need to be careful with multiple backslashes
-	if str == "" {
-		return str
+// matchesFilePattern handles matching for regular patterns (not directory-only).
+// Implements Git's complex rules for rooted vs non-rooted patterns,
+// basename matching, and special handling for wildcard patterns.
+func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
+	// Handle sandwich patterns like **/node_modules/** or **/foo/bar/**
+	// These should match contents under the middle part but NOT the middle directory itself
+	if pat.formSandwich {
+		// Check if this path ends with the sandwich middle
+		if strings.HasSuffix(filePath, pat.sandwichMiddle) {
+			// Calculate what comes before the middle part
+			prefix := strings.TrimSuffix(filePath, pat.sandwichMiddle)
+			// If prefix is empty or ends with /, this IS the directory entry itself
+			if prefix == "" || strings.HasSuffix(prefix, "/") {
+				// The directory entry itself should NOT match
+				return false
+			}
+		}
+		// Otherwise use normal matching for contents
+		return matchGlob(pat, filePath)
 	}
 
-	// Find where to trim by scanning backwards through trailing spaces
-	trimEnd := len(str)
-	index := len(str) - 1
+	// Contents-only patterns (<base>/**) should NOT match the base entry itself,
+	// even when multiple trailing "/**" groups are present. We also handle degenerate
+	// cases like "**/**" where the stripped base ends with a "**" segment.
+	if pat.formContentsOnly {
+		base := stripTrailingContentsSuffixes(pat.pattern)
 
-	// Scan backwards through trailing spaces
-	for index >= 0 && str[index] == ' ' {
-		// Check if this space is escaped
-		if index > 0 && str[index-1] == '\\' {
-			// Count consecutive backslashes before this space
-			backslashCount := 0
-
-			for j := index - 1; j >= 0 && str[j] == '\\'; j-- {
-				backslashCount++
-			}
-			// If odd number of backslashes, the space is escaped
-			if backslashCount%2 == 1 {
-				// This space is escaped, include it and the escape backslash
-				// The escape backslash will be removed later
-				trimEnd = index + 1
-
-				break
+		// If we have a meaningful base (doesn't end with an all-wildcard "**" segment),
+		// reject an exact base hit using glob semantics (not plain string equality).
+		if base != "" && !endsWithDoubleStarSegment(base) {
+			if matchRawGlob(base, filePath) {
+				return false
 			}
 		}
 
-		index--
+		if isDir {
+			// Directories strictly below the base should match.
+			// For degenerate bases like "**", just fall back to the original pattern.
+			if base == "" || endsWithDoubleStarSegment(base) {
+				return matchGlob(pat, filePath)
+			}
+			return matchRawGlob(base+"/**", filePath)
+		}
+
+		// Files below the base are matched by the original pattern as-is.
+		return matchGlob(pat, filePath)
 	}
 
-	// If we found trailing spaces (escaped or not)
-	if index < len(str)-1 {
-		trimEnd = index + 1
+	// Special case: * pattern should match a single path component (including dotfiles).
+	// If it's rooted (/*), it should only match at root level.
+	if pat.pattern == "*" {
+		if pat.rooted {
+			// /* should only match top-level entries
+			return !strings.Contains(filePath, "/")
+		}
+		// Unrooted * matches a single component at any depth (including ".")
+		basename := path.Base(filePath)
+		return basename != ""
 	}
 
-	result := str[:trimEnd]
-
-	// Handle escaped trailing spaces by removing the escape backslash
-	// Only remove the backslash right before a trailing space
-	if len(result) > 1 && result[len(result)-1] == ' ' && result[len(result)-2] == '\\' {
-		// Remove the escape backslash before the trailing space
-		result = result[:len(result)-2] + " "
+	if pat.rooted {
+		// Rooted patterns match only from the repository root
+		return matchGlob(pat, filePath)
 	}
 
-	// Return the pattern - all other escape sequences are preserved for doublestar
-	return result
+	// Non-rooted patterns can match at any level
+
+	// Try matching the full path
+	if matchGlob(pat, filePath) {
+		return true
+	}
+
+	// For patterns without slash, also try matching just the basename
+	if !strings.Contains(pat.pattern, "/") {
+		basename := path.Base(filePath)
+		if matchGlob(pat, basename) {
+			return true
+		}
+
+		// For directories: also check if any parent directory matches the pattern
+		// For files: Git only matches the file's basename, not parent directory basenames
+		if isDir {
+			parts := strings.Split(filePath, "/")
+			for i := 1; i < len(parts); i++ {
+				parentPath := strings.Join(parts[:i], "/")
+
+				parentBasename := path.Base(parentPath)
+				if matchGlob(pat, parentBasename) {
+					return true
+				}
+			}
+		}
+
+		return false
+	}
+
+	// For patterns with slash, they should be anchored to root (Git behavior)
+	// Only match the full path since non-rooted slash patterns are treated as root-anchored
+	return matchGlob(pat, filePath)
+}
+
+// patternExcludesDirectory determines if a pattern explicitly excludes a directory.
+// The parent exclusion rule applies when a pattern matches the directory entry itself.
+// Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo").
+// Patterns ending with "/**" match only the contents under a base and must NOT match the base entry.
+func patternExcludesDirectory(pat pattern, dirPath string) bool {
+	// Handle sandwich patterns specially for directories
+	if pat.formSandwich {
+		// Check if this path ends with the sandwich middle
+		if strings.HasSuffix(dirPath, pat.sandwichMiddle) {
+			// Calculate what comes before the middle part
+			prefix := strings.TrimSuffix(dirPath, pat.sandwichMiddle)
+			// If prefix is empty or ends with /, this IS the directory entry itself
+			if prefix == "" || strings.HasSuffix(prefix, "/") {
+				// The directory entry itself should NOT be excluded by sandwich patterns
+				return false
+			}
+		}
+		// Check if it's a directory inside the sandwich middle
+		return matchGlob(pat, dirPath)
+	}
+
+	if pat.dirOnly {
+		// Directory-only patterns (ending with /) explicitly exclude directories.
+		// bareAnyDir (**/) excludes any directory (or un-excludes via negation).
+		if pat.formBareAnyDir {
+			return true
+		}
+		// dirDescendants (<base>/**/) excludes directories strictly below base, not the base
+		if pat.formDirDescendants {
+			base := stripTrailingDirDescSuffixes(pat.pattern)
+			// If base is meaningful, do a strict-descendant check; otherwise fallback.
+			if base != "" && !endsWithDoubleStarSegment(base) {
+				// If candidate equals base: do NOT match
+				if matchRawGlob(base, dirPath) {
+					return false
+				}
+				// A directory strictly below the base should match
+				return matchRawGlob(base+"/**", dirPath)
+			}
+			// Degenerate base like "**": rely on original glob.
+			return matchGlob(pat, dirPath)
+		}
+		// Regular dir-only matching
+		return matchesDirectoryPath(pat, dirPath)
+	}
+
+	// Non-dirOnly pattern with trailing "/**" is contents-only:
+	// it must NOT exclude the base directory entry itself, but it DOES
+	// exclude directories strictly below the base. Handle multiple trailing groups
+	// and degenerate bases like "**".
+	if pat.formContentsOnly {
+		base := stripTrailingContentsSuffixes(pat.pattern)
+		if base != "" && !endsWithDoubleStarSegment(base) {
+			if matchRawGlob(base, dirPath) {
+				return false
+			}
+			return matchRawGlob(base+"/**", dirPath)
+		}
+		// Degenerate base (e.g., "**"): rely on original glob semantics
+		return matchGlob(pat, dirPath)
+	}
+
+	// Patterns that match a directory entry (basename or full path) exclude that directory.
+
+	if pat.pattern == "*" {
+		if pat.rooted {
+			// "/*" excludes top-level directories it matches
+			return !strings.Contains(dirPath, "/")
+		}
+		// "*" can exclude directories by matching their basename
+		basename := path.Base(dirPath)
+		return matchGlob(pat, basename)
+	}
+
+	if strings.Contains(pat.pattern, "**") {
+		// "**" patterns can match directories at any level
+		return matchGlob(pat, dirPath)
+	}
+
+	if strings.Contains(pat.pattern, "/") {
+		// Pattern with slash - matches against the directory path
+		return matchGlob(pat, dirPath)
+	}
+
+	// Pattern without slash - check if it matches directory basename
+	// e.g., "build" pattern excludes directory named "build"
+	basename := path.Base(dirPath)
+	return matchGlob(pat, basename)
 }

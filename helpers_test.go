@@ -1,9 +1,3 @@
-// Package gitignore_test provides test utilities and data structures for comprehensive
-// gitignore pattern testing.
-//
-// This file contains helper functions and type definitions that support the YAML-driven
-// test framework. The structures defined here correspond to the YAML test file format
-// and provide parsing, filtering, and utility functions.
 package gitignore_test
 
 import (

@@ -94,6 +94,7 @@ tasks:
       - generate
     cmds:
       - task: go:quality
+      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=60s
 
   all:
     desc: run all available tasks
