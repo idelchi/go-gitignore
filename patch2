@@ -1,0 +1,56 @@
+--- a/gitignore.go
++++ b/gitignore.go
+@@
+ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
+@@
+-    if pat.rooted {
+-        // Rooted patterns match only from the repository root
+-        return matchGlob(pat, filePath)
+-    }
+-
+-    // Non-rooted patterns can match at any level
+-
+-    // Try matching the full path
+-    if matchGlob(pat, filePath) {
+-        return true
+-    }
+-
+-    // For patterns without slash, also try matching just the basename
+-    if !strings.Contains(pat.pattern, "/") {
++    if pat.rooted {
++        // Rooted patterns match only from the repository root
++        return matchGlob(pat, filePath)
++    }
++
++    // Non-rooted patterns:
++    // If the pattern contains NO '/', it must not cross a directory boundary.
++    if !strings.Contains(pat.pattern, "/") {
++        // Only compare against basenames
+         basename := path.Base(filePath)
+         if matchGlob(pat, basename) {
+             return true
+         }
+
+         // For directories: also check if any parent directory matches the pattern
+         // For files: Git only matches the file's basename, not parent directory basenames
+         if isDir {
+             parts := strings.Split(filePath, "/")
+             for i := 1; i < len(parts); i++ {
+                 parentPath := strings.Join(parts[:i], "/")
+
+                 parentBasename := path.Base(parentPath)
+                 if matchGlob(pat, parentBasename) {
+                     return true
+                 }
+             }
+         }
+
+         return false
+     }
+
+-    // For patterns with slash, they should be anchored to root (Git behavior)
+-    // Only match the full path since non-rooted slash patterns are treated as root-anchored
++    // Pattern contains '/', treat as anchored to the ignore file directory (root here)
++    // Only match the full path since such patterns are path-anchored in Git semantics.
+     return matchGlob(pat, filePath)
+ }

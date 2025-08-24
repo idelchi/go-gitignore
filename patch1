@@ -1,0 +1,38 @@
+--- a/gitignore.go
++++ b/gitignore.go
+@@
+ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
+     // Special cases
+     if p == "" {
+         return false
+     }
+
+     // Normalize leading "./" only (Git-compatible for check-ignore usage).
+     // Special case: "./" for directory should become "."
+     if p == "./" && isDir {
+         p = "."
+     } else {
+         for strings.HasPrefix(p, "./") {
+             p = strings.TrimPrefix(p, "./")
+             if p == "" {
+                 return false
+             }
+         }
+     }
++
++    // NEW: normalize redundant separators and dot segments like Git does.
++    // Use POSIX 'path' (not filepath) to keep '/' semantics cross-platform.
++    p = strings.ReplaceAll(p, "\\", "/")
++    // collapse repeated slashes
++    for strings.Contains(p, "//") {
++        p = strings.ReplaceAll(p, "//", "/")
++    }
++    // clean dot segments (but avoid converting empty to ".")
++    if p != "" {
++        cleaned := path.Clean(p)
++        if cleaned != "." || p == "." {
++            p = cleaned
++        }
++    }
+@@
+     excludedDirs := g.findExcludedParentDirectories(p)
