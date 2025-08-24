@@ -283,7 +283,7 @@
     !logs/
   cases:
     - path: "logs/app.log"
-      description: 'still ignored because child files not re-included'
+      description: 'file inside directory is visible after negating directory-only pattern'
       ignored: false
     - path: "logs"
       description: 'dir entry visible'
