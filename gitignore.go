@@ -115,7 +115,7 @@ func parsePattern(line string) *pattern {
 		return nil
 	}
 
-	p := &pattern{
+	pat := &pattern{
 		original: line,
 	}
 
@@ -127,7 +127,7 @@ func parsePattern(line string) *pattern {
 		line = line[1:] // Remove the backslash, keep the #
 	case strings.HasPrefix(line, "!"):
 		// Negation pattern
-		p.negated = true
+		pat.negated = true
 		line = line[1:]
 	}
 
@@ -141,13 +141,13 @@ func parsePattern(line string) *pattern {
 
 	// Check if pattern matches directories only (trailing /)
 	if strings.HasSuffix(line, "/") {
-		p.dirOnly = true
+		pat.dirOnly = true
 		line = strings.TrimSuffix(line, "/")
 	}
 
 	// Check if pattern is rooted (starts with /)
 	if strings.HasPrefix(line, "/") {
-		p.rooted = true
+		pat.rooted = true
 		line = strings.TrimPrefix(line, "/")
 	}
 
@@ -157,9 +157,9 @@ func parsePattern(line string) *pattern {
 		return nil
 	}
 
-	p.pattern = line
+	pat.pattern = line
 
-	return p
+	return pat
 }
 
 // trimTrailingSpaces removes all unescaped trailing spaces from a gitignore pattern
@@ -233,16 +233,6 @@ func trimTrailingSpaces(str string) string {
 	return result
 }
 
-// stripDotSlash removes a leading "./" prefix (possibly repeated) from a path.
-// Git's check-ignore effectively normalizes "./x" to "x" for matching purposes,
-// but the literal "." path is still a legitimate subject when explicitly given.
-func stripDotSlash(p string) string {
-	for strings.HasPrefix(p, "./") {
-		p = p[2:]
-	}
-	return p
-}
-
 // Ignored determines whether a path should be ignored according to the gitignore patterns.
 // This method implements Git's complex two-pass algorithm with precise parent exclusion rules.
 //
@@ -262,7 +252,7 @@ func stripDotSlash(p string) string {
 // Parameters:
 //
 //	path: The file or directory path to check (should use forward slashes)
-//	Dir: True if the path represents a directory, false for files
+//	isDir: True if the path represents a directory, false for files
 //
 // Returns true if the path should be ignored, false otherwise.
 //
@@ -278,10 +268,20 @@ func stripDotSlash(p string) string {
 //	gi.Ignored("build/file.txt", false)  // true (parent excluded)
 //	gi.Ignored("app.log", false)         // true
 //	gi.Ignored("important.log", false)   // false (negated)
-func (g *GitIgnore) Ignored(pth string, isDir bool) bool {
-	// Special case: empty path
-	if pth == "" {
+func (g *GitIgnore) Ignored(p string, isDir bool) bool {
+	// Special cases
+	if p == "" {
 		return false
+	}
+
+	// Normalize leading "./" to match Git's check-ignore behavior.
+	// This is the only normalization we perform; everything else is treated literally.
+	for strings.HasPrefix(p, "./") {
+		p = strings.TrimPrefix(p, "./")
+		// If we trimmed everything, nothing to match
+		if p == "" {
+			return false
+		}
 	}
 
 	// No patterns means nothing is ignored
@@ -289,22 +289,19 @@ func (g *GitIgnore) Ignored(pth string, isDir bool) bool {
 		return false
 	}
 
-	// Normalize leading "./" for matching (Git behavior)
-	normalized := stripDotSlash(pth)
-
 	ignored := false
 
-	// Track which directories are permanently excluded.
-	// Once a directory is excluded, its contents can NEVER be re-included.
-	excludedDirs := g.findExcludedParentDirectories(normalized)
+	// Track which directories are permanently excluded
+	// Once a directory is excluded, its contents can NEVER be re-included
+	excludedDirs := g.findExcludedParentDirectories(p)
 
 	// Check if any parent directory is excluded (implements parent exclusion rule)
-	parentExcluded := g.hasExcludedParent(normalized, excludedDirs)
+	parentExcluded := g.hasExcludedParent(p, excludedDirs)
 
 	// Second pass: apply patterns to the target path
-	for _, p := range g.patterns {
-		if matches(p, normalized, isDir) {
-			if p.negated {
+	for _, pat := range g.patterns {
+		if matches(pat, p, isDir) {
+			if pat.negated {
 				// Git rule: cannot re-include file if parent directory is excluded
 				if !parentExcluded {
 					ignored = false
@@ -326,14 +323,14 @@ func (g *GitIgnore) Ignored(pth string, isDir bool) bool {
 
 // IgnoredStat behaves like Ignored but checks whether the path leads to a directory.
 // Will fall back to "not dir" in case of errors.
-func (g *GitIgnore) IgnoredStat(pth string) bool {
+func (g *GitIgnore) IgnoredStat(p string) bool {
 	isDir := false
 
-	if info, err := os.Stat(pth); err == nil {
+	if info, err := os.Stat(p); err == nil {
 		isDir = info.IsDir()
 	}
 
-	return g.Ignored(pth, isDir)
+	return g.Ignored(p, isDir)
 }
 
 // Patterns returns the original pattern strings after parsing.
@@ -352,141 +349,74 @@ func (g *GitIgnore) Patterns() []string {
 
 // matches determines if a pattern matches a given path, handling both directory-only
 // and regular patterns according to Git's matching rules.
-func matches(p pattern, pth string, isDir bool) bool {
+func matches(pat pattern, p string, isDir bool) bool {
 	// Special handling for directory-only patterns
-	if p.dirOnly {
-		// Directory patterns can match:
-		// 1. The directory itself
-		// 2. Files inside the directory
-		return matchesDirectoryPattern(p, pth, isDir)
+	if pat.dirOnly {
+		// CRITICAL: directory-only patterns (those ending with "/") match *only* directories.
+		// They do not directly match files; files become ignored because their parent
+		// directory is excluded by pass 1 (parent exclusion).
+		// This mirrors Git's behavior precisely and avoids false matches such as:
+		//   "logs/" followed by "!logs/" should leave "logs/app.log" NOT ignored.
+		if isDir {
+			// Match the directory itself (and only the directory)
+			return matchesDirectoryPath(pat, p)
+		}
+		return false
 	}
 
 	// Regular patterns
-	return matchesFilePattern(p, pth, isDir)
-}
-
-// matchesDirectoryPattern handles matching for directory-only patterns (ending with /).
-// These patterns have special semantics for positive vs negative patterns:
-//   - Positive patterns match the directory and files inside it
-//   - Negative patterns have complex rules for re-inclusion
-func matchesDirectoryPattern(p pattern, pth string, isDir bool) bool {
-	// Directory patterns work differently for positive and negative patterns:
-	// - Positive patterns (build/) match the directory AND files inside it
-	// - Negative patterns have special cases:
-	//   - Wildcard patterns like !*/ or !**/ only match directories
-	//   - !build/ un-ignores the directory entry. It does not directly re-include child files;
-	//     re-inclusion of files requires additional negations (e.g. !*.txt or !build/file.txt)
-	if isDir {
-		// Check if this directory matches the pattern directly
-		if matchesDirectoryPath(p, pth) {
-			return true
-		}
-
-		// For positive patterns, also check if directory is inside a matching directory
-		if !p.negated {
-			if matchesParentDirectory(p, pth) {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	// For files:
-	if p.negated {
-		// Negated directory patterns (!build/) should NEVER match files.
-		return false
-	}
-
-	// For positive directory patterns, check if file is inside a matching directory
-	return matchesParentDirectory(p, pth)
-}
-
-// matchesParentDirectory checks if a pattern matches any parent directory of a given path.
-func matchesParentDirectory(p pattern, pth string) bool {
-	parts := strings.Split(pth, "/")
-	for i := 1; i < len(parts); i++ {
-		parentPath := strings.Join(parts[:i], "/")
-		if matchesDirectoryPath(p, parentPath) {
-			return true
-		}
-	}
-
-	return false
+	return matchesFilePattern(pat, p, isDir)
 }
 
 // matchesDirectoryPath checks if a directory path matches a pattern.
 // Handles both rooted patterns (anchored to repository root) and
 // non-rooted patterns that can match at any directory level.
-func matchesDirectoryPath(p pattern, dirPath string) bool {
-	// Respect the special semantics of patterns ending in "/**" (original "…/**/"):
-	// such patterns should NOT match the base directory itself; they target directories
-	// *beneath* the base. Example: "abc/**/" must not match "abc" but must match "abc/x".
-	if p.dirOnly && strings.HasSuffix(p.pattern, "/**") {
-		baseGlob := strings.TrimSuffix(p.pattern, "/**")
-		if baseGlob != "" {
-			if matchGlob(pattern{pattern: baseGlob, rooted: p.rooted}, dirPath) {
-				return false
-			}
-		}
-	}
-
+func matchesDirectoryPath(pat pattern, dirPath string) bool {
 	// In our "single root .gitignore" world, any pattern containing a slash
 	// is anchored to the repository root (Git behavior)
-	if p.rooted || strings.Contains(p.pattern, "/") {
+	if pat.rooted || strings.Contains(pat.pattern, "/") {
 		// Match against the full directory path
-		return matchGlob(p, dirPath)
+		return matchGlob(pat, dirPath)
 	}
 
 	// Patterns without slash can match at any directory level
 	// Compare against the basename only
 	basename := path.Base(dirPath)
-	return matchGlob(p, basename)
+	return matchGlob(pat, basename)
 }
 
 // matchesFilePattern handles matching for regular patterns (not directory-only).
 // Implements Git's complex rules for rooted vs non-rooted patterns,
 // basename matching, and special handling for wildcard patterns.
-func matchesFilePattern(p pattern, filePath string, isDir bool) bool {
-	// If the pattern ends with "/**" and the target is a directory,
-	// it should NOT match the directory entry itself; only its descendants.
-	// E.g., "**/node_modules/**" matches "a/node_modules/x" but not "a/node_modules".
-	if isDir && strings.HasSuffix(p.pattern, "/**") {
-		baseGlob := strings.TrimSuffix(p.pattern, "/**")
-		// If the base (without the trailing /**) matches the directory exactly, do not match.
-		if matchGlob(pattern{pattern: baseGlob, rooted: p.rooted}, filePath) {
-			return false
-		}
-	}
-
+func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 	// Special case: * pattern should match a single path component (including dotfiles)
 	// If it's rooted (/*), it should only match at root level.
-	if p.pattern == "*" {
-		if p.rooted {
+	if pat.pattern == "*" {
+		if pat.rooted {
 			// /* should only match top-level entries
 			return !strings.Contains(filePath, "/")
 		}
-		// Unrooted * matches a single component at any depth (including ".")
+		// Unrooted * matches a single component at any depth (including "." entries)
 		basename := path.Base(filePath)
 		return basename != ""
 	}
 
-	if p.rooted {
+	if pat.rooted {
 		// Rooted patterns match only from the repository root
-		return matchGlob(p, filePath)
+		return matchGlob(pat, filePath)
 	}
 
 	// Non-rooted patterns can match at any level
 
 	// Try matching the full path
-	if matchGlob(p, filePath) {
+	if matchGlob(pat, filePath) {
 		return true
 	}
 
 	// For patterns without slash, also try matching just the basename
-	if !strings.Contains(p.pattern, "/") {
+	if !strings.Contains(pat.pattern, "/") {
 		basename := path.Base(filePath)
-		if matchGlob(p, basename) {
+		if matchGlob(pat, basename) {
 			return true
 		}
 
@@ -498,7 +428,7 @@ func matchesFilePattern(p pattern, filePath string, isDir bool) bool {
 				parentPath := strings.Join(parts[:i], "/")
 
 				parentBasename := path.Base(parentPath)
-				if matchGlob(p, parentBasename) {
+				if matchGlob(pat, parentBasename) {
 					return true
 				}
 			}
@@ -509,7 +439,7 @@ func matchesFilePattern(p pattern, filePath string, isDir bool) bool {
 
 	// For patterns with slash, they should be anchored to root (Git behavior)
 	// Only match the full path since non-rooted slash patterns are treated as root-anchored
-	return matchGlob(p, filePath)
+	return matchGlob(pat, filePath)
 }
 
 // matchGlob performs Git-compatible glob pattern matching using the doublestar library.
@@ -523,6 +453,12 @@ func matchGlob(p pattern, targetPath string) bool {
 	// Git does not support brace expansion, but doublestar does by default.
 	// We need to escape unescaped braces to prevent expansion.
 	glob = escapeBraces(glob)
+
+	// Some glob engines (including versions/configs of doublestar) can have trouble
+	// with character classes that include a literal ']' as the first listed character.
+	// Git allows this via "[]]" (or "[!]]"/"[^]]" with a negator). Normalize those to
+	// explicit escapes so matching behavior is consistent with Git.
+	glob = escapeFirstClosingBracketInCharClass(glob)
 
 	// Use doublestar for glob matching - it handles both escaped and unescaped chars
 	// Ignore error since malformed patterns should not match (Git behavior)
@@ -540,50 +476,149 @@ func matchGlob(p pattern, targetPath string) bool {
 // should not be escaped, and counts preceding backslashes to determine if
 // a brace is already escaped.
 //
-//nolint:gocognit		// Complexity is acceptable.
-func escapeBraces(pattern string) string {
-	if pattern == "" {
-		return pattern
+//nolint:gocognit // Complexity is acceptable.
+func escapeBraces(p string) string {
+	if p == "" {
+		return p
 	}
 
-	// Pre-allocate result slice with extra capacity for potential escape characters
-	const extraCapacityForEscapes = 10
+	const extra = 10
+	result := make([]byte, 0, len(p)+extra)
 
-	result := make([]byte, 0, len(pattern)+extraCapacityForEscapes)
 	inCharClass := false
+	charClassAtStart := false // true until we see the first "listed" char; '!' or '^' don't count
 
-	for index, char := range []byte(pattern) {
-		// Track character class boundaries
-		switch char {
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+
+		switch c {
 		case '[':
-			if index == 0 || pattern[index-1] != '\\' {
+			// Only start a char class if this '[' is not escaped
+			if i == 0 || p[i-1] != '\\' {
 				inCharClass = true
+				charClassAtStart = true
 			}
 		case ']':
-			if (index == 0 || pattern[index-1] != '\\') && inCharClass {
-				inCharClass = false
+			if (i == 0 || p[i-1] != '\\') && inCharClass {
+				// If ']' appears as the first listed character (right after '[' or after a leading '!'/'^'),
+				// it is a literal and should NOT end the class.
+				if charClassAtStart {
+					// treat as literal; remain in the class
+					// nothing special to record here; just don't flip inCharClass
+				} else {
+					inCharClass = false
+				}
 			}
 		case '{', '}':
 			// Only escape braces outside of character classes
 			if !inCharClass {
 				// Check if this brace is already escaped by counting preceding backslashes
 				backslashCount := 0
-
-				for j := index - 1; j >= 0 && pattern[j] == '\\'; j-- {
+				for j := i - 1; j >= 0 && p[j] == '\\'; j-- {
 					backslashCount++
 				}
 				// If even number of backslashes (including 0), the brace is not escaped
 				if backslashCount%2 == 0 {
-					// Add escape before the brace
 					result = append(result, '\\')
 				}
 			}
 		}
 
-		result = append(result, char)
+		// Once we're inside a class, after we append the first "listed" char,
+		// we are no longer at the start (a leading '!' or '^' do not count).
+		if inCharClass && charClassAtStart {
+			// Peek the char we're about to append in order to decide whether it counts.
+			switch c {
+			case '[':
+				// nothing; already handled above
+			case '!', '^':
+				// still at start; '!' and '^' don't count as first listed char
+			default:
+				// any other character (including ']') counts as the first listed char
+				charClassAtStart = false
+			}
+		}
+
+		result = append(result, c)
 	}
 
 	return string(result)
+}
+
+// escapeFirstClosingBracketInCharClass ensures that a ']' used as the first *listed* character
+// inside a character class is escaped (e.g., "[]]" -> "[\\]]", "[!]]" -> "[!\\]]", "[^]]" -> "[^\\]]").
+// This is only a normalization to make downstream globbing behavior consistent with Git across engines.
+func escapeFirstClosingBracketInCharClass(p string) string {
+	if p == "" {
+		return p
+	}
+
+	var b strings.Builder
+	b.Grow(len(p) + 8)
+
+	inClass := false
+	atStart := false // start of "listed" chars; ignores a leading '!' or '^'
+	escaped := false
+
+	for i := 0; i < len(p); i++ {
+		c := p[i]
+
+		if !inClass {
+			if c == '[' && !escaped {
+				inClass = true
+				atStart = true
+				escaped = false
+				b.WriteByte(c)
+				continue
+			}
+			if c == '\\' && !escaped {
+				escaped = true
+			} else {
+				escaped = false
+			}
+			b.WriteByte(c)
+			continue
+		}
+
+		// inClass == true
+		if atStart {
+			// Skip initial negator from counting
+			if (c == '!' || c == '^') && !escaped {
+				b.WriteByte(c)
+				escaped = false
+				continue
+			}
+			// First *listed* character
+			if c == ']' && !escaped {
+				// make it literal
+				b.WriteByte('\\')
+				b.WriteByte(']')
+			} else {
+				b.WriteByte(c)
+			}
+			atStart = false
+			escaped = (c == '\\') && !escaped
+			continue
+		}
+
+		// Normal inside-class handling
+		if c == '\\' && !escaped {
+			escaped = true
+			b.WriteByte(c)
+			continue
+		}
+		escaped = false
+
+		if c == ']' {
+			inClass = false
+			b.WriteByte(c)
+			continue
+		}
+
+		b.WriteByte(c)
+	}
+
+	return b.String()
 }
 
 // findExcludedParentDirectories identifies which parent directories are permanently excluded.
@@ -591,20 +626,12 @@ func escapeBraces(pattern string) string {
 func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]bool {
 	excludedDirs := make(map[string]bool)
 
-	// Normalize for parent detection (skip leading "./")
-	targetPath = stripDotSlash(targetPath)
-
 	// Build list of all parent paths to check
 	parts := strings.Split(targetPath, "/")
 
 	pathsToCheck := make([]string, 0, len(parts))
 	for i := 1; i <= len(parts); i++ {
-		pp := strings.Join(parts[:i], "/")
-		if pp == "." {
-			// Do not consider "." as an excludable parent for non-dot subjects.
-			continue
-		}
-		pathsToCheck = append(pathsToCheck, pp)
+		pathsToCheck = append(pathsToCheck, strings.Join(parts[:i], "/"))
 	}
 
 	// First pass: determine which directories are excluded
@@ -618,8 +645,9 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 
 			// Check if this pattern EXPLICITLY excludes the directory itself.
 			// Any pattern that matches a directory entry (with or without a trailing '/')
-			// excludes that directory. However, patterns ending in "/**" do NOT match
-			// the base directory itself, only its descendants.
+			// excludes that directory. This includes patterns like "foo/*" which match
+			// "foo/bar" when "bar" is a directory, thereby excluding "foo/bar" and
+			// everything beneath it.
 			if dirMatches := g.patternExcludesDirectory(pat, checkPath); dirMatches {
 				if pat.negated {
 					// Allow explicit directory negation to clear exclusion
@@ -637,29 +665,14 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 
 // patternExcludesDirectory determines if a pattern explicitly excludes a directory.
 // The parent exclusion rule applies when a pattern matches the directory entry itself.
-// Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo") if they
-// match that directory name; patterns ending with "/**" do NOT exclude the base directory.
+// Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo").
 func (g *GitIgnore) patternExcludesDirectory(pat pattern, dirPath string) bool {
 	if pat.dirOnly {
-		// Directory-only patterns (ending with /) explicitly exclude directories,
-		// but "…/**/" must not match the base directory itself (handled in matchesDirectoryPath).
+		// Directory-only patterns (ending with /) explicitly exclude directories
 		return matchesDirectoryPath(pat, dirPath)
 	}
 
-	// If a non-dirOnly pattern ends with "/**", it should not match the base directory itself.
-	// Example: "**/node_modules/**" must not match "a/node_modules" but may match "a/node_modules/x".
-	if strings.HasSuffix(pat.pattern, "/**") {
-		baseGlob := strings.TrimSuffix(pat.pattern, "/**")
-		// If the base matches the directory exactly, do not treat as exclusion.
-		if matchGlob(pattern{pattern: baseGlob, rooted: pat.rooted}, dirPath) {
-			return false
-		}
-		// Otherwise, allow matching deeper directories under the base.
-		if matchGlob(pat, dirPath) {
-			return true
-		}
-		return false
-	}
+	// Patterns that match a directory entry (basename or full path) exclude that directory.
 
 	if pat.pattern == "*" {
 		if pat.rooted {
@@ -698,10 +711,6 @@ func (g *GitIgnore) hasExcludedParent(targetPath string, excludedDirs map[string
 
 	for pathIdx := 1; pathIdx < len(parts); pathIdx++ {
 		parentPath := strings.Join(parts[:pathIdx], "/")
-		if parentPath == "." {
-			// Do not consider "." as an excluded parent for normalized paths.
-			continue
-		}
 		if excludedDirs[parentPath] {
 			return true
 		}
