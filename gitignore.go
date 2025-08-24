@@ -274,11 +274,9 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 		return false
 	}
 
-	// Normalize leading "./" to match Git's check-ignore behavior.
-	// This is the only normalization we perform; everything else is treated literally.
+	// Normalize leading "./" only (Git-compatible for check-ignore usage).
 	for strings.HasPrefix(p, "./") {
 		p = strings.TrimPrefix(p, "./")
-		// If we trimmed everything, nothing to match
 		if p == "" {
 			return false
 		}
@@ -350,15 +348,9 @@ func (g *GitIgnore) Patterns() []string {
 // matches determines if a pattern matches a given path, handling both directory-only
 // and regular patterns according to Git's matching rules.
 func matches(pat pattern, p string, isDir bool) bool {
-	// Special handling for directory-only patterns
+	// Directory-only patterns match directories ONLY (not files).
 	if pat.dirOnly {
-		// CRITICAL: directory-only patterns (those ending with "/") match *only* directories.
-		// They do not directly match files; files become ignored because their parent
-		// directory is excluded by pass 1 (parent exclusion).
-		// This mirrors Git's behavior precisely and avoids false matches such as:
-		//   "logs/" followed by "!logs/" should leave "logs/app.log" NOT ignored.
 		if isDir {
-			// Match the directory itself (and only the directory)
 			return matchesDirectoryPath(pat, p)
 		}
 		return false
@@ -372,15 +364,34 @@ func matches(pat pattern, p string, isDir bool) bool {
 // Handles both rooted patterns (anchored to repository root) and
 // non-rooted patterns that can match at any directory level.
 func matchesDirectoryPath(pat pattern, dirPath string) bool {
+	// Special case: dir-only pattern that ends with "**/" (original form).
+	// It should match directories strictly under the base, not the base itself.
+	// Example: "abc/**/" matches "abc/x" and "abc/x/y", but NOT "abc".
+	if pat.dirOnly && strings.HasSuffix(strings.TrimSuffix(pat.original, " "), "**/") {
+		// The processed pattern will be ".../**" (we trimmed the final "/").
+		baseGlob := strings.TrimSuffix(pat.pattern, "/**")
+
+		// If baseGlob is empty, "**/" -> matches any directory.
+		if baseGlob == "" {
+			return true
+		}
+
+		// If the candidate is exactly the base, do not match.
+		if m, _ := doublestar.Match(baseGlob, dirPath); m {
+			return false
+		}
+		// Otherwise match any directory below the base.
+		m, _ := doublestar.Match(baseGlob+"/**", dirPath)
+		return m
+	}
+
 	// In our "single root .gitignore" world, any pattern containing a slash
-	// is anchored to the repository root (Git behavior)
+	// is anchored to the repository root (Git behavior).
 	if pat.rooted || strings.Contains(pat.pattern, "/") {
-		// Match against the full directory path
 		return matchGlob(pat, dirPath)
 	}
 
-	// Patterns without slash can match at any directory level
-	// Compare against the basename only
+	// Patterns without slash can match at any directory level (basename).
 	basename := path.Base(dirPath)
 	return matchGlob(pat, basename)
 }
@@ -389,14 +400,46 @@ func matchesDirectoryPath(pat pattern, dirPath string) bool {
 // Implements Git's complex rules for rooted vs non-rooted patterns,
 // basename matching, and special handling for wildcard patterns.
 func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
-	// Special case: * pattern should match a single path component (including dotfiles)
+	// Special handling for patterns that end with "/**" (contents-only form).
+	// These should NOT match the base directory entry itself. They match
+	// files and directories strictly *under* the base.
+	if strings.HasSuffix(pat.pattern, "/**") {
+		baseGlob := strings.TrimSuffix(pat.pattern, "/**")
+
+		if isDir {
+			// If the directory equals the base, do not match.
+			if m, _ := doublestar.Match(baseGlob, filePath); m {
+				return false
+			}
+			// Directory strictly below the base is matched.
+			if m, _ := doublestar.Match(baseGlob+"/**", filePath); m {
+				return true
+			}
+			return false
+		}
+
+		// Files below the base are matched by the original pattern.
+		if m, _ := doublestar.Match(pat.pattern, filePath); m {
+			return true
+		}
+		// Also allow basename matching when the pattern has no slash.
+		if !strings.Contains(pat.pattern, "/") {
+			basename := path.Base(filePath)
+			if m, _ := doublestar.Match(pat.pattern, basename); m {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Special case: * pattern should match a single path component (including dotfiles).
 	// If it's rooted (/*), it should only match at root level.
 	if pat.pattern == "*" {
 		if pat.rooted {
 			// /* should only match top-level entries
 			return !strings.Contains(filePath, "/")
 		}
-		// Unrooted * matches a single component at any depth (including "." entries)
+		// Unrooted * matches a single component at any depth (including ".")
 		basename := path.Base(filePath)
 		return basename != ""
 	}
@@ -406,7 +449,7 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 		return matchGlob(pat, filePath)
 	}
 
-	// Non-rooted patterns can match at any level
+	// Non-rooted patterns can match at any level.
 
 	// Try matching the full path
 	if matchGlob(pat, filePath) {
@@ -426,7 +469,6 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 			parts := strings.Split(filePath, "/")
 			for i := 1; i < len(parts); i++ {
 				parentPath := strings.Join(parts[:i], "/")
-
 				parentBasename := path.Base(parentPath)
 				if matchGlob(pat, parentBasename) {
 					return true
@@ -454,10 +496,7 @@ func matchGlob(p pattern, targetPath string) bool {
 	// We need to escape unescaped braces to prevent expansion.
 	glob = escapeBraces(glob)
 
-	// Some glob engines (including versions/configs of doublestar) can have trouble
-	// with character classes that include a literal ']' as the first listed character.
-	// Git allows this via "[]]" (or "[!]]"/"[^]]" with a negator). Normalize those to
-	// explicit escapes so matching behavior is consistent with Git.
+	// Normalize first-literal ']' inside character classes to avoid engine differences.
 	glob = escapeFirstClosingBracketInCharClass(glob)
 
 	// Use doublestar for glob matching - it handles both escaped and unescaped chars
@@ -503,8 +542,7 @@ func escapeBraces(p string) string {
 				// If ']' appears as the first listed character (right after '[' or after a leading '!'/'^'),
 				// it is a literal and should NOT end the class.
 				if charClassAtStart {
-					// treat as literal; remain in the class
-					// nothing special to record here; just don't flip inCharClass
+					// remain in the class
 				} else {
 					inCharClass = false
 				}
@@ -527,14 +565,12 @@ func escapeBraces(p string) string {
 		// Once we're inside a class, after we append the first "listed" char,
 		// we are no longer at the start (a leading '!' or '^' do not count).
 		if inCharClass && charClassAtStart {
-			// Peek the char we're about to append in order to decide whether it counts.
 			switch c {
-			case '[':
-				// nothing; already handled above
 			case '!', '^':
-				// still at start; '!' and '^' don't count as first listed char
+				// still at start
+			case '[':
+				// already handled
 			default:
-				// any other character (including ']') counts as the first listed char
 				charClassAtStart = false
 			}
 		}
@@ -666,10 +702,39 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 // patternExcludesDirectory determines if a pattern explicitly excludes a directory.
 // The parent exclusion rule applies when a pattern matches the directory entry itself.
 // Patterns like "foo/*" DO exclude "foo/bar" (a direct child directory of "foo").
+// Patterns ending with "/**" match only the contents under a base and must NOT match the base entry.
 func (g *GitIgnore) patternExcludesDirectory(pat pattern, dirPath string) bool {
 	if pat.dirOnly {
-		// Directory-only patterns (ending with /) explicitly exclude directories
+		// Directory-only patterns (ending with /) explicitly exclude directories.
+		// Special handling for "**/" form (match directories strictly below base).
+		if strings.HasSuffix(strings.TrimSuffix(pat.original, " "), "**/") {
+			baseGlob := strings.TrimSuffix(pat.pattern, "/**")
+			if baseGlob == "" {
+				// "**/" — any directory at any depth is excluded
+				return true
+			}
+			// Do not exclude the base itself; exclude directories below it.
+			if m, _ := doublestar.Match(baseGlob, dirPath); m {
+				return false
+			}
+			m, _ := doublestar.Match(baseGlob+"/**", dirPath)
+			return m
+		}
 		return matchesDirectoryPath(pat, dirPath)
+	}
+
+	// Non-dirOnly pattern with trailing "/**" is contents-only:
+	// it must NOT exclude the base directory entry itself, but it DOES
+	// exclude directories strictly below the base.
+	if strings.HasSuffix(pat.pattern, "/**") {
+		baseGlob := strings.TrimSuffix(pat.pattern, "/**")
+		// Base entry must not be excluded
+		if m, _ := doublestar.Match(baseGlob, dirPath); m {
+			return false
+		}
+		// A directory strictly below the base should be excluded.
+		m, _ := doublestar.Match(baseGlob+"/**", dirPath)
+		return m
 	}
 
 	// Patterns that match a directory entry (basename or full path) exclude that directory.
@@ -691,7 +756,6 @@ func (g *GitIgnore) patternExcludesDirectory(pat pattern, dirPath string) bool {
 
 	if strings.Contains(pat.pattern, "/") {
 		// Pattern with slash - matches against the directory path
-		// This includes "foo/*" which matches "foo/bar"
 		return matchGlob(pat, dirPath)
 	}
 

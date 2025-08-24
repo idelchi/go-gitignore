@@ -6,7 +6,7 @@
 [![Build Status](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Package **gitignore** provides `.gitignore` pattern matching with close parity to git's behavior.
+Package **go-gitignore** provides `.gitignore` pattern matching with close parity to git's behavior.
 
 Tests are compared to the behavior of `git check-ignore`, and are available in [the tests directory](./tests).
 
@@ -36,16 +36,4 @@ func main() {
 }
 ```
 
-`IgnoredStat` checks itself whether a path is a file or directory.
-
-## Testing
-
-The package includes an extensive test suite verifying behavior across edge cases and Git's own specification:
-
-```bash
-go test ./...
-```
-
-## License
-
-MIT
+Use `IgnoredStat` to have the method itself check whether a path is a file or directory.

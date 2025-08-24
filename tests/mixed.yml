@@ -5,7 +5,7 @@
     .*.log
   cases:
     - path: ".hidden.log"
-      description: 'plain wildcard should not match leading dot'
+      description: 'explicit dot pattern .*.log matches hidden files'
       ignored: true
     - path: "visible.log"
       description: 'normal match works'
@@ -40,7 +40,7 @@
     !build/keep/important.txt
   cases:
     - path: "build/keep/important.txt"
-      description: 'intermediate directory unignored, then leaf re-included'
+      description: 'even with intermediate directory unignored, final wildcard pattern re-ignores this file'
       ignored: true
     - path: "build/keep/other.txt"
       description: 'wildcard re-ignores everything under keep/, except the specifically negated file'
@@ -245,7 +245,7 @@
       description: 'a*c can match zero chars'
       ignored: true
     - path: "ac"
-      description: 'a?c needs one char; ac fails'
+      description: 'a*c pattern matches with zero characters between a and c'
       ignored: true
 
 - name: double-star crosses slashes
@@ -422,7 +422,7 @@
       description: 'ignored by first rule'
       ignored: true
     - path: "logs/docs/guide.md"
-      description: 'explicitly re-included by negation'
+      description: 'still ignored despite negation pattern due to parent directory exclusion'
       ignored: true
     - path: "logs"
       description: 'directory itself ignored by logs/**'
