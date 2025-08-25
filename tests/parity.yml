@@ -1,4 +1,4 @@
-- name: rooted-star-single-component
+- name: rooted star single component
   description: "'/*' matches only top-level entries; excluded top-level dirs make their contents ignored (parent rule)"
   gitignore: |
     /*
@@ -13,7 +13,7 @@
     - path: "a/b/file.txt"
       ignored: true
 
-- name: star-dir-top-level
+- name: star dir top level
   description: "'*/' excludes every top-level directory; anything inside them is ignored via parent exclusion"
   gitignore: |
     */
@@ -29,7 +29,7 @@
     - path: "x/y/file.txt"
       ignored: true
 
-- name: asterisk-never-crosses-slash
+- name: asterisk never crosses slash
   description: "'foo/*' matches immediate children under 'foo'; excluding 'foo/bar' (dir) ignores its contents"
   gitignore: |
     foo/*
@@ -42,7 +42,7 @@
     - path: "x/foo/bar"
       ignored: false
 
-- name: one-level-dir-under-a
+- name: one level dir under a
   description: "'a/*/' matches directories exactly one level below 'a' and ignores anything within them"
   gitignore: |
     a/*/
@@ -59,7 +59,7 @@
       dir: true
       ignored: false
 
-- name: contents-only-with-wild-middle
+- name: contents only with wild middle
   description: "'**/foo*/**' excludes contents under any 'foo*' directory at any depth, but NOT the directories themselves"
   gitignore: |
     **/foo*/**
@@ -80,7 +80,7 @@
     - path: "app/fool/x.txt"
       ignored: true
 
-- name: base-dstar-suffix-not-base
+- name: base dstar suffix not base
   description: "'abc/**' excludes contents under 'abc' but not 'abc' itself"
   gitignore: |
     abc/**
@@ -94,7 +94,7 @@
       dir: true
       ignored: true
 
-- name: multi-dstar-suffix-not-base
+- name: multi dstar suffix not base
   description: "'abc/**/**' must still not match the base 'abc' entry"
   gitignore: |
     abc/**/** 
@@ -107,7 +107,7 @@
     - path: "abc/x/y/z.txt"
       ignored: true
 
-- name: multi-dstar-dir-only-descendants
+- name: multi dstar dir only descendants
   description: "'abc/**/**/' targets directories strictly below 'abc' (not 'abc' itself)"
   gitignore: |
     abc/**/**/
@@ -124,7 +124,7 @@
     - path: "abc/file.txt"
       ignored: false
 
-- name: strict-sandwich-basic
+- name: strict sandwich basic
   description: "'**/node_modules/**' excludes contents but not the 'node_modules' entries themselves"
   gitignore: |
     **/node_modules/**
@@ -140,7 +140,7 @@
     - path: "packages/foo/node_modules/a.txt"
       ignored: true
 
-- name: strict-sandwich-wild-middle
+- name: strict sandwich wild middle
   description: "'**/mid*/**' (wild middle) is still contents-only; directories 'mid*' are not excluded"
   gitignore: |
     **/mid*/**
@@ -156,7 +156,7 @@
     - path: "x/middle/file"
       ignored: true
 
-- name: charclass-first-bracket-literal
+- name: charclass first bracket literal
   description: "In '[]]', the first ']' is a literal; only basenames equal to ']' should match"
   gitignore: |
     []]
@@ -168,7 +168,7 @@
     - path: "x"
       ignored: false
 
-- name: charclass-bang-negation
+- name: charclass bang negation
   description: "'[!]]' matches any single char except ']'"
   gitignore: |
     [!]]
@@ -178,7 +178,7 @@
     - path: "]"
       ignored: false
 
-- name: charclass-caret-negation
+- name: charclass caret negation
   description: "'[^]]' also matches any single char except ']' (caret as negator)"
   gitignore: |
     [^]]
@@ -188,7 +188,7 @@
     - path: "]"
       ignored: false
 
-- name: charclass-caret-negation-in-pattern
+- name: charclass caret negation in pattern
   description: "Caret negation embedded in a larger pattern"
   gitignore: |
     f[^a].md
@@ -200,7 +200,7 @@
     - path: "f/.md"
       ignored: false
 
-- name: charclass-dash-at-ends-literal
+- name: charclass dash at ends literal
   description: "Hyphen at class edges is literal; mixed with negation"
   gitignore: |
     name[-].txt
@@ -213,7 +213,7 @@
     - path: "vala.txt"
       ignored: true
 
-- name: braces-are-literal-not-expansion
+- name: braces are literal not expansion
   description: "Ensure braces are treated literally (no expansion)"
   gitignore: |
     {foo,bar}.txt
@@ -225,7 +225,7 @@
     - path: "bar.txt"
       ignored: false
 
-- name: braces-next-to-class
+- name: braces next to class
   description: "Braces next to a class remain literal"
   gitignore: |
     lib[ab]{x}.js
@@ -237,7 +237,7 @@
     - path: "liba.js"
       ignored: false
 
-- name: double-slash-in-path
+- name: double slash in path
   description: "Path normalization tolerance—'a//b' behaves like 'a/b'; parent exclusion applies"
   gitignore: |
     a/b
@@ -251,7 +251,7 @@
     - path: "a/b/c"
       ignored: true
 
-- name: negate-cannot-rescue-through-excluded-parent
+- name: negate cannot rescue through excluded parent
   description: "A file cannot be re-included if any parent dir is excluded"
   gitignore: |
     build/
@@ -263,7 +263,7 @@
     - path: "build/keep.txt"
       ignored: true
 
-- name: re-include-directory-then-file
+- name: re include directory then file
   description: "If the directory itself is re-included, a deeper file can be rescued"
   gitignore: |
     out/
@@ -278,7 +278,7 @@
     - path: "out/nope.txt"
       ignored: false
 
-- name: escaped-leading-hash-and-bang
+- name: escaped leading hash and bang
   description: "Escaped leading '#' and '!' are literals, not comment/negation"
   gitignore: |
     \#head.txt
@@ -293,7 +293,7 @@
     - path: "bang.txt"
       ignored: false
 
-- name: double-star-leading-behavior
+- name: double star leading behavior
   description: "'**/target' matches 'target' directories at any depth (same as 'target' for a single .gitignore root)"
   gitignore: |
     **/target
@@ -310,7 +310,7 @@
       dir: true
       ignored: false
 
-- name: leading-slash-anchors
+- name: leading slash anchors
   description: "Leading '/' anchors to repo root per spec"
   gitignore: |
     /doc/frotz
@@ -320,7 +320,7 @@
     - path: "a/doc/frotz"
       ignored: false
 
-- name: middle-slash-anchors-too
+- name: middle slash anchors too
   description: "A slash in the pattern anchors to the .gitignore directory (root here)"
   gitignore: |
     doc/frotz/
@@ -332,7 +332,7 @@
       dir: true
       ignored: false
 
-- name: star-basename-anywhere
+- name: star basename anywhere
   description: "'*' without slash matches any single basename at any depth; excluded dirs propagate"
   gitignore: |
     *
@@ -352,7 +352,7 @@
     - path: "a/.hidden"
       ignored: true
 
-- name: bare-double-star-matches-any
+- name: bare double star matches any
   description: "'**' by itself matches everything"
   gitignore: |
     **
@@ -365,7 +365,7 @@
     - path: "a/b/c.txt"
       ignored: true
 
-- name: dir-only-unrooted
+- name: dir only unrooted
   description: "A simple dir-only pattern 'tmp/' excludes any 'tmp' dir at any depth"
   gitignore: |
     tmp/
@@ -380,8 +380,8 @@
       ignored: true
     - path: "a/tmp/file"
       ignored: true
-### 
-- name: dotfiles_vs_star
+
+- name: dotfiles vs star
   description: "'*' must not match leading dots"
   gitignore: |
     *
@@ -399,7 +399,7 @@
       ignored: true
       description: "'*' must match dotfile basenames in subdirs"
 
-- name: rooted_star_vs_dotfiles
+- name: rooted star vs dotfiles
   description: "'/*' only top-level and must not match top-level dotfiles"
   gitignore: |
     /*
@@ -417,7 +417,7 @@
       ignored: true
       description: "'/*' does match deeper entries"
 
-- name: escaped_wildcards_literal
+- name: escaped wildcards literal
   description: "\"*\" and \"?\" should be literal, not meta"
   gitignore: |
     \*
@@ -436,7 +436,7 @@
       ignored: false
       description: regular name unaffected
 
-- name: trailing_space_escaped
+- name: trailing space escaped
   description: "Backslash should preserve one trailing space (and the backslash itself not present in the pattern)"
   gitignore: |
     name\ 
@@ -450,7 +450,7 @@
       ignored: false
       description: no trailing space should not match
 
-- name: brace_no_expansion
+- name: brace no expansion
   description: "Braces are literals; no {a,b} expansion"
   gitignore: |
     {abc,def}
@@ -464,7 +464,7 @@
       ignored: true
       description: literal braces should match
 
-- name: charclass_first_closing_bracket
+- name: charclass first closing bracket
   description: "[]] means a class containing ']'"
   gitignore: |
     []]
@@ -476,7 +476,7 @@
       dir: false
       ignored: false
 
-- name: contents_only_doublestar
+- name: contents only doublestar
   description: "dir/** matches contents, not the dir itself"
   gitignore: |
     dir/**
@@ -492,7 +492,7 @@
       dir: false
       ignored: true
 
-- name: sandwich_middle_contents_only
+- name: sandwich middle contents only
   description: "**/node_modules/** matches contents under any node_modules but not the directory entry"
   gitignore: |
     **/node_modules/**
@@ -510,7 +510,7 @@
       dir: false
       ignored: true
 
-- name: parent_exclusion_strict
+- name: parent exclusion strict
   description: "Once parent dir is excluded with 'foo/', negations cannot re-include beneath it"
   gitignore: |
     foo/
@@ -527,7 +527,7 @@
       dir: false
       ignored: true
 
-- name: reinclude_when_parent_not_excluded
+- name: reinclude when parent not excluded
   description: "Negations can re-include when only children were excluded"
   gitignore: |
     foo/*
@@ -544,7 +544,7 @@
       dir: true
       ignored: true
 
-- name: normalize_path_dotslashes
+- name: normalize path dotslashes
   description: "Leading './' and duplicate slashes should not affect matching"
   gitignore: |
     a/b
@@ -553,7 +553,7 @@
       dir: false
       ignored: true
 
-- name: rooted_vs_nonrooted_mixed
+- name: rooted vs nonrooted mixed
   description: "Patterns with '/' are anchored; without '/' can match basenames"
   gitignore: |
     /a/b
@@ -574,7 +574,7 @@
       dir: false
       ignored: true
 
-- name: charclass_vs_dotfiles
+- name: charclass vs dotfiles
   description: "Class components shouldn't match a leading dot unless class includes dot"
   gitignore: |
     [a-z]*

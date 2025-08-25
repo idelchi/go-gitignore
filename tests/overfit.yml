@@ -1,4 +1,4 @@
-- name: basename_no_spillover_after_reinclude
+- name: basename no spillover after reinclude
   description: A bare-name pattern must not match grandchildren after the directory has been re-included
   gitignore: |
     b
@@ -11,7 +11,7 @@
       dir: true
       ignored: false
 
-- name: basename_with_wildcard_no_spillover
+- name: basename with wildcard no spillover
   description: Wildcarded bare-name must not match grandchildren once parent dir is re-included
   gitignore: |
     b*
@@ -28,7 +28,7 @@
       ignored: true
 
 
-- name: charclass_no_spillover_after_reinclude
+- name: charclass no spillover after reinclude
   description: Charclass bare-name must not match grandchildren once parent dir is re-included
   gitignore: |
     [b]
@@ -41,7 +41,7 @@
       dir: true
       ignored: false
 
-- name: repeated_bare_name_after_reinclude
+- name: repeated bare name after reinclude
   description: A later repeat of the same bare-name must still not match grandchildren
   gitignore: |
     b
@@ -55,7 +55,7 @@
       dir: true
       ignored: true
 
-- name: spillover_does_not_apply_to_files
+- name: spillover does not apply to files
   description: Bare-name should not hit a file via parent basename regardless of re-includes
   gitignore: |
     b
@@ -65,7 +65,7 @@
       dir: false
       ignored: false
 
-- name: confirm_legit_parent_exclusion_then_rescue
+- name: confirm legit parent exclusion then rescue
   description: Show the right way to re-include after a bare-name ignore (re-include the dir first)
   gitignore: |
     b
@@ -76,7 +76,7 @@
       dir: false
       ignored: false
 
-- name: dstar_slash_blocks_reinclude_of_files
+- name: dstar slash blocks reinclude of files
   description: "'**/' excludes directories; files inside cannot be re-included unless the dir itself is re-included first"
   gitignore: |
     **/
@@ -89,7 +89,7 @@
       dir: false
       ignored: true
 
-- name: reinclude_dir_then_files_after_dstar_slash
+- name: reinclude dir then files after dstar slash
   description: If you re-include the directory, files can be rescued
   gitignore: |
     **/
@@ -103,7 +103,7 @@
       dir: false
       ignored: true
 
-- name: anchor_semantics_for_star_slash_name
+- name: anchor semantics for star slash name
   description: 'Pattern "*/foo" matches only one level below root; not deeper'
   gitignore: |
     */foo
@@ -115,7 +115,7 @@
       dir: true
       ignored: false
 
-- name: multi_component_anchor_semantics
+- name: multi component anchor semantics
   description: 'Pattern "*/bar/baz" matches only at depth=2, not deeper'
   gitignore: |
     */bar/baz
@@ -127,7 +127,7 @@
       dir: true
       ignored: false
 
-- name: deep_duplicate_slashes_in_path
+- name: deep duplicate slashes in path
   description: Normalization must treat "a///b///c.txt" the same as "a/b/c.txt"
   gitignore: |
     a/b/c.txt
@@ -136,7 +136,7 @@
       dir: false
       ignored: true
 
-- name: reinclude_dir_must_precede_file_rescue_under_contents_only
+- name: reinclude dir must precede file rescue under contents only
   description: 'With "x/**", descendants are ignored; rescuing a file requires rescuing its parent dir chain'
   gitignore: |
     x/**
@@ -152,7 +152,7 @@
       ignored: true
 
 ## New
-- name: wildcard_sandwich_middle
+- name: wildcard sandwich middle
   description: Test sandwich patterns with wildcards in middle (rejected by current logic)
   gitignore: |
     **/foo*bar/**
@@ -173,7 +173,7 @@
       description: "question mark in sandwich middle"
       ignored: true
 
-- name: nested_sandwich_patterns
+- name: nested sandwich patterns
   description: Test multiple sandwich segments (not handled by current logic)
   gitignore: |
     **/a/**/b/**
@@ -190,7 +190,7 @@
       description: "middle directory in nested sandwich"
       ignored: false
 
-- name: sandwich_negation_interaction
+- name: sandwich negation interaction
   description: Complex negation with sandwich patterns
   gitignore: |
     **/build/**
@@ -208,7 +208,7 @@
       description: "cannot rescue from parent exclusion in sandwich"
       ignored: true  # Changed: sandwich pattern creates parent exclusion
 
-- name: contents_only_with_wildcards
+- name: contents only with wildcards
   description: Test contents-only patterns with embedded wildcards
   gitignore: |
     a*b/**
@@ -230,7 +230,7 @@
       description: "question mark in base"
       ignored: true
 
-- name: rooted_sandwich_variants
+- name: rooted sandwich variants
   description: Test rooted sandwich patterns with various prefixes
   gitignore: |
     /a/**/b/**
@@ -250,7 +250,7 @@
       description: "too deep for single star"
       ignored: false
 
-- name: dironly_contents_interaction
+- name: dironly contents interaction
   description: Test dir-only patterns with contents-only semantics
   gitignore: |
     build/**/
@@ -269,7 +269,7 @@
       description: "txt file in area"
       ignored: true
 
-- name: character_class_edge_cases
+- name: character class edge cases
   description: Test complex character class patterns
   gitignore: |
     file[!a-z0-9].txt
@@ -290,7 +290,7 @@
       description: "hyphen at end of range"
       ignored: true
 
-- name: parent_exclusion_sandwich
+- name: parent exclusion sandwich
   description: Test parent exclusion with sandwich patterns
   gitignore: |
     **/node_modules/**
@@ -304,7 +304,7 @@
       description: "sandwich middle directory"
       ignored: false
 
-- name: multiple_trailing_slashes
+- name: multiple trailing slashes
   description: Test patterns with multiple trailing slashes - Git normalizes these
   gitignore: |
     build/
@@ -324,7 +324,7 @@
       description: "normalized pattern matches"
       ignored: true
 
-- name: escaped_wildcards_in_classes
+- name: escaped wildcards in classes
   description: Test escaped wildcards inside character classes
   gitignore: |
     file[\*].txt
@@ -341,7 +341,7 @@
       description: "single backslash in class"
       ignored: true  # Changed: different escaping
 
-- name: basename_matching_dirs_complex
+- name: basename matching dirs complex
   description: Test basename matching for directories with complex patterns
   gitignore: |
     *test*
@@ -360,7 +360,7 @@
       description: "nested directory with wildcard"
       ignored: false
 
-- name: degenerate_patterns
+- name: degenerate patterns
   description: Test degenerate pattern forms
   gitignore: |
     **/**/**
@@ -381,7 +381,7 @@
       description: "question and star mix"
       ignored: true
 
-- name: path_normalization_extremes
+- name: path normalization extremes
   description: Test extreme path normalization cases
   gitignore: |
     a/b
@@ -399,7 +399,7 @@
       description: "complex normalization"
       ignored: true
 
-- name: negation_ordering_complex
+- name: negation ordering complex
   description: Test complex negation ordering scenarios
   gitignore: |
     **
@@ -422,7 +422,7 @@
       description: "file in directory still ignored"
       ignored: true
 
-- name: symlink_and_special_paths
+- name: symlink and special paths
   description: Test special path handling
   gitignore: |
     *
@@ -446,7 +446,7 @@
       description: "normalized to . which is matched by *"
       ignored: true  # Changed: matches after normalization
 
-- name: basename_spillover_after_reinclude
+- name: basename spillover after reinclude
   description: "A bare-name ignore ('b') should not affect grandchildren ('a/b/c') after the immediate parent ('a/b/') has been explicitly re-included. This tests if the matcher correctly scopes bare-name rules."
   gitignore: |
     b
@@ -463,7 +463,7 @@
       description: "Files under the rescued directory should also be visible."
       ignored: false
 
-- name: deep_parent_exclusion_with_failed_rescue
+- name: deep parent exclusion with failed rescue
   description: "A deeply nested file cannot be rescued if a mid-level parent ('data/') is ignored by a dir-only pattern. Tests the integrity of the parent exclusion chain."
   gitignore: |
     data/
@@ -473,7 +473,7 @@
       description: "Negation fails because the 'data' directory is excluded."
       ignored: true
 
-- name: staged_re-inclusion_with_wildcard
+- name: staged re-inclusion with wildcard
   description: "Tests a complex chain: ignore all, un-ignore dirs, un-ignore specific dir contents, re-ignore with wildcard, and finally rescue one file. This stresses the rule precedence."
   gitignore: |
     *
@@ -491,7 +491,7 @@
       description: "File remains ignored by '*' because no pattern un-ignores it."
       ignored: true
 
-- name: dstar_contents_vs_dir_re-inclusion
+- name: dstar contents vs dir re-inclusion
   description: "'data/**' ignores contents. Re-including the directory entry '!data/' should NOT magically re-include its contents. This separates the directory entry from its descendants."
   gitignore: |
     data/**
@@ -505,7 +505,7 @@
       description: "The file's contents remain ignored by 'data/**'."
       ignored: true
 
-- name: escaped_wildcard_inside_dstar
+- name: escaped wildcard inside dstar
   description: "Verifies that an escaped wildcard is treated literally within a multi-level glob, testing the robustness of the escape-processing logic."
   gitignore: |
     a/**/\*.log
@@ -517,7 +517,7 @@
       description: "Path without a literal '*' should NOT match."
       ignored: false
 
-- name: dot_segment_path_normalization
+- name: dot segment path normalization
   description: "Git normalizes paths like 'a/../b' to 'b' before matching. The implementation must handle this to prevent mismatches."
   gitignore: |
     build/
@@ -529,7 +529,7 @@
       description: "Path should be normalized to 'build/output.o' and thus be ignored."
       ignored: true
 
-- name: sandwich_pattern_not_matching_middle
+- name: sandwich pattern not matching middle
   description: "A sandwich pattern '**/node_modules/**' must not ignore the 'node_modules' directory entry itself. This is a critical and often mis-implemented edge case."
   gitignore: |
     **/node_modules/**
@@ -546,7 +546,7 @@
       description: "Contents within the directory ARE ignored."
       ignored: true
 
-- name: dstar_dir-descendants_not_matching_base
+- name: dstar dir-descendants not matching base
   description: "'abc/**/' should match directories UNDER 'abc', but not 'abc' itself. This tests another critical distinction in double-asterisk behavior."
   gitignore: |
     abc/**/
@@ -567,7 +567,7 @@
       description: "A file directly under 'abc' must not match a dir-only pattern."
       ignored: false
 
-- name: complex_escaped_trailing_spaces
+- name: complex escaped trailing spaces
   description: "Git's behavior with multiple backslashes before a trailing space is subtle: an odd number escapes the space, an even number does not. This tests the parser's precision."
   gitignore: |
     odd\\\ 
@@ -580,7 +580,7 @@
       description: "The pattern 'even\\\\ ' has its trailing space trimmed, becoming 'even\\\\'. This should match."
       ignored: true  # Changed: pattern becomes even\\\\ after trim
 
-- name: charclass_vs_dotfile_basename
+- name: charclass vs dotfile basename
   description: "Character class patterns and dotfiles"
   gitignore: |
     [a-z]*
@@ -594,7 +594,7 @@
       description: "Dotfile in subdirectory matched"
       ignored: true  # Changed: Git does match this
 
-- name: slash_anchored_versus_deeper
+- name: slash anchored versus deeper
   description: "Pattern with '/' is anchored to root; must not hit deeper copies"
   gitignore: |
     a/b
@@ -606,7 +606,7 @@
       dir: true
       ignored: false
 
-- name: rooted_versus_unrooted_single_component
+- name: rooted versus unrooted single component
   description: "'/a' hits only root 'a'; 'x/a' must not match"
   gitignore: |
     /a
@@ -618,7 +618,7 @@
       dir: true
       ignored: false
 
-- name: dotfiles_with_star_suffix
+- name: dotfiles with star suffix
   description: "'*.log' matches all files with .log extension including dotfiles"
   gitignore: |
     *.log
@@ -630,7 +630,7 @@
       dir: false
       ignored: true  # Changed: Git does match this
 
-- name: question_mark_does_not_match_dotfile
+- name: question mark does not match dotfile
   description: "'?' should not match a basename starting with dot"
   gitignore: |
     ?
@@ -642,7 +642,7 @@
       dir: false
       ignored: false
 
-- name: character_class_with_leading_closing_bracket
+- name: character class with leading closing bracket
   description: "'[]]' should match a literal ']' filename"
   gitignore: |
     []]
@@ -654,7 +654,7 @@
       dir: false
       ignored: false
 
-- name: braces_are_literal_not_expansion
+- name: braces are literal not expansion
   description: "Braces are literal in Git"
   gitignore: |
     {tmp}
@@ -670,7 +670,7 @@
       dir: false
       ignored: false
 
-- name: escaped_hash_and_bang
+- name: escaped hash and bang
   description: "'\\#' and '\\!' produce literal patterns, not comment or negation"
   gitignore: |
     \#topic
@@ -683,7 +683,7 @@
       dir: false
       ignored: true
 
-- name: trailing_spaces_and_escaped_space
+- name: trailing spaces and escaped space
   description: "Unescaped trailing spaces are trimmed; escaped trailing space is kept"
   gitignore: |
     foo   
@@ -699,7 +699,7 @@
       dir: false
       ignored: false
 
-- name: contents_only_does_not_match_base
+- name: contents only does not match base
   description: "'x/**' matches only contents; not the base directory itself"
   gitignore: |
     x/**
@@ -714,7 +714,7 @@
       dir: true
       ignored: true
 
-- name: directory_descendants_but_not_base
+- name: directory descendants but not base
   description: "'x/**/' matches directories below base, not the base"
   gitignore: |
     x/**/
@@ -729,7 +729,7 @@
       dir: true
       ignored: true
 
-- name: depth_one_directory_only
+- name: depth one directory only
   description: "'a/*/' matches immediate child directories and their contents"
   gitignore: |
     a/*/
@@ -744,7 +744,7 @@
       dir: false
       ignored: false
 
-- name: ordering_reexclude_after_reinclude
+- name: ordering reexclude after reinclude
   description: "A later exclude should override an earlier rescue"
   gitignore: |
     a/
@@ -758,7 +758,7 @@
       dir: false
       ignored: true
 
-- name: normalization_dot_and_parent_segments
+- name: normalization dot and parent segments
   description: "Candidate normalization for './' and '..' segments"
   gitignore: |
     b/
@@ -770,7 +770,7 @@
       dir: true
       ignored: true
 
-- name: top_level_only_with_negated_suffix
+- name: top level only with negated suffix
   description: "'/*' hits root entries only; negation rescues only at root"
   gitignore: |
     /*
@@ -786,7 +786,7 @@
       dir: false
       ignored: true
 
-- name: slash_in_pattern_is_root_anchored
+- name: slash in pattern is root anchored
   description: "'a/b' must not be applied as a basename match anywhere else"
   gitignore: |
     a/b

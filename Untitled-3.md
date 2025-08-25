@@ -1,11 +1,11 @@
 ---
-
 Consider gitignore.go and the full test suite.
+
+At the moment all tests pass. Tests are designed to be compared to git check-ignore, and as such, they're aligned.
 
 What is the risk that gitignore.go is biased against "just" solving the test suite, and not actually fulfilling gitignore parity? e.g., that the implementation is overfitted to the tests.
 
 If you believe it is biased, return a concentrated set of YAML defined tests (10-15), which aim to prove that above is the case or not.
-
 ---
 
 Assess the current implementation. Read `OVERFITTING_GUIDE.md` for a current situation analysis.
@@ -72,7 +72,7 @@ Go through all tests/\*.yml files and make sure the format is consistent
 
 1. Simple strings are unquoted, for fields name, description, cases .path, cases.description
 2. Strings that have special characters or spaces are quoted such that the YAML parsing is successful. This is commonly happening in description and cases.description and sometimes cases.path
-3. Make sure "name:" is wellformed - that is, it should be a string text, not with underscores, but with free text style. So "escaped_special_char" -> "escaped special characters", and so on. So a free text descriptive style. Search for underscores in "name:" fields and keep iterating until there are none left.
+3. Make sure "name:" is wellformed - that is, it should be a string text, not with underscores, but with free text style. So "escaped_special_char" -> "escaped special characters", "rooted-star-single-component" -> "rooted start single component" and so on. So a free text descriptive style. Search for underscores in "name:" fields and keep iterating until there are none left.
 
 You MUST not change the test cases in anyway - so be careful when doing this so that you don't accidentally strip away intended whitespaces etc.
 
