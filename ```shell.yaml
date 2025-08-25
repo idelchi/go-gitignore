@@ -1,26 +1,30 @@
-```shell
-user@devenv:~/ws$ go test .
+```yaml
+
+
+
 --- FAIL: TestGitIgnore (0.00s)
-    --- FAIL: TestGitIgnore/extended (0.01s)
-        --- FAIL: TestGitIgnore/extended/multi-hop-sandwich (0.00s)
-            --- FAIL: TestGitIgnore/extended/multi-hop-sandwich/foo/bar/ (0.00s)
-                gitignore_test.go:93: extended -> multi-hop-sandwich -> foo/bar/
-                    Pattern: [**/foo/**/bar/**]
-                    Group: Multiple /**/ hops, last 'bar' acts like the middle
-                    Expected Ignored("foo/bar", isDir=true) = false, got true
-        --- FAIL: TestGitIgnore/extended/sandwich-with-wild-middle (0.00s)
-            --- FAIL: TestGitIgnore/extended/sandwich-with-wild-middle/node_modulesA/ (0.00s)
-                gitignore_test.go:93: extended -> sandwich-with-wild-middle -> node_modulesA/
-                    Pattern: [**/node_modules*/**]
-                    Group: Variants with wildcard in middle should behave as contents-only without special-casing
-                    Case: Base entry should not match
-                    Expected Ignored("node_modulesA", isDir=true) = false, got true
-            --- FAIL: TestGitIgnore/extended/sandwich-with-wild-middle/a/b/node_modulesZ/ (0.00s)
-                gitignore_test.go:93: extended -> sandwich-with-wild-middle -> a/b/node_modulesZ/
-                    Pattern: [**/node_modules*/**]
-                    Group: Variants with wildcard in middle should behave as contents-only without special-casing
-                    Expected Ignored("a/b/node_modulesZ", isDir=true) = false, got true
+    --- FAIL: TestGitIgnore/overfit (0.01s)
+        --- FAIL: TestGitIgnore/overfit/basename_no_spillover_after_reinclude (0.00s)
+            --- FAIL: TestGitIgnore/overfit/basename_no_spillover_after_reinclude/a/b/c/ (0.00s)
+                gitignore_test.go:93: overfit -> basename_no_spillover_after_reinclude -> a/b/c/
+                    Pattern: [b !a/b/]
+                    Group: A bare-name pattern must not match grandchildren after the directory has been re-included
+                    Expected Ignored("a/b/c", isDir=true) = false, got true
+        --- FAIL: TestGitIgnore/overfit/basename_with_wildcard_no_spillover (0.00s)
+            --- FAIL: TestGitIgnore/overfit/basename_with_wildcard_no_spillover/a/b/c/ (0.00s)
+                gitignore_test.go:93: overfit -> basename_with_wildcard_no_spillover -> a/b/c/
+                    Pattern: [b* !a/b/]
+                    Group: Wildcarded bare-name must not match grandchildren once parent dir is re-included
+                    Expected Ignored("a/b/c", isDir=true) = false, got true
+        --- FAIL: TestGitIgnore/overfit/charclass_no_spillover_after_reinclude (0.00s)
+            --- FAIL: TestGitIgnore/overfit/charclass_no_spillover_after_reinclude/a/b/c/ (0.00s)
+                gitignore_test.go:93: overfit -> charclass_no_spillover_after_reinclude -> a/b/c/
+                    Pattern: [[b] !a/b/]
+                    Group: Charclass bare-name must not match grandchildren once parent dir is re-included
+                    Expected Ignored("a/b/c", isDir=true) = false, got true
 FAIL
-FAIL    github.com/idelchi/go-gitignore 1.227s
+FAIL    github.com/idelchi/go-gitignore 0.037s
 FAIL
+
+
 ```
