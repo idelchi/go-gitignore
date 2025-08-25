@@ -143,7 +143,7 @@
       ignored: true
 
 - name: malformed charclass matches nothing
-  description: 'An unterminated class like "[abc" does not match'
+  description: 'An unterminated class like "[abc" does not match anything'
   gitignore: |
     [abc
   cases:
@@ -153,6 +153,22 @@
       ignored: false
     - path: "c"
       ignored: false
+    - path: "[abc"
+      ignored: false
+
+- name: malformed charclass matches nothing
+  description: 'An unterminated class like "[abc" does not match, unless escaped and then matches literally'
+  gitignore: |
+    \[abc
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "b"
+      ignored: false
+    - path: "c"
+      ignored: false
+    - path: "[abc"
+      ignored: true
 
 - name: root anchored vs basename
   description: '/a anchors at repo root; plain "a" matches basename anywhere'

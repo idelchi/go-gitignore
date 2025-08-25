@@ -78,7 +78,7 @@ func TestGitIgnore(t *testing.T) {
 								// Create detailed error message with hierarchical context
 								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
 
-								errorMsg += fmt.Sprintf("Pattern: %v\n", g.Patterns())
+								// errorMsg += fmt.Sprintf("Pattern: %v\n", g.Patterns())
 
 								// Include descriptions from YAML for better context
 								if spec.Description != "" {
