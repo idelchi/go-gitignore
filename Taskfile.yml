@@ -97,8 +97,6 @@ tasks:
 
   all:
     desc: run all available tasks
-    deps:
-      - generate
     cmds:
       - task: clean
       - task: info
@@ -109,8 +107,6 @@ tasks:
 
   default:
     desc: clean, format & lint
-    deps:
-      - generate
     cmds:
       - task: info
       - task: format
