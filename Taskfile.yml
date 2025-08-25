@@ -69,7 +69,7 @@ tasks:
       - task: format:shell
       - task: format:jenkins
       - task: format:ws
-      - task: go:lint
+      - task: go:format
 
   lint:
     deps:
