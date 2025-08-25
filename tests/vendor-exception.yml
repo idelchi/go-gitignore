@@ -1,0 +1,18 @@
+- name: vendor go files exception
+  description: Exception pattern for vendor Go files
+  gitignore: |
+    *
+    !*/
+    !*.go
+    vendor/**/*.go
+  cases:
+    - path: "vendor/github.com/pkg/file.go"
+      description: "* !*/ !*.go vendor/**/*.go - vendor go file ignored"
+      ignored: true
+    - path: "internal/app.go"
+      description: "* !*/ !*.go vendor/**/*.go - non-vendor go allowed"
+      ignored: false
+    - path: "vendor"
+      description: "* !*/ !*.go vendor/**/*.go - vendor dir allowed"
+      dir: true
+      ignored: false

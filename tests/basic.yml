@@ -1,0 +1,14 @@
+- name: simple file pattern
+  description: Basic file matching patterns
+  gitignore: |
+    one
+  cases:
+    - path: "one"
+      description: simple file pattern
+      ignored: true
+    - path: "a/one"
+      description: simple file pattern in subdirectory
+      ignored: true
+    - path: "two"
+      description: non-matching file
+      ignored: false

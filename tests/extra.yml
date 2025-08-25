@@ -1,0 +1,146 @@
+- name: deep parent exclusion with failed rescue attempt
+  description: "A deeply nested file cannot be rescued if a mid-level parent ('data/') is ignored by a dir-only pattern."
+  gitignore: |
+    data/
+    !data/processed/final/keep.txt
+  cases:
+    - path: "data/processed/final/keep.txt"
+      description: "Negation fails because the 'data' directory is excluded."
+      ignored: true
+
+- name: staged re-inclusion with final wildcard negation
+  description: "Tests a complex chain: ignore all, un-ignore dirs, and manage contents."
+  gitignore: |
+    *
+    !**/
+    !src/
+    !src/utils/
+    src/utils/*
+    !src/utils/helpers.go
+  cases:
+    - path: "src/utils/helpers.go"
+      description: "File is visible due to the final, specific negation."
+      ignored: false
+    - path: "src/utils/main.go"
+      description: "File is re-ignored by the 'src/utils/*' pattern."
+      ignored: true
+    - path: "src/main.go"
+      description: "File remains ignored by '*' because '!src/' only un-ignores the directory entry, not its contents."
+      ignored: true
+
+- name: double-asterisk contents-only vs dir re-inclusion
+  description: "'data/**' ignores contents. Re-including the directory entry '!data/' should NOT re-include its contents."
+  gitignore: |
+    data/**
+    !data/
+  cases:
+    - path: "data"
+      dir: true
+      description: "The directory entry itself is successfully re-included."
+      ignored: false
+    - path: "data/file.txt"
+      description: "The file's contents remain ignored by 'data/**'."
+      ignored: true
+
+- name: escaped wildcard inside double-asterisk path
+  description: "Verifies that an escaped wildcard is treated literally within a multi-level glob."
+  gitignore: |
+    a/**/\*.log
+  cases:
+    - path: "a/b/c/*.log"
+      description: "Path with a literal '*' in the basename should match."
+      ignored: true
+    - path: "a/b/c/error.log"
+      description: "Path without a literal '*' should NOT match."
+      ignored: false
+
+- name: negation of a path with a character class
+  description: "Ensure negation works correctly on patterns containing character classes."
+  gitignore: |
+    logs/log-[0-9].txt
+    !logs/log-3.txt
+  cases:
+    - path: "logs/log-1.txt"
+      ignored: true
+    - path: "logs/log-3.txt"
+      ignored: false
+    - path: "logs/log-a.txt"
+      ignored: false
+
+- name: dot-segment path normalization
+  description: "Git normalizes paths like 'a/./b' to 'a/b' and 'a/../b' to 'b' before matching. The implementation should handle this."
+  gitignore: |
+    build/
+  cases:
+    - path: "src/../build/output.o"
+      description: "Path should be normalized to 'build/output.o' and thus be ignored."
+      ignored: true
+    - path: "build/./output.o"
+      description: "Path should be normalized to 'build/output.o' and thus be ignored."
+      ignored: true
+
+- name: sandwich pattern not matching the middle dir entry
+  description: "A sandwich pattern '**/node_modules/**' must not ignore the 'node_modules' directory entry itself."
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: "node_modules"
+      dir: true
+      description: "The directory entry for 'node_modules' should NOT be ignored."
+      ignored: false
+    - path: "src/node_modules"
+      dir: true
+      description: "A nested directory entry for 'node_modules' should also NOT be ignored."
+      ignored: false
+    - path: "node_modules/package/file.js"
+      description: "Contents within the directory ARE ignored."
+      ignored: true
+
+- name: dir-descendants pattern not matching base
+  description: "'abc/**/' should match directories UNDER 'abc', but not 'abc' itself."
+  gitignore: |
+    abc/**/
+  cases:
+    - path: "abc"
+      dir: true
+      description: "The base directory 'abc' must NOT match."
+      ignored: false
+    - path: "abc/x"
+      dir: true
+      description: "A first-level subdirectory must match."
+      ignored: true
+    - path: "abc/x/y"
+      dir: true
+      description: "A second-level subdirectory must match."
+      ignored: true
+    - path: "abc/file.txt"
+      description: "A file directly under 'abc' must not match a dir-only pattern."
+      ignored: false
+
+- name: complex escaped trailing spaces
+  description: "An odd number of backslashes escapes a space; an even number does not."
+  gitignore: "odd\\\\\\ \neven\\\\\\\\ \n"
+  cases:
+    - path: "odd "
+      description: "Path with one space. The pattern 'odd\\ ' does not match."
+      ignored: false
+    - path: "odd\\ "
+      description: "The pattern 'odd\\ ' correctly matches a path with a literal backslash and a space."
+      ignored: true
+    - path: "even\\"
+      description: "The pattern 'even\\\\' (from trimming the space) does NOT match this path, per Git's behavior."
+      ignored: false
+
+- name: literal brace inside character class
+  description: "Braces inside a character class must be treated as literal characters and not be escaped by the logic."
+  gitignore: |
+    file[a-c{}].txt
+  cases:
+    - path: "file{.txt"
+      ignored: true
+    - path: "file}.txt"
+      ignored: true
+    - path: "fileb.txt"
+      ignored: true
+    - path: "filez.txt"
+      ignored: false

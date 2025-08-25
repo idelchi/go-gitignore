@@ -1,0 +1,18 @@
+- name: build artifacts ignored
+  description: Ignore build artifacts but allow source
+  gitignore: |
+    *
+    !*/
+    !*.go
+    build/
+  cases:
+    - path: "build/generated.go"
+      description: "* !*/ !*.go build/ - source in build ignored"
+      ignored: true
+    - path: "build"
+      description: "* !*/ !*.go build/ - build dir ignored"
+      dir: true
+      ignored: true
+    - path: "src/main.go"
+      description: "* !*/ !*.go build/ - source outside build allowed"
+      ignored: false

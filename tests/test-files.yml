@@ -1,0 +1,16 @@
+- name: test file patterns
+  description: Special case for test files
+  gitignore: |
+    *
+    !*/
+    !*_test.go
+  cases:
+    - path: "main_test.go"
+      description: "* !*/ !*_test.go - test file allowed"
+      ignored: false
+    - path: "pkg/utils/helper_test.go"
+      description: "* !*/ !*_test.go - nested test file allowed"
+      ignored: false
+    - path: "main.go"
+      description: "* !*/ !*_test.go - non-test go file ignored"
+      ignored: true

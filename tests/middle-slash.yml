@@ -1,0 +1,36 @@
+- name: middle slash patterns
+  description: Patterns with slashes in the middle
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: pattern with middle slash
+      ignored: true
+    - path: "a/doc/frotz"
+      description: pattern with middle slash does NOT match in subdirectory (Git anchoring)
+      ignored: false
+
+- name: rooted middle slash patterns
+  description: Root-anchored patterns with middle slashes
+  gitignore: |
+    /doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: pattern with middle slash matches with leading slash
+      ignored: true
+
+- name: foo star patterns
+  description: Directory star patterns
+  gitignore: |
+    foo/*
+  cases:
+    - path: "foo/test.json"
+      description: foo/* matches file in foo
+      ignored: true
+    - path: "foo/bar"
+      description: foo/* matches directory in foo
+      dir: true
+      ignored: true
+    - path: "foo/bar/hello.c"
+      description: foo/* does NOT match nested files (per Git spec). It does however match the directory itself.
+      ignored: true

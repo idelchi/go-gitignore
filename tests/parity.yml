@@ -1,0 +1,587 @@
+- name: rooted star single component
+  description: "'/*' matches only top-level entries; excluded top-level dirs make their contents ignored (parent rule)"
+  gitignore: |
+    /*
+  cases:
+    - path: "top"
+      ignored: true
+    - path: "a/top"
+      ignored: true
+    - path: "a/b"
+      dir: true
+      ignored: true
+    - path: "a/b/file.txt"
+      ignored: true
+
+- name: star dir top level
+  description: "'*/' excludes every top-level directory; anything inside them is ignored via parent exclusion"
+  gitignore: |
+    */
+  cases:
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "a.txt"
+      ignored: false
+    - path: "x/y"
+      dir: true
+      ignored: true
+    - path: "x/y/file.txt"
+      ignored: true
+
+- name: asterisk never crosses slash
+  description: "'foo/*' matches immediate children under 'foo'; excluding 'foo/bar' (dir) ignores its contents"
+  gitignore: |
+    foo/*
+  cases:
+    - path: "foo/bar"
+      dir: true
+      ignored: true
+    - path: "foo/bar/hello.c"
+      ignored: true
+    - path: "x/foo/bar"
+      ignored: false
+
+- name: one level dir under a
+  description: "'a/*/' matches directories exactly one level below 'a' and ignores anything within them"
+  gitignore: |
+    a/*/
+  cases:
+    - path: "a/x"
+      dir: true
+      ignored: true
+    - path: "a/x/y"
+      dir: true
+      ignored: true
+    - path: "a/x/file.txt"
+      ignored: true
+    - path: "b/x"
+      dir: true
+      ignored: false
+
+- name: contents only with wild middle
+  description: "'**/foo*/**' excludes contents under any 'foo*' directory at any depth, but NOT the directories themselves"
+  gitignore: |
+    **/foo*/**
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: false
+    - path: "foo/file.txt"
+      ignored: true
+    - path: "app/foobar"
+      dir: true
+      ignored: false
+    - path: "app/foobar/a.txt"
+      ignored: true
+    - path: "app/fool"
+      dir: true
+      ignored: false
+    - path: "app/fool/x.txt"
+      ignored: true
+
+- name: base dstar suffix not base
+  description: "'abc/**' excludes contents under 'abc' but not 'abc' itself"
+  gitignore: |
+    abc/**
+  cases:
+    - path: "abc"
+      dir: true
+      ignored: false
+    - path: "abc/file.txt"
+      ignored: true
+    - path: "abc/x/y"
+      dir: true
+      ignored: true
+
+- name: multi dstar suffix not base
+  description: "'abc/**/**' must still not match the base 'abc' entry"
+  gitignore: |
+    abc/**/** 
+  cases:
+    - path: "abc"
+      dir: true
+      ignored: false
+    - path: "abc/file.txt"
+      ignored: true
+    - path: "abc/x/y/z.txt"
+      ignored: true
+
+- name: multi dstar dir only descendants
+  description: "'abc/**/**/' targets directories strictly below 'abc' (not 'abc' itself)"
+  gitignore: |
+    abc/**/**/
+  cases:
+    - path: "abc"
+      dir: true
+      ignored: false
+    - path: "abc/x"
+      dir: true
+      ignored: true
+    - path: "abc/x/y"
+      dir: true
+      ignored: true
+    - path: "abc/file.txt"
+      ignored: false
+
+- name: strict sandwich basic
+  description: "'**/node_modules/**' excludes contents but not the 'node_modules' entries themselves"
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: "node_modules"
+      dir: true
+      ignored: false
+    - path: "node_modules/a.txt"
+      ignored: true
+    - path: "packages/foo/node_modules"
+      dir: true
+      ignored: false
+    - path: "packages/foo/node_modules/a.txt"
+      ignored: true
+
+- name: strict sandwich wild middle
+  description: "'**/mid*/**' (wild middle) is still contents-only; directories 'mid*' are not excluded"
+  gitignore: |
+    **/mid*/**
+  cases:
+    - path: "mid"
+      dir: true
+      ignored: false
+    - path: "mid/file"
+      ignored: true
+    - path: "x/middle"
+      dir: true
+      ignored: false
+    - path: "x/middle/file"
+      ignored: true
+
+- name: charclass first bracket literal
+  description: "In '[]]', the first ']' is a literal; only basenames equal to ']' should match"
+  gitignore: |
+    []]
+  cases:
+    - path: "]"
+      ignored: true
+    - path: "a/]"
+      ignored: true
+    - path: "x"
+      ignored: false
+
+- name: charclass bang negation
+  description: "'[!]]' matches any single char except ']'"
+  gitignore: |
+    [!]]
+  cases:
+    - path: "x"
+      ignored: true
+    - path: "]"
+      ignored: false
+
+- name: charclass caret negation
+  description: "'[^]]' also matches any single char except ']' (caret as negator)"
+  gitignore: |
+    [^]]
+  cases:
+    - path: "x"
+      ignored: true
+    - path: "]"
+      ignored: false
+
+- name: charclass caret negation in pattern
+  description: "Caret negation embedded in a larger pattern"
+  gitignore: |
+    f[^a].md
+  cases:
+    - path: "fb.md"
+      ignored: true
+    - path: "fa.md"
+      ignored: false
+    - path: "f/.md"
+      ignored: false
+
+- name: charclass dash at ends literal
+  description: "Hyphen at class edges is literal; mixed with negation"
+  gitignore: |
+    name[-].txt
+    val[!-].txt
+  cases:
+    - path: "name-.txt"
+      ignored: true
+    - path: "val-.txt"
+      ignored: false
+    - path: "vala.txt"
+      ignored: true
+
+- name: braces are literal not expansion
+  description: "Ensure braces are treated literally (no expansion)"
+  gitignore: |
+    {foo,bar}.txt
+  cases:
+    - path: "{foo,bar}.txt"
+      ignored: true
+    - path: "foo.txt"
+      ignored: false
+    - path: "bar.txt"
+      ignored: false
+
+- name: braces next to class
+  description: "Braces next to a class remain literal"
+  gitignore: |
+    lib[ab]{x}.js
+  cases:
+    - path: "liba{x}.js"
+      ignored: true
+    - path: "libb{x}.js"
+      ignored: true
+    - path: "liba.js"
+      ignored: false
+
+- name: double slash in path
+  description: "Path normalization tolerance—'a//b' behaves like 'a/b'; parent exclusion applies"
+  gitignore: |
+    a/b
+  cases:
+    - path: "a//b"
+      dir: true
+      ignored: true
+    - path: "a///b"
+      dir: true
+      ignored: true
+    - path: "a/b/c"
+      ignored: true
+
+- name: negate cannot rescue through excluded parent
+  description: "A file cannot be re-included if any parent dir is excluded"
+  gitignore: |
+    build/
+    !build/keep.txt
+  cases:
+    - path: "build"
+      dir: true
+      ignored: true
+    - path: "build/keep.txt"
+      ignored: true
+
+- name: re include directory then file
+  description: "If the directory itself is re-included, a deeper file can be rescued"
+  gitignore: |
+    out/
+    !out/
+    !out/ok.txt
+  cases:
+    - path: "out"
+      dir: true
+      ignored: false
+    - path: "out/ok.txt"
+      ignored: false
+    - path: "out/nope.txt"
+      ignored: false
+
+- name: escaped leading hash and bang
+  description: "Escaped leading '#' and '!' are literals, not comment/negation"
+  gitignore: |
+    \#head.txt
+    \!bang.txt
+  cases:
+    - path: "#head.txt"
+      ignored: true
+    - path: "!bang.txt"
+      ignored: true
+    - path: "head.txt"
+      ignored: false
+    - path: "bang.txt"
+      ignored: false
+
+- name: double star leading behavior
+  description: "'**/target' matches 'target' directories at any depth (same as 'target' for a single .gitignore root)"
+  gitignore: |
+    **/target
+  cases:
+    - path: "target"
+      dir: true
+      ignored: true
+    - path: "src/target"
+      dir: true
+      ignored: true
+    - path: "src/target/file"
+      ignored: true
+    - path: "src/targets"
+      dir: true
+      ignored: false
+
+- name: leading slash anchors
+  description: "Leading '/' anchors to repo root per spec"
+  gitignore: |
+    /doc/frotz
+  cases:
+    - path: "doc/frotz"
+      ignored: true
+    - path: "a/doc/frotz"
+      ignored: false
+
+- name: middle slash anchors too
+  description: "A slash in the pattern anchors to the .gitignore directory (root here)"
+  gitignore: |
+    doc/frotz/
+  cases:
+    - path: "doc/frotz"
+      dir: true
+      ignored: true
+    - path: "a/doc/frotz"
+      dir: true
+      ignored: false
+
+- name: star basename anywhere
+  description: "'*' without slash matches any single basename at any depth; excluded dirs propagate"
+  gitignore: |
+    *
+  cases:
+    - path: "file"
+      ignored: true
+    - path: "dir"
+      dir: true
+      ignored: true
+    - path: "a/b"
+      dir: true
+      ignored: true
+    - path: "a/b.txt"
+      ignored: true
+    - path: ".dotfile"
+      ignored: true
+    - path: "a/.hidden"
+      ignored: true
+
+- name: bare double star matches any
+  description: "'**' by itself matches everything"
+  gitignore: |
+    **
+  cases:
+    - path: "root.txt"
+      ignored: true
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "a/b/c.txt"
+      ignored: true
+
+- name: dir only unrooted
+  description: "A simple dir-only pattern 'tmp/' excludes any 'tmp' dir at any depth"
+  gitignore: |
+    tmp/
+  cases:
+    - path: "tmp"
+      dir: true
+      ignored: true
+    - path: "tmp.txt"
+      ignored: false
+    - path: "a/tmp"
+      dir: true
+      ignored: true
+    - path: "a/tmp/file"
+      ignored: true
+
+- name: dotfiles vs star
+  description: "'*' must not match leading dots"
+  gitignore: |
+    *
+  cases:
+    - path: a.txt
+      dir: false
+      ignored: true
+      description: "'*' matches regular file"
+    - path: .env
+      dir: false
+      ignored: true
+      description: "'*' must match a dotfile"
+    - path: dir/.hidden
+      dir: false
+      ignored: true
+      description: "'*' must match dotfile basenames in subdirs"
+
+- name: rooted star vs dotfiles
+  description: "'/*' only top-level and must not match top-level dotfiles"
+  gitignore: |
+    /*
+  cases:
+    - path: a
+      dir: false
+      ignored: true
+      description: "'/*' matches top-level entry"
+    - path: .env
+      dir: false
+      ignored: true
+      description: "'/*' must NOT match top-level dotfile"
+    - path: sub/child
+      dir: false
+      ignored: true
+      description: "'/*' does match deeper entries"
+
+- name: escaped wildcards literal
+  description: "\"*\" and \"?\" should be literal, not meta"
+  gitignore: |
+    \*
+    \?
+  cases:
+    - path: "*"
+      dir: false
+      ignored: true
+      description: literal star filename ignored by "\*"
+    - path: "?"
+      dir: false
+      ignored: true
+      description: literal question-mark filename ignored by "\?"
+    - path: star
+      dir: false
+      ignored: false
+      description: regular name unaffected
+
+- name: trailing space escaped
+  description: "Backslash should preserve one trailing space (and the backslash itself not present in the pattern)"
+  gitignore: |
+    name\ 
+  cases:
+    - path: "name "
+      dir: false
+      ignored: true
+      description: matches filename with a single trailing space
+    - path: "name"
+      dir: false
+      ignored: false
+      description: no trailing space should not match
+
+- name: brace no expansion
+  description: "Braces are literals; no {a,b} expansion"
+  gitignore: |
+    {abc,def}
+  cases:
+    - path: abc
+      dir: false
+      ignored: false
+      description: should NOT match 'abc'
+    - path: "{abc,def}"
+      dir: false
+      ignored: true
+      description: literal braces should match
+
+- name: charclass first closing bracket
+  description: "[]] means a class containing ']'"
+  gitignore: |
+    []]
+  cases:
+    - path: "]"
+      dir: false
+      ignored: true
+    - path: "a"
+      dir: false
+      ignored: false
+
+- name: contents only doublestar
+  description: "dir/** matches contents, not the dir itself"
+  gitignore: |
+    dir/**
+  cases:
+    - path: dir
+      dir: true
+      ignored: false
+      description: base dir itself is NOT ignored
+    - path: dir/file
+      dir: false
+      ignored: true
+    - path: dir/sub/file
+      dir: false
+      ignored: true
+
+- name: sandwich middle contents only
+  description: "**/node_modules/** matches contents under any node_modules but not the directory entry"
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: node_modules
+      dir: true
+      ignored: false
+    - path: node_modules/x.js
+      dir: false
+      ignored: true
+    - path: a/node_modules
+      dir: true
+      ignored: false
+    - path: a/node_modules/x.js
+      dir: false
+      ignored: true
+
+- name: parent exclusion strict
+  description: "Once parent dir is excluded with 'foo/', negations cannot re-include beneath it"
+  gitignore: |
+    foo/
+    !foo/bar/**
+  cases:
+    - path: foo
+      dir: true
+      ignored: true
+    - path: foo/bar
+      dir: true
+      ignored: true
+      description: cannot re-include because parent 'foo/' is excluded
+    - path: foo/bar/baz.txt
+      dir: false
+      ignored: true
+
+- name: reinclude when parent not excluded
+  description: "Negations can re-include when only children were excluded"
+  gitignore: |
+    foo/*
+    !foo/bar/
+    !foo/bar/**
+  cases:
+    - path: foo/bar
+      dir: true
+      ignored: false
+    - path: foo/bar/x.txt
+      dir: false
+      ignored: false
+    - path: foo/baz
+      dir: true
+      ignored: true
+
+- name: normalize path dotslashes
+  description: "Leading './' and duplicate slashes should not affect matching"
+  gitignore: |
+    a/b
+  cases:
+    - path: "./a//b"
+      dir: false
+      ignored: true
+
+- name: rooted vs nonrooted mixed
+  description: "Patterns with '/' are anchored; without '/' can match basenames"
+  gitignore: |
+    /a/b
+    c/d
+  cases:
+    - path: x/a/b
+      dir: false
+      ignored: false
+      description: "'/a/b' anchored at root only"
+    - path: a/b
+      dir: false
+      ignored: true
+    - path: x/c/d
+      dir: false
+      ignored: false
+      description: "'c/d' is anchored to root (contains '/')"
+    - path: c/d
+      dir: false
+      ignored: true
+
+- name: charclass vs dotfiles
+  description: "Class components shouldn't match a leading dot unless class includes dot"
+  gitignore: |
+    [a-z]*
+  cases:
+    - path: ".abc"
+      dir: false
+      ignored: false
+    - path: "abc"
+      dir: false
+      ignored: true

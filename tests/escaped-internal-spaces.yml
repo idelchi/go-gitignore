@@ -1,0 +1,9 @@
+- name: escaped internal space
+  description: '\  keeps a literal space within a component'
+  gitignore: |
+    my\ file.txt
+  cases:
+    - path: "my file.txt"
+      ignored: true
+    - path: "my  file.txt"
+      ignored: false

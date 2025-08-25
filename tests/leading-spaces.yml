@@ -1,0 +1,23 @@
+- name: leading spaces before hash
+  description: "Leading spaces mean # is literal, not a comment"
+  # Use a quoted scalar so the single leading space is preserved.
+  gitignore: " #comment\n"
+  cases:
+    - path: " #comment"
+      description: "Matches the literal pattern starting with space then #"
+      ignored: true
+    - path: "#comment"
+      description: "No leading space; should NOT match the pattern with a space"
+      ignored: false
+
+- name: leading spaces before bang
+  description: "Leading spaces mean ! is literal, not negation"
+  # Quoted scalar preserves leading space.
+  gitignore: " !literal.txt\n"
+  cases:
+    - path: " !literal.txt"
+      description: "Pattern is literal space + !literal.txt"
+      ignored: true
+    - path: "literal.txt"
+      description: "Not negated (since ! not at col 0); literal.txt remains unignored"
+      ignored: false

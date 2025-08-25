@@ -1,0 +1,41 @@
+- name: star wildcard patterns
+  description: Various wildcard pattern tests
+  gitignore: |
+    *.o
+  cases:
+    - path: "file.o"
+      description: star wildcard prefix
+      ignored: true
+    - path: "src/internal.o"
+      description: star wildcard prefix in subdirectory
+      ignored: true
+
+- name: star wildcard suffix patterns
+  description: Wildcard suffix patterns
+  gitignore: |
+    ignored-*
+  cases:
+    - path: "ignored-file"
+      description: star wildcard suffix
+      ignored: true
+    - path: "a/ignored-but-in-index"
+      description: star wildcard suffix in subdirectory
+      ignored: true
+
+- name: two star prefix patterns
+  description: Two star prefix matching
+  gitignore: |
+    two*
+  cases:
+    - path: "a/b/twooo"
+      description: two star prefix matches
+      ignored: true
+
+- name: star suffix patterns
+  description: Star suffix matching
+  gitignore: |
+    *three
+  cases:
+    - path: "a/3-three"
+      description: star suffix matches
+      ignored: true

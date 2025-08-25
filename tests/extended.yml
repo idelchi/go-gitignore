@@ -1,0 +1,256 @@
+- name: star and dot
+  description: "'*' matches dotfiles, but Git never treats '.' itself as ignored"
+  gitignore: |
+    *
+    !/.env
+  cases:
+    - path: "."
+      dir: true
+      ignored: true
+      description: Git actually does match '.' with '*' pattern
+    - path: "./"
+      dir: true
+      ignored: true
+      description: Leading ./ normalization, still matched by '*'
+    - path: ".hidden"
+      ignored: true
+      description: '''*'' matches dotfiles (no "dotfile special-case" in gitignore)'
+    - path: "dir/.hidden"
+      ignored: true
+      description: Basename match at any depth
+    - path: ".env"
+      ignored: false
+      description: Rescued at repo root by '!/.env'
+    - path: "sub/.env"
+      ignored: true
+      description: Rescue is root-anchored; nested .env remains ignored
+
+- name: exclude dir cannot rescue
+  description: Once a directory is excluded (e.g., "build/"), children cannot be re-included
+  gitignore: |
+    build/
+    !build/keep.txt
+  cases:
+    - path: "build"
+      dir: true
+      ignored: true
+      description: Directory itself is excluded
+    - path: "build/keep.txt"
+      ignored: true
+      description: Negation cannot rescue inside an excluded directory
+
+- name: exclude contents can rescue
+  description: Contents-only exclude (build/*) allows later negation for specific files
+  gitignore: |
+    build/*
+    !build/keep.txt
+  cases:
+    - path: "build"
+      dir: true
+      ignored: false
+      description: Directory itself is not excluded by build/*
+    - path: "build/keep.txt"
+      ignored: false
+      description: Negation rescues the file (classic pattern)
+
+- name: double star contents can rescue
+  description: "'**/out/**' excludes contents, not the 'out' directory entry; negation works"
+  gitignore: |
+    **/out/**
+    !**/out/keep.txt
+  cases:
+    - path: "out"
+      dir: true
+      ignored: false
+      description: Base dir not excluded by contents-only pattern
+    - path: "src/out"
+      dir: true
+      ignored: false
+      description: Same at depth
+    - path: "out/file.txt"
+      ignored: true
+    - path: "src/out/file.txt"
+      ignored: true
+    - path: "src/out/keep.txt"
+      ignored: false
+      description: Negation rescues because parent is not excluded
+
+- name: simple sandwich
+  description: "'**/node_modules/**' matches contents, not the directory entry"
+  gitignore: |
+    **/node_modules/**
+    !**/node_modules/keep.log
+  cases:
+    - path: "node_modules"
+      dir: true
+      ignored: false
+    - path: "node_modules/pkg.json"
+      ignored: true
+    - path: "src/node_modules"
+      dir: true
+      ignored: false
+    - path: "src/node_modules/file.js"
+      ignored: true
+    - path: "src/node_modules/keep.log"
+      ignored: false
+      description: Negation should rescue (parent not excluded)
+
+- name: sandwich with wild middle
+  description: Variants with wildcard in middle should behave as contents-only without special-casing
+  gitignore: |
+    **/node_modules*/**
+  cases:
+    - path: "node_modulesA"
+      dir: true
+      ignored: false
+      description: Base entry should not match
+    - path: "node_modulesA/x"
+      ignored: true
+    - path: "a/b/node_modulesZ"
+      dir: true
+      ignored: false
+    - path: "a/b/node_modulesZ/inner"
+      ignored: true
+
+- name: multi hop sandwich
+  description: Multiple /**/ hops, last 'bar' acts like the middle
+  gitignore: |
+    **/foo/**/bar/**
+  cases:
+    - path: "bar"
+      dir: true
+      ignored: false
+    - path: "foo/bar"
+      dir: true
+      ignored: false
+    - path: "x/foo/y/bar/z.txt"
+      ignored: true
+
+- name: first closing bracket literal
+  description: First ']' inside a class is literal; patterns below all match a single ']' basename
+  gitignore: |
+    []]
+    [!]]
+    [^]]
+  cases:
+    - path: "]"
+      ignored: true
+    - path: "a/]"
+      ignored: true
+    - path: "x"
+      ignored: true
+      description: These malformed patterns seem to match everything in Git
+    - path: "["
+      ignored: true
+      description: These malformed patterns seem to match everything in Git
+
+- name: class with range and literal
+  description: Ranges coexisting with leading ']' literal; still must behave like Git
+  gitignore: |
+    []-z]
+  cases:
+    - path: "]"
+      ignored: true
+    - path: "-"
+      ignored: false
+      description: Git interprets this as range from ] to z, not including -
+    - path: "a"
+      ignored: true
+    - path: "0"
+      ignored: false
+
+- name: simple brace literal
+  description: No brace expansion; only the literal string should match
+  gitignore: |
+    log{1,2}.txt
+  cases:
+    - path: "log{1,2}.txt"
+      ignored: true
+    - path: "log1.txt"
+      ignored: false
+    - path: "log2.txt"
+      ignored: false
+
+- name: braces inside class untouched
+  description: Braces in character classes are literal members, not escaped by escapeBraces
+  gitignore: |
+    *[{}]*
+  cases:
+    - path: "has{brace}.txt"
+      ignored: true
+    - path: "nobrace.txt"
+      ignored: false
+
+- name: unescaped trailing spaces are trimmed
+  description: Unescaped trailing spaces are ignored in the pattern
+  gitignore: "ws/trailing   \n"
+  cases:
+    - path: "ws/trailing"
+      ignored: true
+    - path: "ws/trailing  "
+      ignored: false
+      description: Different basename; pattern was trimmed to 'ws/trailing'
+
+- name: simple escaped trailing space
+  description: Single escaped trailing space
+  gitignore: "ws/one\\ \n"
+  cases:
+    - path: "ws/one "
+      ignored: true
+      description: Backslash-space keeps one trailing space
+    - path: "ws/one"
+      ignored: false
+
+- name: rooted star only at top
+  description: "'/*' matches only root entries, not nested ones"
+  gitignore: |
+    /*
+  cases:
+    - path: "top"
+      ignored: true
+    - path: "dir/top"
+      ignored: true
+      description: Parent exclusion - 'dir' is excluded at root, so contents inherit
+    - path: "dir"
+      dir: true
+      ignored: true
+      description: Root dir 'dir' itself is top-level
+
+- name: slash anchors to root
+  description: A pattern with a slash behaves root-anchored in a root .gitignore
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/bar"
+      ignored: true
+    - path: "x/foo/bar"
+      ignored: false
+
+- name: bare double star slash
+  description: "'**/' excludes directories at any depth; children become ignored via parent exclusion"
+  gitignore: |
+    **/
+  cases:
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "a/b"
+      dir: true
+      ignored: true
+    - path: "a/b/file.txt"
+      ignored: true
+
+- name: escaped leading hash and bang
+  description: '\# and \! at the start mean literal "#" or "!"'
+  gitignore: |
+    \#secret.txt
+    \!important.txt
+  cases:
+    - path: "#secret.txt"
+      ignored: true
+    - path: "!important.txt"
+      ignored: true
+    - path: "secret.txt"
+      ignored: false
+    - path: "important.txt"
+      ignored: false

@@ -1,0 +1,99 @@
+- name: parent directory exclusion
+  description: Rules about parent directory exclusion preventing re-inclusion
+  gitignore: |
+    build/
+    !build/important.txt
+  cases:
+    - path: "build/important.txt"
+      description: Cannot re-include file if parent dir excluded
+      ignored: true
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+    !build/
+  cases:
+    - path: "build"
+      description: Can re-include directory itself
+      dir: true
+      ignored: false
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+    !build/
+  cases:
+    - path: "build/file.txt"
+      description: Can re-include a file
+      ignored: false
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+    !build/
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+    !build/
+    !*.txt
+  cases:
+    - path: "build/file.txt"
+      description: Can re-include a file
+      ignored: false
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+    !*.txt
+  cases:
+    - path: "build/file.txt"
+      description: Cannot re-include a file where parent is excluded
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build
+    !*.txt
+  cases:
+    - path: "build/file.txt"
+      description: Cannot re-include a file where parent is excluded
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+    !*.txt
+  cases:
+    - path: "build/file.txt"
+      description: Cannot re-include a file where parent is excluded
+      ignored: true

@@ -1,0 +1,11 @@
+- name: empty gitignore
+  description: Verify correct Git behavior when empty
+  gitignore: ""
+  cases:
+    - path: "doc/frotz"
+      description: doc/frotz must match at repo root
+      ignored: false
+    - path: "a/doc/frotz"
+      description: a/doc/frotz must match at repo root
+      dir: true
+      ignored: false

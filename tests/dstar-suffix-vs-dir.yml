@@ -1,0 +1,15 @@
+- name: suffix dstar vs dir-only
+  description: "abc/**/ targets only directories under abc (and contents via parent exclusion)"
+  gitignore: |
+    abc/**/
+  cases:
+    - path: "abc/x"
+      dir: true
+      description: "Directory matched by abc/**/"
+      ignored: true
+    - path: "abc/x/file.txt"
+      description: "File under matched directory inherits ignore"
+      ignored: true
+    - path: "abc/file.txt"
+      description: "Direct file under abc is not matched by abc/**/"
+      ignored: false

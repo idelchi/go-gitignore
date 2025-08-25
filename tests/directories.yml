@@ -1,0 +1,25 @@
+- name: directory trailing slash patterns
+  description: Directory-specific patterns with trailing slashes
+  gitignore: |
+    top-level-dir/
+  cases:
+    - path: "top-level-dir"
+      description: directory with trailing slash
+      dir: true
+      ignored: true
+    - path: "top-level-dir"
+      description: file not matched by directory pattern
+      ignored: false
+
+- name: nested directory patterns
+  description: Nested directory matching
+  gitignore: |
+    ignored-dir/
+  cases:
+    - path: "a/b/ignored-dir"
+      description: nested directory with trailing slash
+      dir: true
+      ignored: true
+    - path: "a/b/ignored-dir/foo"
+      description: files inside ignored directory
+      ignored: true

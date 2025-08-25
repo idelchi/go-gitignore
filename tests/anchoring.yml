@@ -1,0 +1,194 @@
+- name: git anchoring behavior
+  description: Verify correct Git anchoring behavior
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: doc/frotz should match only at repo root
+      ignored: true
+    - path: "a/doc/frotz"
+      description: doc/frotz must NOT match in subdir
+      ignored: false
+
+- name: foo bar anchoring
+  description: Another anchoring test
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/bar"
+      description: foo/bar should match only at repo root
+      ignored: true
+    - path: "x/y/foo/bar"
+      description: foo/bar must NOT match at deeper levels
+      ignored: false
+
+- name: double asterisk anchoring
+  description: Use double asterisk for any depth matching
+  gitignore: |
+    **/doc/frotz
+  cases:
+    - path: "a/doc/frotz"
+      description: to match at any depth, use **/ prefix
+      ignored: true
+
+- name: anchored file vs sibling lookalike
+  description: Ensure "doc/frotz" doesn't hit "doc/frotz.txt"
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz.txt"
+      description: sibling lookalike must NOT match
+      ignored: false
+    - path: "doc/frotz/inner.txt"
+      description: descendants of matched dir are ignored via parent exclusion
+      ignored: true
+
+- name: leading-slash equivalence at root
+  description: /doc/frotz behaves the same as doc/frotz at repo root
+  gitignore: |
+    /doc/frotz
+  cases:
+    - path: "doc/frotz"
+      ignored: true
+    - path: "a/doc/frotz"
+      ignored: false
+    - path: "doc/frotz/file"
+      description: child still ignored due to excluded parent
+      ignored: true
+
+- name: single-star depth anchoring
+  description: "*/doc/frotz hits exactly one segment deep, not deeper"
+  gitignore: |
+    */doc/frotz
+  cases:
+    - path: "x/doc/frotz"
+      description: one directory down matches
+      ignored: true
+    - path: "x/y/doc/frotz"
+      description: two directories down must NOT match with single *
+      ignored: false
+    - path: "x/doc/frotz/file"
+      description: child under matched dir inherits ignore
+      ignored: true
+    - path: "doc/frotz"
+      description: root is zero segments; must NOT match
+      ignored: false
+
+- name: mid-segment anchored with wildcard
+  description: Only the rooted "doc/*/frotz" path shape matches
+  gitignore: |
+    doc/*/frotz
+  cases:
+    - path: "doc/x/frotz"
+      ignored: true
+    - path: "doc/x/y/frotz"
+      ignored: false
+    - path: "a/doc/x/frotz"
+      ignored: false
+    - path: "doc/x/frotz/file"
+      description: descendants of matched dir ignored
+      ignored: true
+
+- name: double-asterisk at any depth (root too)
+  description: "**/doc/frotz matches root and deeper; non-matching suffixes do not"
+  gitignore: |
+    **/doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: zero-depth (root) should match with **/
+      ignored: true
+    - path: "x/y/z/doc/frotz"
+      description: deep match
+      ignored: true
+    - path: "x/doc/frotzx"
+      description: suffix must not spuriously match
+      ignored: false
+    - path: "x/doc/frotz/file"
+      description: child under matched dir ignored
+      ignored: true
+
+- name: segment-exactness under anchoring
+  description: foo/bar must not bleed into foo/barbaz
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/barbaz"
+      description: segment boundary must be respected
+      ignored: false
+    - path: "foo/bar/baz.txt"
+      description: child under matched dir ignored
+      ignored: true
+
+- name: git anchoring behavior (dir cases)
+  description: Ensure anchored path matches a directory at repo root only
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz"
+      dir: true
+      description: directory at root should be ignored
+      ignored: true
+    - path: "a/doc/frotz"
+      dir: true
+      description: deeper directory must NOT match without **
+      ignored: false
+    - path: "doc"
+      dir: true
+      description: parent directory alone is not a match
+      ignored: false
+
+- name: foo bar anchoring (dir cases)
+  description: Directory form behaves like the file form at repo root
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/bar"
+      dir: true
+      description: directory at root should be ignored
+      ignored: true
+    - path: "x/y/foo/bar"
+      dir: true
+      description: deeper directory must NOT match without **
+      ignored: false
+    - path: "foo"
+      dir: true
+      description: parent directory alone is not a match
+      ignored: false
+
+- name: double asterisk anchoring (dir cases)
+  description: "** allows matching directories named doc/frotz at any depth (including root)"
+  gitignore: |
+    **/doc/frotz
+  cases:
+    - path: "doc/frotz"
+      dir: true
+      description: zero-depth (root) directory should match
+      ignored: true
+    - path: "a/doc/frotz"
+      dir: true
+      description: one level deep directory should match
+      ignored: true
+    - path: "x/y/doc/frotz"
+      dir: true
+      description: multi-level deep directory should match
+      ignored: true
+
+- name: anchored directory-only
+  description: Trailing slash restricts match to directories at repo root
+  gitignore: |
+    doc/frotz/
+  cases:
+    - path: "doc/frotz"
+      dir: true
+      description: directory at root should be ignored
+      ignored: true
+    - path: "doc/frotz/file.txt"
+      description: descendants under ignored directory should be ignored
+      ignored: true
+    - path: "doc/frotz"
+      description: same path but as a file must NOT match a dir-only pattern
+      ignored: false
+    - path: "a/doc/frotz"
+      dir: true
+      description: deeper directory must NOT match when rooted by slash segments
+      ignored: false

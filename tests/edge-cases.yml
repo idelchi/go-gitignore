@@ -1,0 +1,41 @@
+- name: special path cases
+  description: Edge cases for special paths
+  gitignore: |
+    *
+  cases:
+    - path: "."
+      description: dot as path
+      dir: true
+      ignored: true
+
+- name: single slash pattern
+  description: Single slash pattern behavior
+  gitignore: |
+    /
+    *.txt
+  cases:
+    - path: "file.txt"
+      description: single slash pattern is no-op
+      ignored: true
+
+- name: single slash only
+  description: Only single slash pattern
+  gitignore: |
+    /
+  cases:
+    - path: "anything"
+      description: single slash pattern doesn't affect matching
+      ignored: false
+
+- name: multiple wildstarts
+  description: "Pattern with ***"
+  gitignore: |
+    build/
+    0***
+    !data/**/
+    !data/**/
+    !data/**/
+  cases:
+    - path: "0"
+      description: "Zero-length path should match"
+      ignored: true

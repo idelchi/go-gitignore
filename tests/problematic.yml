@@ -1,0 +1,192 @@
+- name: negation-ordering cannot reinclude through excluded parent
+  description: '!dir/file cannot re-include while dir/ is excluded'
+  gitignore: |
+    dir/
+    !dir/file
+  cases:
+    - path: "dir"
+      dir: true
+      ignored: true
+    - path: "dir/file"
+      ignored: true
+    - path: "dir/other"
+      ignored: true
+
+- name: negation ordering unignore parent then file
+  description: Unignore the parent first; then a later negation can re-include a child
+  gitignore: |
+    dir/
+    !dir/
+    !dir/file
+  cases:
+    - path: "dir"
+      dir: true
+      ignored: false
+    - path: "dir/file"
+      ignored: false
+    - path: "dir/other"
+      ignored: false
+
+- name: content-only double-star
+  description: 'foo/** ignores contents of foo but not foo/ itself'
+  gitignore: |
+    foo/**
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: false
+    - path: "foo/a"
+      ignored: true
+    - path: "foo/b"
+      dir: true
+      ignored: true
+    - path: "foo/b/c"
+      ignored: true
+
+- name: contents-only double-star dironly
+  description: 'foo/**/ ignores directories under foo at any depth; files at top level stay included'
+  gitignore: |
+    foo/**/
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: false
+    - path: "foo/a"
+      ignored: false
+    - path: "foo/dir"
+      dir: true
+      ignored: true
+    - path: "foo/dir/file"
+      ignored: true
+
+- name: contents-only with subdir negation
+  description: Re-include one subdirectory from a contents-only ignore
+  gitignore: |
+    foo/**
+    !foo/sub/
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: false
+    - path: "foo/sub"
+      dir: true
+      ignored: false
+    - path: "foo/sub/file"
+      ignored: true
+    - path: "foo/other/file"
+      ignored: true
+
+- name: slashed pattern root relative
+  description: 'foo/bar matches only at repo root; does not match a/foo/bar'
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/bar"
+      ignored: true
+    - path: "a/foo/bar"
+      ignored: false
+    - path: "x/foo"
+      dir: true
+      ignored: false
+
+- name: double slash in path normalization
+  description: 'Multiple slashes in the path are normalized by Git'
+  gitignore: |
+    a/b
+  cases:
+    - path: "a/b"
+      ignored: true
+    - path: "a//b"
+      ignored: true
+
+- name: escaping literals bang hash star trailing space
+  description: Escaping of leading '!' and '#' and literal '*' and a trailing space
+  gitignore: |
+    \!important
+    \#file
+    \*.txt
+    trailing\ 
+  cases:
+    - path: "!important"
+      ignored: true
+    - path: "#file"
+      ignored: true
+    - path: "*.txt"
+      ignored: true
+    - path: "star.txt"
+      ignored: false
+    - path: "trailing "
+      ignored: true
+    - path: "trailing"
+      ignored: false
+
+- name: charclass leading bracket
+  description: '[]] matches a literal ] character'
+  gitignore: |
+    []]
+  cases:
+    - path: "]"
+      ignored: true
+    - path: "a"
+      ignored: false
+
+- name: charclass negation
+  description: '[!a] matches any single-character name except ''a'''
+  gitignore: |
+    [!a]
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "b"
+      ignored: true
+    - path: "!"
+      ignored: true
+
+- name: malformed charclass matches nothing
+  description: 'An unterminated class like "[abc" does not match'
+  gitignore: |
+    [abc
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "b"
+      ignored: false
+    - path: "c"
+      ignored: false
+
+- name: root anchored vs basename
+  description: '/a anchors at repo root; plain "a" matches basename anywhere'
+  gitignore: |
+    /a
+  cases:
+    - path: "a"
+      ignored: true
+    - path: "b/a"
+      ignored: false
+
+- name: basename anywhere
+  description: 'Plain "a" matches basename at any depth'
+  gitignore: |
+    a
+  cases:
+    - path: "a"
+      ignored: true
+    - path: "b/a"
+      ignored: true
+
+- name: dironly vs file same name dir
+  description: 'Trailing slash matches directories only (node_modules/ will not match a regular file)'
+  gitignore: |
+    node_modules/
+  cases:
+    - path: "node_modules"
+      dir: true
+      ignored: true
+
+- name: dironly vs file same name file
+  description: 'Trailing slash does not match a regular file with the same name'
+  gitignore: |
+    node_modules/
+  cases:
+    - path: "node_modules"
+      ignored: false

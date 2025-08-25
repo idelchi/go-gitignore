@@ -1,0 +1,51 @@
+- name: ignore all except directories and txt
+  description: Ignore everything except directories and .txt files
+  gitignore: |
+    *
+    !*/
+    !*.txt
+  cases:
+    - path: ".file"
+      description: "* !*/ !*.txt - hidden file matched by *"
+      ignored: true
+    - path: "internal/file.go"
+      description: "* !*/ !*.txt - go file in subdir ignored"
+      ignored: true
+    - path: "internal/file.txt"
+      description: "* !*/ !*.txt - txt file in subdir allowed"
+      ignored: false
+    - path: "internal"
+      description: "* !*/ !*.txt - directory allowed"
+      dir: true
+      ignored: false
+    - path: "readme.txt"
+      description: "* !*/ !*.txt - root txt file allowed"
+      ignored: false
+
+- name: ignore all except dirs and txt but ignore internal
+  description: Same as above but also ignore internal directory
+  gitignore: |
+    *
+    !*/
+    !*.txt
+    internal
+  cases:
+    - path: ".file"
+      description: "* !*/ !*.txt internal - hidden file ignored"
+      ignored: true
+    - path: "internal/file.go"
+      description: "* !*/ !*.txt internal - go file in internal ignored"
+      ignored: true
+    - path: "internal/file.txt"
+      description: "* !*/ !*.txt internal - txt file in internal ignored"
+      ignored: true
+    - path: "internal"
+      description: "* !*/ !*.txt internal - internal dir ignored"
+      dir: true
+      ignored: true
+    - path: "file.txt"
+      description: "* !*/ !*.txt internal - root txt file allowed"
+      ignored: false
+    - path: "pkg/file.txt"
+      description: "* !*/ !*.txt internal - txt in other dir allowed"
+      ignored: false

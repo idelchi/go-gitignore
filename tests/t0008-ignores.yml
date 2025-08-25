@@ -1,0 +1,637 @@
+- name: basic one pattern
+  description: Test basic 'one' pattern matching
+  gitignore: |
+    one
+    ignored-*
+    top-level-dir/
+  cases:
+    - path: "one"
+      description: non-existent file matching 'one' pattern
+      ignored: true
+    - path: "a/one"
+      description: "'one' in subdirectory should also match (unanchored)"
+      ignored: true
+    - path: "not-ignored"
+      description: file not matching any pattern
+      ignored: false
+    - path: "a/not-ignored"
+      description: file in subdir not matching any pattern
+      ignored: false
+    - path: "ignored-and-untracked"
+      description: file matching 'ignored-*' pattern
+      ignored: true
+    - path: "a/ignored-and-untracked"
+      description: file in subdir matching 'ignored-*' pattern
+      ignored: true
+    - path: "top-level-dir"
+      dir: true
+      description: directory matching 'top-level-dir/' pattern
+      ignored: true
+    - path: "top-level-dir/file"
+      description: file inside ignored directory
+      ignored: true
+
+- name: global excludes basic
+  description: Test global exclude patterns
+  gitignore: |
+    globalone
+    !globaltwo
+    globalthree
+  cases:
+    - path: "globalone"
+      description: file matching first global pattern
+      ignored: true
+    - path: "globaltwo"
+      description: file negated by ! pattern
+      ignored: false
+    - path: "globalthree"
+      description: file matching third global pattern
+      ignored: true
+    - path: "a/globalthree"
+      description: file in subdir matching global pattern
+      ignored: true
+    - path: "a/globaltwo"
+      description: negation applies in subdirs too
+      ignored: false
+    - path: "b/globaltwo"
+      description: negation applies everywhere
+      ignored: false
+
+- name: per-repo excludes
+  description: Test per-repo exclude patterns
+  gitignore: |
+    per-repo
+  cases:
+    - path: "per-repo"
+      description: file matching per-repo pattern
+      ignored: true
+    - path: "a/per-repo"
+      description: file in subdir matching per-repo pattern
+      ignored: true
+
+- name: exact prefix with root slash
+  description: Test exact prefix matching with root anchoring
+  gitignore: |
+    /folder/
+  cases:
+    - path: "folder"
+      dir: true
+      description: directory 'folder' at root
+      ignored: true
+    - path: "folder/foo"
+      description: file inside ignored directory
+      ignored: true
+    - path: "folder-foo"
+      dir: true
+      description: directory with 'folder' prefix but different name
+      ignored: false
+    - path: "folder-foo/bar"
+      description: file in non-matching directory
+      ignored: false
+    - path: "a/folder"
+      dir: true
+      description: "'folder' directory in subdirectory (anchored pattern)"
+      ignored: false
+    - path: "a/folder/foo"
+      description: file in non-matching subdirectory
+      ignored: false
+
+- name: exact prefix without root slash
+  description: Test exact prefix matching without root anchoring
+  gitignore: |
+    folder/
+  cases:
+    - path: "folder"
+      dir: true
+      description: directory 'folder' at root
+      ignored: true
+    - path: "folder/foo"
+      description: file inside ignored directory
+      ignored: true
+    - path: "folder-foo"
+      dir: true
+      description: directory with 'folder' prefix but different name
+      ignored: false
+    - path: "folder-foo/bar"
+      description: file in non-matching directory
+      ignored: false
+    - path: "a/folder"
+      dir: true
+      description: "'folder' directory in subdirectory (unanchored)"
+      ignored: true
+    - path: "a/folder/foo"
+      description: file in ignored subdirectory
+      ignored: true
+
+- name: double asterisk with directories
+  description: Test ** pattern with directory exclusions and re-inclusions
+  gitignore: |
+    data/**
+    !data/**/
+    !data/**/*.txt
+  cases:
+    - path: "data/file"
+      description: file directly under data/
+      ignored: true
+    - path: "data/data1/file1"
+      description: file in subdirectory
+      ignored: true
+    - path: "data/data1/file1.txt"
+      description: .txt file re-included by negation
+      ignored: false
+    - path: "data/data2/file2"
+      description: another file in subdirectory
+      ignored: true
+    - path: "data/data2/file2.txt"
+      description: another .txt file re-included
+      ignored: false
+    - path: "data/data1"
+      dir: true
+      description: subdirectory re-included by !data/**/
+      ignored: false
+    - path: "data/data2"
+      dir: true
+      description: another subdirectory re-included
+      ignored: false
+
+- name: trailing whitespace
+  description: Test that trailing whitespace in patterns is ignored
+  gitignore: |
+    whitespace/trailing   
+  cases:
+    - path: "whitespace/trailing"
+      description: file should match despite trailing spaces in pattern
+      ignored: true
+    - path: "whitespace/untracked"
+      description: file not matching the pattern
+      ignored: false
+
+- name: escaped trailing whitespace
+  description: Test escaped trailing whitespace preservation
+  gitignore: |
+    whitespace/trailing\ \ 
+  cases:
+    - path: "whitespace/trailing  "
+      description: file with actual trailing spaces should match
+      ignored: true
+    - path: "whitespace/trailing"
+      description: file without trailing spaces should not match
+      ignored: false
+    - path: "whitespace/untracked"
+      description: unrelated file should not match
+      ignored: false
+
+- name: comment lines
+  description: Test that comment lines are ignored
+  gitignore: |
+    # this is a comment
+    one
+    # another comment
+    two
+  cases:
+    - path: "one"
+      description: pattern after comment should work
+      ignored: true
+    - path: "two"
+      description: pattern after another comment should work
+      ignored: true
+    - path: "# this is a comment"
+      description: literal comment text should not be a pattern
+      ignored: false
+
+- name: escaped hash
+  description: Test escaped hash for patterns starting with #
+  gitignore: |
+    \#important
+  cases:
+    - path: "#important"
+      description: file starting with # should match escaped pattern
+      ignored: true
+    - path: "important"
+      description: file without # should not match
+      ignored: false
+
+- name: negation basic
+  description: Test basic negation patterns
+  gitignore: |
+    ignored-*
+    !ignored-but-not
+  cases:
+    - path: "ignored-file"
+      description: file matching positive pattern
+      ignored: true
+    - path: "ignored-but-not"
+      description: file re-included by negation
+      ignored: false
+    - path: "ignored-another"
+      description: another file matching positive pattern
+      ignored: true
+
+- name: escaped negation
+  description: Test escaped exclamation mark
+  gitignore: |
+    \!important.txt
+  cases:
+    - path: "!important.txt"
+      description: file with literal ! should match
+      ignored: true
+    - path: "important.txt"
+      description: file without ! should not match
+      ignored: false
+
+- name: slash as separator beginning
+  description: Test slash at beginning anchors to root
+  gitignore: |
+    /doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: anchored pattern matches at root
+      ignored: true
+    - path: "a/doc/frotz"
+      description: same pattern in subdir should not match
+      ignored: false
+
+- name: slash as separator middle
+  description: Test slash in middle anchors pattern
+  gitignore: |
+    doc/frotz
+  cases:
+    - path: "doc/frotz"
+      description: pattern with slash matches at root
+      ignored: true
+    - path: "a/doc/frotz"
+      description: pattern anchored by middle slash doesn't match in subdir
+      ignored: false
+
+- name: trailing slash directory only
+  description: Test trailing slash matches only directories
+  gitignore: |
+    foo/
+  cases:
+    - path: "foo"
+      dir: true
+      description: directory should match
+      ignored: true
+    - path: "foo"
+      description: file with same name should not match
+      ignored: false
+    - path: "a/foo"
+      dir: true
+      description: directory in subdir should match (unanchored)
+      ignored: true
+    - path: "a/foo"
+      description: file in subdir should not match
+      ignored: false
+
+- name: single asterisk basic
+  description: Test single asterisk matches anything except slash
+  gitignore: |
+    *.o
+  cases:
+    - path: "file.o"
+      description: file matching pattern
+      ignored: true
+    - path: "dir/file.o"
+      description: file in subdir matching pattern
+      ignored: true
+    - path: "file.c"
+      description: file not matching pattern
+      ignored: false
+
+- name: question mark
+  description: Test question mark matches single character
+  gitignore: |
+    file.?
+  cases:
+    - path: "file.o"
+      description: single character extension matches
+      ignored: true
+    - path: "file.c"
+      description: another single character extension matches
+      ignored: true
+    - path: "file.txt"
+      description: multi-character extension doesn't match
+      ignored: false
+    - path: "file."
+      description: no character after dot doesn't match
+      ignored: false
+
+- name: range notation
+  description: Test character range notation
+  gitignore: |
+    file[a-z].txt
+  cases:
+    - path: "filea.txt"
+      description: lowercase letter matches
+      ignored: true
+    - path: "filez.txt"
+      description: another lowercase letter matches
+      ignored: true
+    - path: "fileA.txt"
+      description: uppercase letter doesn't match lowercase range
+      ignored: false
+    - path: "file1.txt"
+      description: number doesn't match letter range
+      ignored: false
+
+- name: double asterisk prefix
+  description: Test ** followed by slash matches in all directories
+  gitignore: |
+    **/foo
+  cases:
+    - path: "foo"
+      description: matches at root level
+      ignored: true
+    - path: "bar/foo"
+      description: matches one level deep
+      ignored: true
+    - path: "bar/baz/foo"
+      description: matches multiple levels deep
+      ignored: true
+    - path: "foo/bar"
+      description: foo as directory with content is ignored
+      ignored: true
+
+- name: double asterisk prefix with subpath
+  description: Test **/foo/bar pattern
+  gitignore: |
+    **/foo/bar
+  cases:
+    - path: "foo/bar"
+      description: matches at root level
+      ignored: true
+    - path: "x/foo/bar"
+      description: matches one level deep
+      ignored: true
+    - path: "x/y/foo/bar"
+      description: matches multiple levels deep
+      ignored: true
+    - path: "foo/bar/baz"
+      description: content under matched path is ignored
+      ignored: true
+
+- name: trailing double asterisk
+  description: Test pattern with /** suffix matches everything inside
+  gitignore: |
+    abc/**
+  cases:
+    - path: "abc/file"
+      description: file directly under abc/
+      ignored: true
+    - path: "abc/def/file"
+      description: file in subdirectory
+      ignored: true
+    - path: "abc/def/ghi/file"
+      description: file deeply nested
+      ignored: true
+    - path: "abc"
+      description: directory itself not matched by /** suffix
+      ignored: false
+    - path: "xyz/abc/file"
+      description: pattern anchored, doesn't match in subdir
+      ignored: false
+
+- name: double asterisk middle
+  description: Test a/**/b pattern matching zero or more directories
+  gitignore: |
+    a/**/b
+  cases:
+    - path: "a/b"
+      description: zero directories between a and b
+      ignored: true
+    - path: "a/x/b"
+      description: one directory between a and b
+      ignored: true
+    - path: "a/x/y/b"
+      description: two directories between a and b
+      ignored: true
+    - path: "a/x/y/z/b"
+      description: multiple directories between a and b
+      ignored: true
+    - path: "x/a/b"
+      description: pattern is anchored, doesn't match in subdir
+      ignored: false
+
+- name: consecutive asterisks non-special
+  description: Test that *** or more asterisks are treated as regular asterisks
+  gitignore: |
+    a***b
+  cases:
+    - path: "ab"
+      description: zero characters between a and b matches (* can match zero chars)
+      ignored: true
+    - path: "aXXXb"
+      description: multiple characters match
+      ignored: true
+    - path: "a/b"
+      description: slash doesn't match regular asterisks
+      ignored: false
+
+- name: complex negation in subdirs
+  description: Test complex negation patterns with directory context
+  gitignore: |
+    a/b/*
+    !a/b/on*
+    !a/b/two
+  cases:
+    - path: "a/b/ignored"
+      description: file matching wildcard is ignored
+      ignored: true
+    - path: "a/b/one"
+      description: file starting with 'on' is re-included
+      ignored: false
+    - path: "a/b/only"
+      description: another file starting with 'on' is re-included
+      ignored: false
+    - path: "a/b/two"
+      description: file 'two' is re-included
+      ignored: false
+    - path: "a/b/three"
+      description: file not re-included remains ignored
+      ignored: true
+
+- name: directory with nested patterns
+  description: Test directory ignoring with patterns inside
+  gitignore: |
+    ignored-dir/
+  cases:
+    - path: "ignored-dir"
+      dir: true
+      description: directory itself is ignored
+      ignored: true
+    - path: "ignored-dir/foo"
+      description: file in ignored directory is ignored
+      ignored: true
+    - path: "ignored-dir/subdir/bar"
+      description: nested file in ignored directory is ignored
+      ignored: true
+    - path: "a/ignored-dir"
+      dir: true
+      description: same named directory in subdir is also ignored (unanchored)
+      ignored: true
+
+- name: vmlinux wildcard example
+  description: Test vmlinux* pattern from Git documentation
+  gitignore: |
+    vmlinux*
+  cases:
+    - path: "vmlinux"
+      description: exact name matches
+      ignored: true
+    - path: "vmlinux.lds.S"
+      description: name with suffix matches
+      ignored: true
+    - path: "arch/foo/kernel/vmlinux.lds.S"
+      description: file in subdirectory matches
+      ignored: true
+
+- name: exclude everything except specific dir
+  description: Test excluding everything except foo/bar
+  gitignore: |
+    /*
+    !/foo
+    /foo/*
+    !/foo/bar
+  cases:
+    - path: "README"
+      description: root file is excluded by /*
+      ignored: true
+    - path: "foo"
+      dir: true
+      description: foo directory is re-included
+      ignored: false
+    - path: "foo/baz"
+      description: other content in foo is excluded
+      ignored: true
+    - path: "foo/bar"
+      description: foo/bar is specifically re-included
+      ignored: false
+    - path: "foo/bar/content"
+      description: content under foo/bar is not ignored
+      ignored: false
+    - path: "other"
+      description: other root content is excluded
+      ignored: true
+
+- name: hello pattern variants
+  description: Test different forms of hello pattern
+  gitignore: |
+    hello.*
+  cases:
+    - path: "hello.txt"
+      description: file matching pattern at root
+      ignored: true
+    - path: "hello.c"
+      description: another file matching pattern
+      ignored: true
+    - path: "a/hello.java"
+      description: file in subdirectory also matches (unanchored)
+      ignored: true
+    - path: "hello"
+      description: file without extension doesn't match
+      ignored: false
+
+- name: anchored hello pattern
+  description: Test anchored hello pattern
+  gitignore: |
+    /hello.*
+  cases:
+    - path: "hello.txt"
+      description: file at root matches
+      ignored: true
+    - path: "hello.c"
+      description: another file at root matches
+      ignored: true
+    - path: "a/hello.java"
+      description: file in subdirectory doesn't match (anchored)
+      ignored: false
+
+- name: foo directory pattern
+  description: Test foo/ directory pattern behavior
+  gitignore: |
+    foo/
+  cases:
+    - path: "foo"
+      dir: true
+      description: directory matches
+      ignored: true
+    - path: "foo"
+      description: regular file doesn't match directory pattern
+      ignored: false
+    - path: "test/foo"
+      dir: true
+      description: directory in subdirectory matches (unanchored)
+      ignored: true
+
+- name: foo wildcard content
+  description: Test foo/* pattern
+  gitignore: |
+    foo/*
+  cases:
+    - path: "foo/test.json"
+      description: file directly under foo/ matches
+      ignored: true
+    - path: "foo/bar"
+      dir: true
+      description: directory directly under foo/ matches
+      ignored: true
+    - path: "foo/bar/hello.c"
+      description: nested file is also ignored (parent dir is ignored)
+      ignored: true
+    - path: "foo"
+      description: foo itself doesn't match
+      ignored: false
+
+- name: blank lines and comments
+  description: Test that blank lines don't affect matching
+  gitignore: |
+    one
+    
+    # comment here
+    two
+    
+    three
+  cases:
+    - path: "one"
+      description: pattern before blank line works
+      ignored: true
+    - path: "two"
+      description: pattern after comment works
+      ignored: true
+    - path: "three"
+      description: pattern after blank line works
+      ignored: true
+
+- name: special characters escaping
+  description: Test escaping of special characters
+  gitignore: |
+    \!special
+    \#hash
+    file\ with\ space
+  cases:
+    - path: "!special"
+      description: literal exclamation mark
+      ignored: true
+    - path: "#hash"
+      description: literal hash
+      ignored: true
+    - path: "file with space"
+      description: literal spaces
+      ignored: true
+
+- name: re-include limitation with parent dir
+  description: Test that files in excluded dirs cannot be re-included
+  gitignore: |
+    /exclude-dir/
+    !/exclude-dir/keep-me.txt
+  cases:
+    - path: "exclude-dir"
+      dir: true
+      description: directory is excluded
+      ignored: true
+    - path: "exclude-dir/keep-me.txt"
+      description: cannot re-include file when parent dir is excluded
+      ignored: true
+    - path: "exclude-dir/other.txt"
+      description: other files also excluded
+      ignored: true

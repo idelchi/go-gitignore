@@ -1,0 +1,33 @@
+- name: git directory patterns
+  description: Exact prefix matching for git directories
+  gitignore: |
+    git/
+  cases:
+    - path: "a/git"
+      description: "git/ matches git directory"
+      dir: true
+      ignored: true
+    - path: "a/git/foo"
+      description: "git/ matches file in git directory"
+      ignored: true
+    - path: "a/git-foo"
+      description: "git/ doesn't match git-foo directory"
+      dir: true
+      ignored: false
+    - path: "a/git-foo/bar"
+      description: "git/ doesn't match file in git-foo"
+      ignored: false
+
+- name: rooted dotfolder directory patterns
+  description: Root-anchored dotfolder directory patterns
+  gitignore: |
+    /dotfolder/
+  cases:
+    - path: "dotfolder"
+      description: "/dotfolder/ matches dotfolder at root"
+      dir: true
+      ignored: true
+    - path: "a/dotfolder"
+      description: "/dotfolder/ doesn't match dotfolder in subdirectory"
+      dir: true
+      ignored: false

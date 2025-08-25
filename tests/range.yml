@@ -1,0 +1,20 @@
+- name: character range patterns
+  description: Character class and range patterns
+  gitignore: |
+    file[a-z].txt
+  cases:
+    - path: "filec.txt"
+      description: "[a-z] matches lowercase letter"
+      ignored: true
+    - path: "fileC.txt"
+      description: "[a-z] doesn't match uppercase"
+      ignored: false
+
+- name: mixed case range patterns
+  description: Mixed case character ranges
+  gitignore: |
+    file[a-zA-Z].txt
+  cases:
+    - path: "fileC.txt"
+      description: "[a-zA-Z] matches any letter"
+      ignored: true

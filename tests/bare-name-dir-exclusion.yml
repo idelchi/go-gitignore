@@ -1,0 +1,12 @@
+- name: bare name excludes directory and forbids re-include
+  description: "Bare name foo matches a directory named foo; children cannot be re-included"
+  gitignore: |
+    foo
+    !foo/bar.txt
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: true
+    - path: "foo/bar.txt"
+      description: "Parent excluded by bare name; cannot re-include child"
+      ignored: true

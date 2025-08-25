@@ -1,0 +1,35 @@
+- name: simple negation patterns
+  description: Basic negation with exclamation mark
+  gitignore: |
+    *
+    !important.txt
+  cases:
+    - path: "important.txt"
+      description: negated pattern
+      ignored: false
+
+- name: wildcard negation patterns
+  description: Negation with wildcards
+  gitignore: |
+    *.html
+    !foo.html
+  cases:
+    - path: "foo.html"
+      description: negated pattern with wildcards
+      ignored: false
+    - path: "bar.html"
+      description: other html file still ignored
+      ignored: true
+
+- name: complex negation patterns
+  description: Complex directory negation patterns
+  gitignore: |
+    /*
+    !/foo
+    /foo/*
+    !/foo/bar
+  cases:
+    - path: "foo/bar"
+      description: negated directory pattern
+      dir: true
+      ignored: false

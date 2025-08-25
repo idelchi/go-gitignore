@@ -1,0 +1,10 @@
+- name: dot-slash normalization
+  description: "./x should be treated like x"
+  gitignore: |
+    *
+    !x.txt
+  cases:
+    - path: "./x.txt"
+      ignored: false
+    - path: "./dir/y.txt"
+      ignored: true

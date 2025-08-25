@@ -1,0 +1,28 @@
+- name: gitignore file exception
+  description: Special handling for .gitignore files
+  gitignore: |
+    *
+    !*/
+    !.dotfile
+  cases:
+    - path: ".dotfile"
+      description: "* !*/ !.dotfile - .dotfile allowed"
+      ignored: false
+    - path: ".env"
+      description: "* !*/ !.dotfile - other hidden file matched by *"
+      ignored: true
+    - path: "subdir/.dotfile"
+      description: "* !*/ !.dotfile - nested .dotfile allowed"
+      ignored: false
+
+- name: dotfolder directory exception
+  description: Special handling for .dotfolder directory
+  gitignore: |
+    *
+    !*/
+    !.dotfolder/
+  cases:
+    - path: ".dotfolder"
+      description: "* !*/ !.dotfolder/ - .dotfolder dir allowed"
+      dir: true
+      ignored: false

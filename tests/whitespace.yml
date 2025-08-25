@@ -1,0 +1,17 @@
+- name: trailing whitespace
+  description: Handling of trailing spaces in patterns
+  gitignore: |
+    trailing
+  cases:
+    - path: "trailing"
+      description: trailing spaces are ignored
+      ignored: true
+
+- name: escaped trailing spaces
+  description: Escaped trailing space handling
+  gitignore: |
+    trailing\ \ 
+  cases:
+    - path: "trailing  "
+      description: escaped trailing spaces
+      ignored: true

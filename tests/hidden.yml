@@ -1,0 +1,268 @@
+- name: ignore all hidden files and dirs
+  description: ".* should match all hidden files and directories (except . and ..)"
+  gitignore: |
+    .*
+  cases:
+    - path: ".env"
+      description: "simple hidden file"
+      ignored: true
+    - path: ".vscode"
+      dir: true
+      description: "hidden directory"
+      ignored: true
+    - path: ".folder/config"
+      description: "hidden nested directory"
+      dir: true
+      ignored: true
+    - path: ".folder/config/file.txt"
+      description: "hidden nested file"
+      ignored: true
+
+- name: unignore all hidden files and dirs
+  description: "!. * should unignore hidden files and dirs again (except .git)"
+  gitignore: |
+    .*
+    !.*
+  cases:
+    - path: ".env"
+      description: "simple hidden file"
+      ignored: false
+    - path: ".vscode"
+      dir: true
+      description: "hidden directory"
+      ignored: false
+    - path: ".folder/config"
+      description: "hidden nested directory"
+      dir: true
+      ignored: false
+    - path: ".folder/config/file.txt"
+      description: "hidden nested file"
+      ignored: false
+
+- name: ignore all hidden files and dirs (any depth)
+  description: ".* should match any path component that begins with a dot"
+  gitignore: |
+    .*
+  cases:
+    - path: ".env"
+      description: "top-level hidden file"
+      ignored: true
+    - path: ".vscode"
+      dir: true
+      description: "top-level hidden directory"
+      ignored: true
+    - path: "sub/.env"
+      description: "hidden file in subdirectory"
+      ignored: true
+    - path: "sub/.cache"
+      dir: true
+      description: "hidden directory in subdirectory"
+      ignored: true
+
+- name: unignore all hidden again
+  description: "!. * should re-include hidden files/dirs (except .git which Git always ignores)"
+  gitignore: |
+    .*
+    !.*
+  cases:
+    - path: ".env"
+      description: "unignored by !.*"
+      ignored: false
+    - path: ".vscode"
+      dir: true
+      description: "hidden directory unignored"
+      ignored: false
+
+- name: unignore only specific hidden file everywhere
+  description: "re-include only .env (at any depth), keep all other dotfiles/dirs ignored"
+  gitignore: |
+    .*
+    !.env
+  cases:
+    - path: ".env"
+      description: "exact allowlist at root"
+      ignored: false
+    - path: "app/.env"
+      description: "exact allowlist in subdirectory"
+      ignored: false
+    - path: ".env.local"
+      description: "not an exact .env match"
+      ignored: true
+    - path: ".vscode"
+      dir: true
+      description: "other hidden directory still ignored"
+      ignored: true
+
+- name: unignore only one hidden directory (and its normal children)
+  description: "!.vscode/ makes the directory visible; children that are not dot-prefixed are visible too"
+  gitignore: |
+    .*
+    !.vscode/
+  cases:
+    - path: ".vscode"
+      dir: true
+      description: "directory explicitly unignored"
+      ignored: false
+    - path: ".vscode/settings.json"
+      description: "child file is not dot-prefixed; should be visible"
+      ignored: false
+    - path: ".vscode/.secret"
+      description: "child file that itself is dot-prefixed is still matched by .*"
+      ignored: true
+    - path: ".idea"
+      dir: true
+      description: "another hidden directory remains ignored"
+      ignored: true
+
+- name: root-anchored dot ignore
+  description: "/.* matches only top-level entries; not those under subdirectories"
+  gitignore: |
+    /.*
+  cases:
+    - path: ".env"
+      description: "top-level hidden file matched"
+      ignored: true
+    - path: ".config"
+      dir: true
+      description: "top-level hidden directory matched"
+      ignored: true
+    - path: "sub/.env"
+      description: "hidden file in subdirectory not matched by root-anchored pattern"
+      ignored: false
+    - path: "sub/.config"
+      dir: true
+      description: "hidden directory in subdirectory not matched by root-anchored pattern"
+      ignored: false
+
+- name: ignore only hidden directories
+  description: "use .*/ to ignore dot-directories but not dot-files"
+  gitignore: |
+    .*/
+  cases:
+    - path: ".config"
+      dir: true
+      description: "dot-directory ignored"
+      ignored: true
+    - path: ".config/file"
+      description: "child inside ignored dir inherits ignore via parent exclusion"
+      ignored: true
+    - path: ".env"
+      description: "dot-file is NOT a directory; not matched by .*/"
+      ignored: false
+    - path: "sub/.cache"
+      dir: true
+      description: "hidden directory under subdir ignored"
+      ignored: true
+
+- name: unignore all, then re-ignore .hidden explicitly
+  description: "order matters; allow all dotpaths, then ignore .gitkeep by name"
+  gitignore: |
+    .*
+    !.*
+    *.hidden
+  cases:
+    - path: ".hidden"
+      description: "matches *.hidden after being unignored by !.*"
+      ignored: true
+    - path: "sub/.hidden"
+      description: "same for nested"
+      ignored: true
+    - path: ".env"
+      description: "remains unignored due to !.* and not matching *.hidden"
+      ignored: false
+
+- name: nested hidden directory under normal directory
+  description: ".* should catch dot-directories appearing anywhere in the path"
+  gitignore: |
+    .*
+  cases:
+    - path: "src/.cache"
+      dir: true
+      description: "hidden directory nested under src"
+      ignored: true
+    - path: "src/.cache/data.bin"
+      description: "file inherits ignore because its parent dir is ignored"
+      ignored: true
+    - path: "src/normal.txt"
+      description: "non-hidden path unaffected"
+      ignored: false
+
+- name: re-include a specific file inside an ignored hidden directory
+  description: "allowlisting a concrete file works after unignoring the directory entry"
+  gitignore: |
+    .*
+    !.cache/
+    !.cache/keep.txt
+  cases:
+    - path: ".cache"
+      dir: true
+      description: "directory unignored explicitly"
+      ignored: false
+    - path: ".cache/keep.txt"
+      description: "explicitly unignored file inside"
+      ignored: false
+    - path: ".cache/other.txt"
+      description: "other files still subject to leading .* pattern"
+      ignored: false
+    - path: ".cache/.secret"
+      description: "dotfile inside remains ignored by .*"
+      ignored: true
+
+- name: unignore first, then ignore again
+  description: "!.* followed by .* should result in hidden files ignored"
+  gitignore: |
+    !.*
+    .*
+  cases:
+    - path: ".env"
+      description: "final state is ignored due to later .*"
+      ignored: true
+    - path: ".folder"
+      dir: true
+      description: "hidden dir ignored due to later .*"
+      ignored: true
+    - path: "visible.txt"
+      description: "non-hidden unaffected"
+      ignored: false
+
+- name: unignore all except a specific hidden directory
+  description: "use a negative allowlist then re-ignore one directory explicitly"
+  gitignore: |
+    .*
+    !.*
+    .secrets/
+  cases:
+    - path: ".secrets"
+      dir: true
+      description: "explicitly ignored again"
+      ignored: true
+    - path: ".secrets/keys.json"
+      description: "child inherits ignore from .secrets/"
+      ignored: true
+    - path: ".env"
+      description: "other hidden files are unignored by !.*"
+      ignored: false
+    - path: ".vscode"
+      dir: true
+      description: "other hidden dirs are unignored by !.*"
+      ignored: false
+
+- name: root-only hidden ignored, global hidden allowed, re-ignore one nested file
+  description: "combine /.*, !.*, and a targeted ignore for a nested file"
+  gitignore: |
+    /.*
+    !.*
+    sub/.secret
+  cases:
+    - path: ".env"
+      description: "not ignored by root-anchored /.* (top-level only)"
+      ignored: false
+    - path: "sub/.env"
+      description: "not matched by /.* and allowed by !.*"
+      ignored: false
+    - path: "sub/.secret"
+      description: "explicit path ignore wins"
+      ignored: true
+    - path: "deep/sub/.env"
+      description: "non-root hidden allowed by !.*"
+      ignored: false
