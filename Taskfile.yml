@@ -67,7 +67,6 @@ tasks:
       - task: format:docker
       - task: format:md
       - task: format:shell
-      - task: format:jenkins
       - task: format:ws
       - task: go:format
 
@@ -82,17 +81,11 @@ tasks:
       - task: lint:cp
       - task: go:lint
 
-  build:
-    deps:
-      - generate
-    cmds:
-      - task: go:build
-      - task: go:release
+  build: echo "This project is library only"
 
   test:
-    deps:
-      - generate
     cmds:
+      - cmd: go clean -testcache
       - task: go:quality
       - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=60s
 
