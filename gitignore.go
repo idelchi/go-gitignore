@@ -32,7 +32,7 @@ import (
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-// Constants for pattern matching
+// Constants for pattern matching.
 const (
 	doubleStarSlash = "/**"
 	doubleSlash     = "//"
@@ -42,45 +42,46 @@ const (
 	doubleStar      = "**"
 )
 
-// normalizeCandidatePath collapses runs of '/' and cleans dot segments like Git does
+// normalizeCandidatePath collapses runs of '/' and cleans dot segments like Git does.
 func normalizeCandidatePath(p string) string {
 	if p == "" || p == "." {
 		return p
 	}
-	
+
 	// Special case: preserve leading double slash (POSIX behavior)
 	preserveDoubleSlash := strings.HasPrefix(p, doubleSlash) && !strings.HasPrefix(p, tripleSlash)
 	if preserveDoubleSlash {
 		p = doubleSlash + p[2:]
 	}
-	
+
 	// Collapse all runs of '/'
 	for strings.Contains(p, doubleSlash) {
 		p = strings.ReplaceAll(p, doubleSlash, "/")
 	}
-	
+
 	// Restore leading double slash if needed
 	if preserveDoubleSlash && !strings.HasPrefix(p, doubleSlash) {
 		p = "/" + p
 	}
-	
+
 	// Clean dot segments
 	return path.Clean(p)
 }
 
-// normalizeMetaEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes
+// normalizeMetaEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
 func normalizeMetaEscapes(glob string) string {
 	if glob == "" {
 		return glob
 	}
-	
+
 	var b strings.Builder
 	b.Grow(len(glob) + 8)
-	
+
 	inClass := false
+
 	for i := 0; i < len(glob); i++ {
 		ch := glob[i]
-		
+
 		// Track character class boundaries
 		if ch == '[' && !inClass {
 			inClass = true
@@ -92,12 +93,13 @@ func normalizeMetaEscapes(glob string) string {
 			for i < len(glob) && glob[i] == '\\' {
 				i++
 			}
+
 			runLen := i - runStart
-			
+
 			// Check if next character is a meta character
 			if i < len(glob) && !inClass && (glob[i] == '*' || glob[i] == '?') {
 				// Write original backslashes
-				for k := 0; k < runLen; k++ {
+				for range runLen {
 					b.WriteByte('\\')
 				}
 				// Add extra backslash if odd number (to keep meta unescaped)
@@ -106,16 +108,19 @@ func normalizeMetaEscapes(glob string) string {
 				}
 			} else {
 				// Write backslashes as-is
-				for k := 0; k < runLen; k++ {
+				for range runLen {
 					b.WriteByte('\\')
 				}
 			}
+
 			i-- // Back up since outer loop will increment
+
 			continue
 		}
-		
+
 		b.WriteByte(ch)
 	}
+
 	return b.String()
 }
 
@@ -220,7 +225,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	if p == "" {
 		return false
 	}
-	
+
 	// Git quirk: paths starting with "//" are never ignored
 	// Leading double slash has special meaning in POSIX and Git doesn't match them
 	if strings.HasPrefix(p, doubleSlash) && !strings.HasPrefix(p, tripleSlash) {
@@ -251,7 +256,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	ignored := false
 
 	// Track which directories are excluded after considering all patterns and negations
-	// Files under excluded directories can only be re-included if all parent directories 
+	// Files under excluded directories can only be re-included if all parent directories
 	// on the path have been re-included
 	excludedDirs := g.findExcludedParentDirectories(p)
 
@@ -264,7 +269,11 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 			if pat.negated {
 				// Git rule: cannot re-include file if parent directory is excluded
 				if !parentExcluded {
-					ignored = false
+					// Special case: negation patterns for "." (current directory) don't work
+					// in Git when the path itself is "." - the current directory remains ignored
+					if pat.pattern != "." || p != "." {
+						ignored = false
+					}
 				}
 			} else {
 				ignored = true
@@ -318,6 +327,7 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 	pathsToCheck := make([]string, 0, len(parts))
 	for i := 1; i <= len(parts); i++ {
 		checkPath := strings.Join(parts[:i], "/")
+
 		checkPath = normalizeCandidatePath(checkPath)
 		pathsToCheck = append(pathsToCheck, checkPath)
 	}
@@ -350,15 +360,18 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 	return excludedDirs
 }
 
-// isSandwichBase checks if path is the base directory of a sandwich pattern (should not match)
+// isSandwichBase checks if path is the base directory of a sandwich pattern (should not match).
 func isSandwichBase(pat pattern, path string) bool {
 	if !pat.formSandwich {
 		return false
 	}
+
 	if strings.HasSuffix(path, pat.sandwichMiddle) {
 		prefix := strings.TrimSuffix(path, pat.sandwichMiddle)
+
 		return prefix == "" || strings.HasSuffix(prefix, "/")
 	}
+
 	return false
 }
 
@@ -377,6 +390,7 @@ func matches(pat pattern, p string, isDir bool) bool {
 			if !isDir {
 				return false
 			}
+
 			base := stripTrailingSuffix(pat.pattern, false) // remove all trailing "/**" groups
 
 			// If base is meaningful, do a strict-descendant match; otherwise fall back to original glob.
@@ -397,15 +411,16 @@ func matches(pat pattern, p string, isDir bool) bool {
 			if pat.rooted || strings.Contains(pat.pattern, "/") {
 				return matchGlob(pat, p)
 			}
+
 			return matchGlob(pat, path.Base(p))
 		}
+
 		return false
 	}
 
 	// Regular (non-dir-only) patterns
 	return matchesFilePattern(pat, p, isDir)
 }
-
 
 // matchGlob performs Git-compatible glob pattern matching using the doublestar library.
 // Handles brace escaping to prevent unintended expansion since Git treats braces as
@@ -419,37 +434,41 @@ func matchGlob(p pattern, targetPath string) bool {
 	if !hasUnescapedWildcards(glob) {
 		// Process escapes for literal matching - remove all escape backslashes
 		literal := processEscapes(glob, true)
+
 		return literal == targetPath
 	}
 
 	// Process escape sequences before glob matching
 	originalGlob := glob
+
 	glob = processEscapes(glob, false)
-	
+
 	// Git does not support brace expansion, but doublestar does by default.
 	// We need to escape unescaped braces to prevent expansion.
 	glob = escapeBraces(glob)
 
 	// Normalize first-literal ']' inside character classes to avoid engine differences.
 	glob = escapeFirstClosingBracketInCharClass(glob)
-	
+
 	// Only apply normalizeMetaEscapes if we haven't explicitly escaped wildcards
 	// Check if the original pattern had escaped wildcards that we want to keep literal
-	hasEscapedWildcards := strings.Contains(originalGlob, "\\*") || strings.Contains(originalGlob, "\\?") || strings.Contains(originalGlob, "\\[")
+	hasEscapedWildcards := strings.Contains(originalGlob, "\\*") || strings.Contains(originalGlob, "\\?") ||
+		strings.Contains(originalGlob, "\\[")
 	if !hasEscapedWildcards {
 		glob = normalizeMetaEscapes(glob)
 	}
-	
+
 	matched, _ := doublestar.Match(glob, targetPath)
+
 	return matched
 }
 
-// matchRawGlob is a convenience wrapper for matchGlob with a raw pattern string
+// matchRawGlob is a convenience wrapper for matchGlob with a raw pattern string.
 func matchRawGlob(glob, targetPath string) bool {
 	return matchGlob(pattern{pattern: glob}, targetPath)
 }
 
-// stripTrailingSuffix removes trailing "/**" segments based on mode
+// stripTrailingSuffix removes trailing "/**" segments based on mode.
 func stripTrailingSuffix(glob string, allowDoubleSlash bool) string {
 	for strings.HasSuffix(glob, doubleStarSlash) {
 		if !allowDoubleSlash || !strings.HasSuffix(glob, "/**/") {
@@ -458,6 +477,7 @@ func stripTrailingSuffix(glob string, allowDoubleSlash bool) string {
 			break
 		}
 	}
+
 	return glob
 }
 
@@ -466,10 +486,11 @@ func endsWithDoubleStarSegment(glob string) bool {
 	if glob == doubleStar {
 		return true
 	}
+
 	return strings.HasSuffix(glob, doubleStarSlash) && strings.TrimSuffix(glob, doubleStarSlash) != ""
 }
 
-// escapeBraces escapes unescaped brace characters to prevent brace expansion
+// escapeBraces escapes unescaped brace characters to prevent brace expansion.
 func escapeBraces(p string) string {
 	if p == "" || (!strings.Contains(p, "{") && !strings.Contains(p, "}")) {
 		return p
@@ -477,11 +498,12 @@ func escapeBraces(p string) string {
 
 	var result strings.Builder
 	result.Grow(len(p) + 10)
-	
+
 	inCharClass := false
-	for i := 0; i < len(p); i++ {
+
+	for i := range len(p) {
 		c := p[i]
-		
+
 		// Track character class boundaries
 		if c == '[' && (i == 0 || p[i-1] != '\\') {
 			inCharClass = true
@@ -490,6 +512,7 @@ func escapeBraces(p string) string {
 		} else if (c == '{' || c == '}') && !inCharClass {
 			// Count preceding backslashes
 			backslashes := 0
+
 			for j := i - 1; j >= 0 && p[j] == '\\'; j-- {
 				backslashes++
 			}
@@ -498,13 +521,15 @@ func escapeBraces(p string) string {
 				result.WriteByte('\\')
 			}
 		}
+
 		result.WriteByte(c)
 	}
+
 	return result.String()
 }
 
 // escapeFirstClosingBracketInCharClass ensures that a ']' used as the first character
-// inside a character class is escaped for consistent glob matching behavior
+// inside a character class is escaped for consistent glob matching behavior.
 func escapeFirstClosingBracketInCharClass(p string) string {
 	if p == "" || !strings.Contains(p, "[") {
 		return p
@@ -512,44 +537,53 @@ func escapeFirstClosingBracketInCharClass(p string) string {
 
 	var b strings.Builder
 	b.Grow(len(p) + 8)
-	
+
 	i := 0
 	for i < len(p) {
 		if p[i] != '[' || (i > 0 && p[i-1] == '\\') {
 			b.WriteByte(p[i])
+
 			i++
+
 			continue
 		}
-		
+
 		// Found unescaped '[', start of character class
 		b.WriteByte('[')
+
 		i++
-		
+
 		// Skip negation characters
 		if i < len(p) && (p[i] == '!' || p[i] == '^') {
 			b.WriteByte(p[i])
+
 			i++
 		}
-		
+
 		// Check if first listed character is ']'
 		if i < len(p) && p[i] == ']' {
 			b.WriteByte('\\')
 			b.WriteByte(']')
+
 			i++
 		}
-		
+
 		// Copy until we find the closing ']'
 		for i < len(p) {
 			if p[i] == ']' && (i == 0 || p[i-1] != '\\') {
 				b.WriteByte(']')
+
 				i++
+
 				break
 			}
+
 			b.WriteByte(p[i])
+
 			i++
 		}
 	}
-	
+
 	return b.String()
 }
 
@@ -566,15 +600,17 @@ func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
-// hasUnescapedWildcards checks if pattern has unescaped wildcards
+// hasUnescapedWildcards checks if pattern has unescaped wildcards.
 func hasUnescapedWildcards(pattern string) bool {
 	for i := 0; i < len(pattern); i++ {
 		if pattern[i] == '\\' && i+1 < len(pattern) {
 			// Skip escaped character
 			i++
+
 			continue
 		}
 		// Check for unescaped wildcards
@@ -582,89 +618,122 @@ func hasUnescapedWildcards(pattern string) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
-// processEscapes handles escape sequences in patterns with different modes
+// processEscapes handles escape sequences in patterns with different modes.
 func processEscapes(pattern string, forLiteral bool) string {
 	if pattern == "" {
 		return pattern
 	}
-	
+
 	var result strings.Builder
 	result.Grow(len(pattern) + 10)
-	
+
+	inCharClass := false
+
 	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' && i+1 < len(pattern) {
+		char := pattern[i]
+
+		// Track character class boundaries
+		if char == '[' && (i == 0 || pattern[i-1] != '\\') {
+			inCharClass = true
+
+			result.WriteByte(char)
+		} else if char == ']' && inCharClass && (i == 0 || pattern[i-1] != '\\') {
+			inCharClass = false
+
+			result.WriteByte(char)
+		} else if char == '\\' && i+1 < len(pattern) {
 			next := pattern[i+1]
-			switch next {
-			case '*', '?', '[', ']':
-				if forLiteral {
-					// For literal matching, remove escape backslash
-					result.WriteByte(next)
-				} else {
-					// For glob matching, keep escaped for doublestar
-					result.WriteByte('\\')
-					result.WriteByte(next)
-				}
-				i++ // Skip the next character
-			case '#', '{', '}', '!':
-				// Always remove backslash for these special chars
+
+			// Inside character classes, preserve backslashes as-is for doublestar
+			if inCharClass {
+				result.WriteByte('\\')
 				result.WriteByte(next)
+
 				i++ // Skip the next character
-			case '\\':
-				if !forLiteral && i+2 < len(pattern) && (pattern[i+2] == '*' || pattern[i+2] == '?' || pattern[i+2] == '[') {
-					// For glob matching with \\* or \\? or \\[ - preserve for doublestar
-					result.WriteByte('\\')
-					result.WriteByte('\\')
-					i++ // Skip the second backslash
-				} else {
-					// Regular double backslash becomes single
-					result.WriteByte('\\')
-					i++
+			} else {
+				// Outside character classes, use existing logic
+				switch next {
+				case '*', '?', '[', ']':
+					if forLiteral {
+						// For literal matching, remove escape backslash
+						result.WriteByte(next)
+					} else {
+						// For glob matching, keep escaped for doublestar
+						result.WriteByte('\\')
+						result.WriteByte(next)
+					}
+
+					i++ // Skip the next character
+				case '#', '{', '}', '!':
+					// Always remove backslash for these special chars
+					result.WriteByte(next)
+
+					i++ // Skip the next character
+				case '\\':
+					if !forLiteral && i+2 < len(pattern) && (pattern[i+2] == '*' || pattern[i+2] == '?' || pattern[i+2] == '[') {
+						// For glob matching with \\* or \\? or \\[ - preserve for doublestar
+						result.WriteByte('\\')
+						result.WriteByte('\\')
+
+						i++ // Skip the second backslash
+					} else {
+						// Regular double backslash becomes single
+						result.WriteByte('\\')
+
+						i++
+					}
+				default:
+					// Keep backslash for other cases
+					result.WriteByte(char)
 				}
-			default:
-				// Keep backslash for other cases
-				result.WriteByte(pattern[i])
 			}
 		} else {
-			result.WriteByte(pattern[i])
+			result.WriteByte(char)
 		}
 	}
-	
+
 	return result.String()
 }
 
-
-// trimTrailingSpaces removes unescaped trailing spaces and processes escape sequences
+// trimTrailingSpaces removes unescaped trailing spaces and processes escape sequences.
 func trimTrailingSpaces(str string) string {
 	if str == "" {
 		return str
 	}
-	
+
 	// Trim unescaped trailing spaces
 	for len(str) > 0 && str[len(str)-1] == ' ' {
 		backslashes := 0
+
 		for i := len(str) - 2; i >= 0 && str[i] == '\\'; i-- {
 			backslashes++
 		}
+
 		if backslashes%2 == 1 {
 			break // Space is escaped
 		}
+
 		str = str[:len(str)-1]
 	}
-	
+
 	// Process \<space> escapes
 	var result strings.Builder
 	result.Grow(len(str))
+
 	for i := 0; i < len(str); i++ {
 		if i < len(str)-1 && str[i] == '\\' && str[i+1] == ' ' {
 			result.WriteByte(' ')
+
 			i++
 		} else {
 			result.WriteByte(str[i])
 		}
 	}
+
 	return result.String()
 }
 
@@ -765,7 +834,7 @@ func parsePattern(line string) *pattern {
 	// Detect sandwich patterns like **/node_modules/** or **/foo/bar/**
 	if !pat.dirOnly && strings.Contains(pat.pattern, doubleStarSlash) {
 		var middle string
-		
+
 		// Pattern: **/middle/**
 		if strings.HasPrefix(pat.pattern, "**/") && strings.HasSuffix(pat.pattern, doubleStarSlash) {
 			middle = strings.TrimPrefix(pat.pattern, "**/")
@@ -777,7 +846,7 @@ func parsePattern(line string) *pattern {
 				middle = strings.TrimSuffix(remaining, doubleStarSlash)
 			}
 		}
-		
+
 		// Accept only if middle is valid (no wildcards)
 		if middle != "" && middle != wildcard && middle != doubleStar &&
 			!strings.Contains(middle, wildcard) && !strings.Contains(middle, doubleStar) {
@@ -798,6 +867,7 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 	if isSandwichBase(pat, filePath) {
 		return false
 	}
+
 	if pat.formSandwich {
 		return matchGlob(pat, filePath)
 	}
@@ -822,6 +892,7 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 			if base == "" || endsWithDoubleStarSegment(base) {
 				return matchGlob(pat, filePath)
 			}
+
 			return matchRawGlob(base+"/**", filePath)
 		}
 
@@ -837,11 +908,13 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 			if strings.Contains(filePath, "/") {
 				return false // Not at top level
 			}
-			// In Git, * does not match files starting with . (dotfiles)
+			// In Git, /* does not match top-level dotfiles
 			if strings.HasPrefix(filePath, ".") {
 				return false
 			}
+
 			matched, _ := doublestar.Match(wildcard, filePath)
+
 			return matched
 		}
 		// Unrooted * matches a single component at any depth
@@ -849,7 +922,9 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 		if basename == "" {
 			return false
 		}
+
 		matched, _ := doublestar.Match(wildcard, basename)
+
 		return matched
 	}
 
@@ -861,6 +936,7 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 	// Non-rooted patterns (no '/'): match only the entry's basename
 	if !strings.Contains(pat.pattern, "/") {
 		basename := path.Base(filePath)
+
 		return matchGlob(pat, basename)
 	}
 
@@ -878,6 +954,7 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 	if isSandwichBase(pat, dirPath) {
 		return false
 	}
+
 	if pat.formSandwich {
 		return matchGlob(pat, dirPath)
 	}
@@ -907,6 +984,7 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 		if pat.rooted || strings.Contains(pat.pattern, "/") {
 			return matchGlob(pat, dirPath)
 		}
+
 		return matchGlob(pat, path.Base(dirPath))
 	}
 
@@ -920,6 +998,7 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 			if matchRawGlob(base, dirPath) {
 				return false
 			}
+
 			return matchRawGlob(base+"/**", dirPath)
 		}
 		// Degenerate base (e.g., "**"): rely on original glob semantics
@@ -934,11 +1013,13 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 			if strings.Contains(dirPath, "/") {
 				return false // Not at top level
 			}
-			// In Git, * does not match directories starting with . (dotdirs)
+			// In Git, /* does not match top-level dotdirs
 			if strings.HasPrefix(dirPath, ".") {
 				return false
 			}
+
 			matched, _ := doublestar.Match(wildcard, dirPath)
+
 			return matched
 		}
 		// "*" can exclude directories by matching their basename
@@ -946,7 +1027,9 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 		if basename == "" {
 			return false
 		}
+
 		matched, _ := doublestar.Match(wildcard, basename)
+
 		return matched
 	}
 
@@ -963,5 +1046,6 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 	// Pattern without slash - check if it matches directory basename
 	// e.g., "build" pattern excludes directory named "build"
 	basename := path.Base(dirPath)
+
 	return matchGlob(pat, basename)
 }

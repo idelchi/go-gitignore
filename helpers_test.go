@@ -1,8 +1,8 @@
 package gitignore_test
 
 import (
+	"errors"
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,7 +11,7 @@ import (
 )
 
 // testFilter allows filtering which test files to run via command line.
-// Usage: go test -f "basic,directories" to run only basic.yml and directories.yml
+// Usage: go test -f "basic,directories" to run only basic.yml and directories.yml.
 var testFilter = flag.String("f", "", "YAML file to validate (e.g. 'basic.yml')")
 
 // Case represents a single test case within a gitignore test group.
@@ -58,10 +58,12 @@ func ParseFilter(filter string) []string {
 	if filter == "" {
 		return nil
 	}
+
 	parts := strings.Split(filter, ",")
 	for i := range parts {
 		parts[i] = strings.TrimSpace(parts[i])
 	}
+
 	return parts
 }
 
@@ -86,12 +88,15 @@ func ShouldIncludeFile(filename string, filter []string) bool {
 	if len(filter) == 0 {
 		return true
 	}
+
 	baseName := BaseNameWithoutExt(filename)
+
 	for _, f := range filter {
 		if baseName == f {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -116,11 +121,14 @@ func YamlFiles(dir string, filter []string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var out []string
+
 	for _, e := range ents {
 		if e.IsDir() {
 			continue
 		}
+
 		switch strings.ToLower(filepath.Ext(e.Name())) {
 		case ".yaml", ".yml":
 			if ShouldIncludeFile(e.Name(), filter) {
@@ -130,7 +138,7 @@ func YamlFiles(dir string, filter []string) ([]string, error) {
 	}
 
 	if len(out) == 0 {
-		return nil, fmt.Errorf("no YAML files found")
+		return nil, errors.New("no YAML files found")
 	}
 
 	return out, nil
@@ -164,9 +172,11 @@ func LoadGitIgnoreSpecs(path string) (GitIgnores, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	var spec GitIgnores
 	if err := yaml.Unmarshal(data, &spec); err != nil {
 		return nil, err
 	}
+
 	return spec, nil
 }

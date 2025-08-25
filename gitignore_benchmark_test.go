@@ -14,16 +14,20 @@ var result bool
 func BenchmarkNew(b *testing.B) {
 	b.Run("1000_Simple_Patterns", func(b *testing.B) {
 		patterns := generateSimplePatterns(1000)
+
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = gitignore.New(patterns)
 		}
 	})
 
 	b.Run("1000_Complex_Patterns", func(b *testing.B) {
 		patterns := generateComplexPatterns(1000)
+
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+
+		for range b.N {
 			_ = gitignore.New(patterns)
 		}
 	})
@@ -37,13 +41,14 @@ func BenchmarkIgnored(b *testing.B) {
 	// Scenario 1: Test scaling with path depth
 	b.Run("Path_Depth", func(b *testing.B) {
 		deepPath := "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/file.go"
+
 		b.Run("Shallow", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				result = giRealWorld.Ignored("src/components/button.tsx", false)
 			}
 		})
 		b.Run("Deep", func(b *testing.B) {
-			for i := 0; i < b.N; i++ {
+			for range b.N {
 				result = giRealWorld.Ignored(deepPath, false)
 			}
 		})
@@ -52,17 +57,22 @@ func BenchmarkIgnored(b *testing.B) {
 	// Scenario 2: Test scaling with number of rules
 	b.Run("Rule_Count", func(b *testing.B) {
 		path := "src/app/core/services/api.service.ts"
+
 		b.Run("100_Rules", func(b *testing.B) {
 			gi := gitignore.New(generateSimplePatterns(100))
+
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				result = gi.Ignored(path, false)
 			}
 		})
 		b.Run("5000_Rules", func(b *testing.B) {
 			gi := gitignore.New(generateSimplePatterns(5000))
+
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+
+			for range b.N {
 				result = gi.Ignored(path, false)
 			}
 		})
@@ -79,8 +89,10 @@ func BenchmarkIgnored(b *testing.B) {
 			".env.local",                       // Should be ignored
 			"a/b/c/d/e/f/g/vendor/lib/file.go", // Should be ignored
 		}
+
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+
+		for i := range b.N {
 			// Cycle through the paths to prevent CPU caching from skewing results
 			result = giRealWorld.Ignored(paths[i%len(paths)], false)
 		}
@@ -89,17 +101,19 @@ func BenchmarkIgnored(b *testing.B) {
 
 func generateSimplePatterns(n int) []string {
 	patterns := make([]string, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		patterns[i] = fmt.Sprintf("file-%d.log", i)
 	}
+
 	return patterns
 }
 
 func generateComplexPatterns(n int) []string {
 	patterns := make([]string, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		patterns[i] = fmt.Sprintf("src/**/generated-%d-*/__tests__/**/*.spec.ts", i)
 	}
+
 	return patterns
 }
 
@@ -154,5 +168,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 `
+
 	return strings.Split(content, "\n")
 }

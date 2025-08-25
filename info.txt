@@ -86,5 +86,4 @@ For the character class issue, the problem is likely in how backslashes are bein
 
 The key insight is:
 1. `.` is a special directory reference that SHOULD be matched by `*`
-2. Regular dotfiles like `.gitignore` should NOT be matched by `*`
 3. Character classes with backslashes need special handling to preserve the backslash for matching

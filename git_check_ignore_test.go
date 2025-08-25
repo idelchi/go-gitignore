@@ -17,6 +17,7 @@ func TestGitCheckIgnore(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)
+
 	files, err := YamlFiles("./tests", filter)
 	if err != nil {
 		t.Fatalf("scan test dir: %v", err)
@@ -28,7 +29,7 @@ func TestGitCheckIgnore(t *testing.T) {
 
 	// Process each test file concurrently
 	for _, file := range files {
-		file := file // capture range variable for closure
+		// capture range variable for closure
 		base := BaseNameWithoutExt(file)
 
 		// Each test file runs as a separate subtest
@@ -42,7 +43,7 @@ func TestGitCheckIgnore(t *testing.T) {
 
 			// Process each test group within the file
 			for _, spec := range specs {
-				spec := spec // capture range variable for closure
+				// capture range variable for closure
 
 				// Each test group runs as a separate subtest
 				t.Run(spec.Name, func(t *testing.T) {
@@ -117,11 +118,13 @@ func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case) validatorResult
 		if err := os.MkdirAll(target, 0o755); err != nil {
 			t.Fatalf("mkdir %q: %v", c.Path, err)
 		}
+
 		_ = os.WriteFile(filepath.Join(target, ".keep"), []byte{}, 0o644)
 	} else {
 		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 			t.Fatalf("mkdir parents for %q: %v", c.Path, err)
 		}
+
 		if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
 			t.Fatalf("write file %q (test=%q): %v", target, c.Description, err)
 		}
@@ -168,10 +171,13 @@ type validatorResult struct {
 // running git check-ignore commands during validation.
 func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, exitCode int) {
 	cmd := exec.Command("git", args...)
+
 	cmd.Dir = workingDir
+
 	cmd.Env = append(os.Environ(), "GIT_PAGER=cat", "PAGER=cat")
 
 	var outBuf, errBuf bytes.Buffer
+
 	cmd.Stdout = &outBuf
 	cmd.Stderr = &errBuf
 
@@ -186,6 +192,7 @@ func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, 
 	} else {
 		exitCode = 0
 	}
+
 	return outBuf.String(), errBuf.String(), exitCode
 }
 
@@ -193,10 +200,15 @@ func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, 
 // This is used for setup commands like git init during test preparation.
 func runValidatorCmd(workingDir, name string, args ...string) (string, error) {
 	cmd := exec.Command(name, args...)
+
 	cmd.Dir = workingDir
+
 	var out bytes.Buffer
+
 	cmd.Stdout = &out
 	cmd.Stderr = &out
+
 	err := cmd.Run()
+
 	return out.String(), err
 }

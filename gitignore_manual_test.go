@@ -206,6 +206,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		if !gi.Ignored("debug.log", false) {
 			t.Error("Should ignore .log files")
 		}
+
 		if gi.Ignored("important.log", false) {
 			t.Error("Should not ignore negated important.log")
 		}
@@ -217,6 +218,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		if !gi.Ignored("file ", false) {
 			t.Error("Should match file with trailing space when escaped")
 		}
+
 		if gi.Ignored("file", false) {
 			t.Error("Should not match file without trailing space")
 		}
@@ -227,6 +229,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		if !gi.Ignored(".gitignore", false) {
 			t.Error("Should ignore dot files")
 		}
+
 		if !gi.Ignored(".config/settings", false) {
 			t.Error("Should ignore paths starting with dot")
 		}
@@ -237,6 +240,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		if !gi.Ignored("test5.txt", false) {
 			t.Error("Should match test5.txt")
 		}
+
 		if gi.Ignored("testA.txt", false) {
 			t.Error("Should not match testA.txt")
 		}

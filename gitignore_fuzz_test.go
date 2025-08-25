@@ -29,6 +29,7 @@ func FuzzGitIgnoreParity(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, rawGitignore, rawPath string, isDir bool) {
 		gi := sanitizeGitignore(rawGitignore)
+
 		p := sanitizePath(rawPath)
 		if gi == "" || p == "" {
 			t.SkipNow()
@@ -44,13 +45,16 @@ func FuzzGitIgnoreParity(f *testing.F) {
 			Dir:         isDir,
 			Description: "fuzz",
 		}
+
 		res := runGitCheckIgnoreTest(t, spec, c) // exit 0 => ignored
 		if res.ExitCode != 0 && res.ExitCode != 1 {
 			// Git refused to evaluate this path (unlikely with our sanitization);
 			// don't learn from non-deterministic or errorful cases.
 			t.Skipf("skip weird git exit=%d (stderr not captured here)", res.ExitCode)
+
 			return
 		}
+
 		want := res.Actual
 
 		// 2) Run our implementation under test on the same inputs.
@@ -74,7 +78,9 @@ func sanitizeGitignore(s string) string {
 	if s == "" {
 		return "*.log\nbuild/\n!important.log"
 	}
+
 	const maxLines = 32
+
 	vocab := []string{
 		"",          // blank
 		"# comment", // will be ignored by parser (expected)
@@ -101,6 +107,7 @@ func sanitizeGitignore(s string) string {
 	}
 
 	var lines []string
+
 	b := []byte(s)
 	if len(b) == 0 {
 		lines = append(lines, vocab[0])
@@ -115,6 +122,7 @@ func sanitizeGitignore(s string) string {
 					if len(lit) > 40 {
 						lit = lit[:40]
 					}
+
 					lines = append(lines, lit)
 				}
 			}
@@ -138,20 +146,26 @@ func sanitizePath(s string) string {
 	}
 	// Keep only a safe subset of runes; drop control chars.
 	var out []rune
+
 	for _, r := range s {
 		if r < 0x20 || r == 0x7f {
 			continue
 		}
+
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			out = append(out, r)
+
 			continue
 		}
+
 		switch r {
 		case '/', '-', '_', '.', ' ', '[', ']', '{', '}', '!', '#', '*', '?', '\\':
 			out = append(out, r)
 		}
 	}
+
 	ss := string(out)
+
 	ss = strings.ReplaceAll(ss, "\r\n", "\n")
 	ss = strings.ReplaceAll(ss, "\n", "/")
 	ss = strings.TrimSpace(ss)
@@ -161,6 +175,7 @@ func sanitizePath(s string) string {
 	if ss == "" {
 		ss = "a"
 	}
+
 	parts := strings.Split(ss, "/")
 	for i := range parts {
 		if parts[i] == "" || parts[i] == "." || parts[i] == ".." {
@@ -175,6 +190,7 @@ func sanitizePath(s string) string {
 			parts[i] = parts[i][:64]
 		}
 	}
+
 	ss = strings.Join(parts, "/")
 	if len(ss) > 180 {
 		ss = ss[:180]
@@ -183,12 +199,14 @@ func sanitizePath(s string) string {
 	if ss == "" {
 		ss = "x"
 	}
+
 	return ss
 }
 
 // compactToPrintable builds a small literal pattern from s, removing control chars.
 func compactToPrintable(s string) string {
 	var out []rune
+
 	for _, r := range s {
 		if r < 0x20 || r == 0x7f {
 			continue
@@ -196,12 +214,15 @@ func compactToPrintable(s string) string {
 		// Keep a broad-but-safe set for patterns.
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			out = append(out, r)
+
 			continue
 		}
+
 		switch r {
 		case '/', '-', '_', '.', ' ', '[', ']', '{', '}', '!', '#', '*', '?', '\\':
 			out = append(out, r)
 		}
 	}
+
 	return strings.TrimSpace(string(out))
 }

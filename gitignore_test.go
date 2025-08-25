@@ -30,6 +30,7 @@ func TestGitIgnore(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)
+
 	files, err := YamlFiles("./tests", filter)
 	if err != nil {
 		t.Fatalf("scan test dir: %v", err)
@@ -37,7 +38,7 @@ func TestGitIgnore(t *testing.T) {
 
 	// Process each test file concurrently
 	for _, f := range files {
-		f := f // capture range variable for closure
+		// capture range variable for closure
 		base := BaseNameWithoutExt(f)
 
 		// Each test file runs as a separate subtest
