@@ -260,8 +260,9 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 
 	ignored := false
 
-	// Track which directories are permanently excluded
-	// Once a directory is excluded, its contents can NEVER be re-included
+	// Track which directories are excluded after considering all patterns and negations
+	// Files under excluded directories can only be re-included if all parent directories 
+	// on the path have been re-included
 	excludedDirs := g.findExcludedParentDirectories(p)
 
 	// Check if any parent directory is excluded (implements parent exclusion rule)
@@ -945,30 +946,10 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 		return matchGlob(pat, filePath)
 	}
 
-	// Non-rooted patterns:
-	// If the pattern contains NO '/', it must not cross a directory boundary.
+	// Non-rooted patterns (no '/'): match only the entry's basename
 	if !strings.Contains(pat.pattern, "/") {
-		// Only compare against basenames
 		basename := path.Base(filePath)
-		if matchGlob(pat, basename) {
-			return true
-		}
-
-		// For directories: also check if any parent directory matches the pattern
-		// For files: Git only matches the file's basename, not parent directory basenames
-		if isDir {
-			parts := strings.Split(filePath, "/")
-			for i := 1; i < len(parts); i++ {
-				parentPath := strings.Join(parts[:i], "/")
-
-				parentBasename := path.Base(parentPath)
-				if matchGlob(pat, parentBasename) {
-					return true
-				}
-			}
-		}
-
-		return false
+		return matchGlob(pat, basename)
 	}
 
 	// Pattern contains '/', treat as anchored to the ignore file directory (root here)
