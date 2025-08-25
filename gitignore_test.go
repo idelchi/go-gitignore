@@ -70,6 +70,8 @@ func TestGitIgnore(t *testing.T) {
 
 						// Each test case runs as a separate subtest for precise failure reporting
 						t.Run(testName, func(t *testing.T) {
+							t.Parallel()
+
 							// Test the actual gitignore logic
 							got := g.Ignored(tc.Path, tc.Dir)
 							if got != tc.Ignored {

@@ -12,6 +12,8 @@ import (
 
 // testFilter allows filtering which test files to run via command line.
 // Usage: go test -f "basic,directories" to run only basic.yml and directories.yml.
+//
+// nolint:gochecknoglobals	// Test flag needs to be global for reuse.
 var testFilter = flag.String("f", "", "YAML file to validate (e.g. 'basic.yml')")
 
 // Case represents a single test case within a gitignore test group.
@@ -168,7 +170,7 @@ func YamlFiles(dir string, filter []string) ([]string, error) {
 //	Parsed GitIgnores test specifications
 //	Error if file cannot be read or parsed
 func LoadGitIgnoreSpecs(path string) (GitIgnores, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec	// OK to include file for test purposes.
 	if err != nil {
 		return nil, err
 	}
