@@ -176,7 +176,7 @@ func TestGitIgnoreManual(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			gi := gitignore.New(strings.Split(tc.gitignore, "\n"))
+			gi := gitignore.New(strings.Split(tc.gitignore, "\n")...)
 			got := gi.Ignored(tc.path, tc.isDir)
 
 			if got != tc.shouldIgnore {
@@ -197,7 +197,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	t.Run("empty gitignore", func(t *testing.T) {
 		t.Parallel()
 
-		gi := gitignore.New([]string{})
+		gi := gitignore.New()
 		if gi.Ignored("anyfile.txt", false) {
 			t.Error("Empty gitignore should not ignore any files")
 		}
@@ -206,12 +206,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	t.Run("comment lines", func(t *testing.T) {
 		t.Parallel()
 
-		gi := gitignore.New([]string{
-			"# This is a comment",
-			"*.log",
-			"  # Another comment with spaces",
-			"!important.log",
-		})
+		gi := gitignore.New("# This is a comment", "*.log", "  # Another comment with spaces", "!important.log")
 
 		if !gi.Ignored("debug.log", false) {
 			t.Error("Should ignore .log files")
@@ -226,7 +221,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 		t.Parallel()
 
 		// Test with escaped trailing space
-		gi := gitignore.New([]string{"file\\ "})
+		gi := gitignore.New("file\\ ")
 		if !gi.Ignored("file ", false) {
 			t.Error("Should match file with trailing space when escaped")
 		}
@@ -239,7 +234,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	t.Run("dot files", func(t *testing.T) {
 		t.Parallel()
 
-		gi := gitignore.New([]string{".*"})
+		gi := gitignore.New(".*")
 		if !gi.Ignored(".gitignore", false) {
 			t.Error("Should ignore dot files")
 		}
@@ -252,7 +247,7 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	t.Run("character classes", func(t *testing.T) {
 		t.Parallel()
 
-		gi := gitignore.New([]string{"test[0-9].txt"})
+		gi := gitignore.New("test[0-9].txt")
 		if !gi.Ignored("test5.txt", false) {
 			t.Error("Should match test5.txt")
 		}

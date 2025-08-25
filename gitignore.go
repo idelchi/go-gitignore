@@ -3,8 +3,6 @@
 // two-pass ignore checking with parent exclusion detection, negation rules that attempt to match Git's behavior,
 // brace escaping to prevent expansion, and cross-platform path handling using forward slashes only.
 //
-// Core Algorithm:
-//
 // The implementation uses a two-pass algorithm that attempts to mirror Git's internal gitignore processing:
 //
 //	Pass 1 - Parent Exclusion Detection:
@@ -16,7 +14,7 @@
 //
 // Usage:
 //
-//	gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
+//	gi := gitignore.New("*.log", "build/", "!important.log")
 //	ignored := gi.Ignored("app.log", false)     // true (matches *.log)
 //	ignored = gi.Ignored("important.log", false) // false (negated by !important.log)
 //	ignored = gi.Ignored("build/file.txt", false) // true (parent directory build/ is excluded)
@@ -53,100 +51,6 @@ const (
 	// Offset for backslash counting operations.
 	backslashOffset = 2
 )
-
-// normalizePathForMatching collapses runs of '/' and cleans dot segments like Git does.
-// This ensures paths are in canonical form before pattern matching, following Git's
-// internal path normalization behavior used during gitignore evaluation.
-func normalizePathForMatching(inputPath string) string {
-	if inputPath == "" || inputPath == "." {
-		return inputPath
-	}
-
-	processedPath := inputPath
-
-	// Special case: preserve leading double slash (POSIX behavior)
-	preserveDoubleSlash := strings.HasPrefix(processedPath, doubleSlash) &&
-		!strings.HasPrefix(processedPath, tripleSlash)
-	if preserveDoubleSlash {
-		processedPath = doubleSlash + processedPath[2:]
-	}
-
-	// Collapse all runs of '/'
-	for strings.Contains(processedPath, doubleSlash) {
-		processedPath = strings.ReplaceAll(processedPath, doubleSlash, "/")
-	}
-
-	// Restore leading double slash if needed
-	if preserveDoubleSlash && !strings.HasPrefix(processedPath, doubleSlash) {
-		processedPath = "/" + processedPath
-	}
-
-	// Clean dot segments
-	return path.Clean(processedPath)
-}
-
-// normalizeWildcardEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
-// This handles Git's specific behavior where backslash handling for wildcards requires special normalization
-// to maintain compatibility with Git's pattern matching engine.
-//
-//nolint:gocognit	// Function is complex by design.
-func normalizeWildcardEscapes(glob string) string {
-	if glob == "" {
-		return glob
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(glob) + smallBufferGrowth)
-
-	inClass := false
-
-	for idx := 0; idx < len(glob); idx++ {
-		currentChar := glob[idx]
-
-		// Track character class boundaries
-		switch {
-		case currentChar == '[' && !inClass:
-			inClass = true
-
-		case currentChar == ']' && inClass:
-			inClass = false
-
-		case currentChar == '\\' && idx+1 < len(glob):
-			// Count consecutive backslashes
-			runStart := idx
-			for idx < len(glob) && glob[idx] == '\\' {
-				idx++
-			}
-
-			runLen := idx - runStart
-
-			// Check if next character is a meta character
-			if idx < len(glob) && !inClass && (glob[idx] == '*' || glob[idx] == '?') {
-				// Write original backslashes
-				for range runLen {
-					builder.WriteByte('\\')
-				}
-				// Add extra backslash if odd number (to keep meta unescaped)
-				if runLen%2 == 1 {
-					builder.WriteByte('\\')
-				}
-			} else {
-				// Write backslashes as-is
-				for range runLen {
-					builder.WriteByte('\\')
-				}
-			}
-
-			idx-- // Back up since outer loop will increment
-
-			continue
-		}
-
-		builder.WriteByte(currentChar)
-	}
-
-	return builder.String()
-}
 
 // pattern represents a parsed gitignore pattern with its attributes.
 // It stores both the original line and the processed pattern along with
@@ -185,10 +89,10 @@ type GitIgnore struct {
 // Example:
 //
 //	lines := []string{"*.log", "build/", "!important.log", "# comment"}
-//	gi := New(lines)
+//	gi := New(lines...)
 //	ignored := gi.Ignored("app.log", false) // true
 //	ignored = gi.Ignored("important.log", false) // false (negated)
-func New(lines []string) *GitIgnore {
+func New(lines ...string) *GitIgnore {
 	// Pre-allocate slice with capacity to avoid multiple allocations
 	patterns := make([]pattern, 0, len(lines))
 
@@ -938,4 +842,98 @@ func normalizeRedundantWildcards(pattern string) string {
 	}
 
 	return result
+}
+
+// normalizePathForMatching collapses runs of '/' and cleans dot segments like Git does.
+// This ensures paths are in canonical form before pattern matching, following Git's
+// internal path normalization behavior used during gitignore evaluation.
+func normalizePathForMatching(inputPath string) string {
+	if inputPath == "" || inputPath == "." {
+		return inputPath
+	}
+
+	processedPath := inputPath
+
+	// Special case: preserve leading double slash (POSIX behavior)
+	preserveDoubleSlash := strings.HasPrefix(processedPath, doubleSlash) &&
+		!strings.HasPrefix(processedPath, tripleSlash)
+	if preserveDoubleSlash {
+		processedPath = doubleSlash + processedPath[2:]
+	}
+
+	// Collapse all runs of '/'
+	for strings.Contains(processedPath, doubleSlash) {
+		processedPath = strings.ReplaceAll(processedPath, doubleSlash, "/")
+	}
+
+	// Restore leading double slash if needed
+	if preserveDoubleSlash && !strings.HasPrefix(processedPath, doubleSlash) {
+		processedPath = "/" + processedPath
+	}
+
+	// Clean dot segments
+	return path.Clean(processedPath)
+}
+
+// normalizeWildcardEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
+// This handles Git's specific behavior where backslash handling for wildcards requires special normalization
+// to maintain compatibility with Git's pattern matching engine.
+//
+//nolint:gocognit	// Function is complex by design.
+func normalizeWildcardEscapes(glob string) string {
+	if glob == "" {
+		return glob
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(glob) + smallBufferGrowth)
+
+	inClass := false
+
+	for idx := 0; idx < len(glob); idx++ {
+		currentChar := glob[idx]
+
+		// Track character class boundaries
+		switch {
+		case currentChar == '[' && !inClass:
+			inClass = true
+
+		case currentChar == ']' && inClass:
+			inClass = false
+
+		case currentChar == '\\' && idx+1 < len(glob):
+			// Count consecutive backslashes
+			runStart := idx
+			for idx < len(glob) && glob[idx] == '\\' {
+				idx++
+			}
+
+			runLen := idx - runStart
+
+			// Check if next character is a meta character
+			if idx < len(glob) && !inClass && (glob[idx] == '*' || glob[idx] == '?') {
+				// Write original backslashes
+				for range runLen {
+					builder.WriteByte('\\')
+				}
+				// Add extra backslash if odd number (to keep meta unescaped)
+				if runLen%2 == 1 {
+					builder.WriteByte('\\')
+				}
+			} else {
+				// Write backslashes as-is
+				for range runLen {
+					builder.WriteByte('\\')
+				}
+			}
+
+			idx-- // Back up since outer loop will increment
+
+			continue
+		}
+
+		builder.WriteByte(currentChar)
+	}
+
+	return builder.String()
 }

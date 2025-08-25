@@ -18,7 +18,7 @@ func BenchmarkNew(b *testing.B) {
 		b.ResetTimer()
 
 		for range b.N {
-			_ = gitignore.New(patterns)
+			_ = gitignore.New(patterns...)
 		}
 	})
 
@@ -28,7 +28,7 @@ func BenchmarkNew(b *testing.B) {
 		b.ResetTimer()
 
 		for range b.N {
-			_ = gitignore.New(patterns)
+			_ = gitignore.New(patterns...)
 		}
 	})
 }
@@ -36,7 +36,7 @@ func BenchmarkNew(b *testing.B) {
 func BenchmarkIgnored(b *testing.B) {
 	// Setup with a large, realistic .gitignore file
 	realWorldPatterns := getRealWorldGitignore()
-	giRealWorld := gitignore.New(realWorldPatterns)
+	giRealWorld := gitignore.New(realWorldPatterns...)
 
 	// Scenario 1: Test scaling with path depth
 	b.Run("Path_Depth", func(b *testing.B) {
@@ -59,7 +59,7 @@ func BenchmarkIgnored(b *testing.B) {
 		path := "src/app/core/services/api.service.ts"
 
 		b.Run("100_Rules", func(b *testing.B) {
-			gi := gitignore.New(generateSimplePatterns(100))
+			gi := gitignore.New(generateSimplePatterns(100)...)
 
 			b.ResetTimer()
 
@@ -68,7 +68,7 @@ func BenchmarkIgnored(b *testing.B) {
 			}
 		})
 		b.Run("5000_Rules", func(b *testing.B) {
-			gi := gitignore.New(generateSimplePatterns(5000))
+			gi := gitignore.New(generateSimplePatterns(5000)...)
 
 			b.ResetTimer()
 
