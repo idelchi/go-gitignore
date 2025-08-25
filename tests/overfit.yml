@@ -20,9 +20,13 @@
     - path: "a/b"
       dir: true
       ignored: false
+    - path: "a/b/c"
+      dir: true
+      ignored: false
     - path: "a/bb/c"
       dir: true
       ignored: true
+
 
 - name: charclass_no_spillover_after_reinclude
   description: Charclass bare-name must not match grandchildren once parent dir is re-included

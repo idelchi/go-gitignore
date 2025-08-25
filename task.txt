@@ -1,0 +1,30 @@
+Principle: In Git, whether a pattern matches an entry is decided on that entry (its full path if the pattern has “/”, otherwise its basename). Parent directories influence only through the parent-exclusion rule (i.e., “if any parent is ignored, descendants are ignored — unless those parents are explicitly re-included on the way down”).
+
+Concretely:
+
+Remove “parent basename spillover” for directories.
+In your matchesFilePattern branch for patterns without “/”, keep only the basename check and delete the loop that tests ancestor basenames for directories. The match decision for a/b/c/ against b must be based on c only.
+
+Minimal change:
+
+// Non-rooted patterns (no '/'): match only the entry's basename
+if !strings.Contains(pat.pattern, "/") {
+    basename := path.Base(filePath)
+    return matchGlob(pat, basename)
+}
+
+
+(Remove the subsequent if isDir { ... parents ... } block.)
+
+Keep parent-exclusion logic in the first pass only.
+Your first pass (findExcludedParentDirectories) already computes which directories are ignored after considering order and negations (good). The second pass should not try to re-derive parent effects by reapplying bare patterns to descendants; it should only decide whether the current entry matches.
+
+Negation under an excluded parent.
+You already block negations when parentExcluded == true (good and Git-compatible). With (1) fixed, the three tests will pass:
+
+!a/b/ clears the exclusion for the directory itself.
+
+Since parents are not excluded anymore, children are judged by their own names — and b no longer “hits” a/b/c/.
+
+Wording/intent check.
+Your comment says “Once a directory is excluded, its contents can NEVER be re-included.” That’s stronger than Git’s rule. In Git, you can re-include a deep file, but only if each parent directory on the path has also been re-included (or never excluded). Your implementation already behaves like this; just consider softening the comment so it matches behavior.
