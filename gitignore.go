@@ -1,47 +1,58 @@
-// Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach parity to Git's
-// behavior.
-// This package provides gitignore logic including pattern parsing with escape sequences,
+// Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach 1:1 parity with Git's
+// ignore behavior. This package provides complete gitignore semantics including pattern parsing with escape sequences,
 // two-pass ignore checking with parent exclusion detection, complex negation rules that match Git's exact behavior,
 // brace escaping to prevent expansion, and cross-platform path handling using forward slashes only.
 //
-// The core algorithm implements Git's parent exclusion rule: once a directory is excluded by a pattern,
-// its contents cannot be re-included by negation patterns, maintaining strict compatibility with Git's behavior.
-// The package uses a two-pass algorithm - first identifying excluded parent directories, then applying
-// pattern matching to the target path.
+// Core Algorithm:
 //
-// Key features:
-//   - Git compatibility for a large amount of gitignore edge cases
-//   - Two-pass algorithm for parent exclusion detection
-//   - Negation semantics matching Git's behavior
-//   - Proper escape sequence handling for trailing spaces and special characters
-//   - Cross-platform path handling with forward slash normalization
-//   - Brace escaping to prevent unintended expansion
+// The implementation uses a two-pass algorithm that mirrors Git's internal gitignore processing:
+//
+//	Pass 1 - Parent Exclusion Detection:
+//	  Identifies which parent directories are permanently excluded by patterns.
+//	  This implements Git's fundamental rule: once a directory is excluded,
+//	  its contents cannot be re-included by negation patterns.
+//
+//	Pass 2 - Pattern Matching:
+//	  Applies all patterns to the target path, respecting the parent exclusion rule.
+//	  Negation patterns can only re-include files if no parent directory is excluded.
+//
+// Git Compatibility Features:
+//   - Implements Git's parent exclusion semantics exactly
+//   - Handles all Git gitignore quirks (contents-only patterns, dot negation, etc.)
+//   - Supports Git's complex escape sequence processing
+//   - Proper handling of directory-only patterns (trailing /)
+//   - Respects pattern precedence and ordering rules
+//   - Cross-platform path normalization using forward slashes
+//   - Prevents brace expansion (Git treats braces literally, unlike bash)
 //
 // Usage:
 //
 //	gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
-//	ignored := gi.Ignored("app.log", false) // true
-//	ignored = gi.Ignored("important.log", false) // false
+//	ignored := gi.Ignored("app.log", false)     // true (matches *.log)
+//	ignored = gi.Ignored("important.log", false) // false (negated by !important.log)
+//	ignored = gi.Ignored("build/file.txt", false) // true (parent directory build/ is excluded)
 package gitignore
 
 import (
-	"os"
 	"path"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
 )
 
-// Constants for pattern matching.
+// Pattern matching constants used throughout gitignore processing.
+// These represent common pattern elements and path prefixes that require special handling.
 const (
-	doubleStarSlash = "/**"
-	doubleSlash     = "//"
-	tripleSlash     = "///"
-	dotSlash        = "./"
+	doubleStarSlash = "/**" // Contents-only pattern suffix (matches everything under a directory but not the directory itself)
+	doubleSlash     = "//"  // Double slash prefix (has special POSIX meaning, never ignored by Git)
+	tripleSlash     = "///" // Triple slash prefix (treated as regular path by Git)
+	dotSlash        = "./"  // Current directory prefix (normalized away during processing)
 )
 
-// normalizeCandidatePath collapses runs of '/' and cleans dot segments like Git does.
-func normalizeCandidatePath(p string) string {
+// normalizePathForMatching collapses runs of '/' and cleans dot segments like Git does.
+// This ensures paths are in canonical form before pattern matching, following Git's
+// internal path normalization behavior used during gitignore evaluation.
+func normalizePathForMatching(p string) string {
 	if p == "" || p == "." {
 		return p
 	}
@@ -66,8 +77,10 @@ func normalizeCandidatePath(p string) string {
 	return path.Clean(p)
 }
 
-// normalizeMetaEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
-func normalizeMetaEscapes(glob string) string {
+// normalizeWildcardEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
+// This handles Git's specific behavior where backslash handling for wildcards requires special normalization
+// to maintain compatibility with Git's pattern matching engine.
+func normalizeWildcardEscapes(glob string) string {
 	if glob == "" {
 		return glob
 	}
@@ -178,100 +191,129 @@ func New(lines []string) *GitIgnore {
 }
 
 // Ignored determines whether a path should be ignored according to the gitignore patterns.
-// This method implements a two-pass algorithm with parent exclusion rules.
+// This method implements Git's exact two-pass algorithm with parent exclusion rules.
 //
-// The algorithm works in two passes:
+// Algorithm Overview:
+//
+// The implementation mirrors Git's internal gitignore processing with two distinct passes:
 //
 // Pass 1 - Parent Exclusion Detection:
-//
-//	Identifies which parent directories are permanently excluded by patterns.
-//	Once a directory is excluded, its contents cannot be re-included by negation patterns,
-//	matching Git's strict parent exclusion rule.
+//   - Builds a list of all parent directories in the target path
+//   - Applies all patterns to each parent directory to determine which are excluded
+//   - Creates a map of permanently excluded directories
+//   - This implements Git's fundamental rule: once a directory is excluded by any pattern,
+//     its contents cannot be re-included by negation patterns, no matter the order
 //
 // Pass 2 - Pattern Matching:
+//   - Applies all patterns to the target path in the order they appear
+//   - For negation patterns (!pattern), checks if parent exclusion rule prevents re-inclusion
+//   - Implements Git's specific quirks (like dot negation: "!." cannot un-ignore repository root)
+//   - Final decision respects both pattern matches and parent exclusion status
 //
-//	Applies all patterns to the target path, respecting the parent exclusion rule.
-//	Negation patterns can only re-include files if no parent directory is excluded.
+// Git Compatibility Features:
+//   - Exact implementation of Git's parent exclusion semantics
+//   - Handles all documented Git quirks and edge cases
+//   - Supports directory-only patterns (trailing /) that match directories but not files
+//   - Processes patterns in order with proper negation precedence
+//   - Normalizes paths using Git's path cleaning rules
+//   - Handles special path prefixes ("//" paths are never ignored)
 //
-// Returns true if the path should be ignored, false otherwise.
+// Parameters:
+//   - p: The path to check (normalized to use forward slashes)
+//   - isDir: Whether the path represents a directory (affects directory-only pattern matching)
 //
-// Git Compatibility Notes:
-//   - Implements Git parent exclusion semantics
-//   - Handles negation pattern interactions
-//   - Supports directory-only patterns (ending with /)
-//   - Respects pattern precedence and ordering
+// Returns:
+//   - true if the path should be ignored according to Git's gitignore rules
+//   - false if the path should be included
 //
 // Examples:
 //
 //	gi := New([]string{"build/", "*.log", "!important.log"})
-//	gi.Ignored("build/file.txt", false)  // true (parent excluded)
-//	gi.Ignored("app.log", false)         // true
-//	gi.Ignored("important.log", false)   // false (negated)
+//	gi.Ignored("build/file.txt", false)    // true (parent directory build/ is excluded)
+//	gi.Ignored("app.log", false)           // true (matches *.log pattern)
+//	gi.Ignored("important.log", false)     // false (re-included by !important.log)
+//	gi.Ignored("src/important.log", false) // depends on whether src/ is excluded
 func (g *GitIgnore) Ignored(p string, isDir bool) bool {
-	// Special cases
+	// === PREPROCESSING PHASE ===
+	// Handle edge cases and normalize the input path according to Git's rules
+
+	// Empty paths are never ignored (Git behavior)
 	if p == "" {
 		return false
 	}
 
-	// Git quirk: paths starting with "//" are never ignored
-	// Leading double slash has special meaning in POSIX and Git doesn't match them
+	// GITIGNORE QUIRK: Double-slash paths are never ignored
+	// POSIX systems treat "//" specially, and Git respects this by never ignoring such paths
+	// However, "///" and beyond are treated as regular paths
 	if strings.HasPrefix(p, doubleSlash) && !strings.HasPrefix(p, tripleSlash) {
 		return false
 	}
 
-	// Normalize leading "./" only (Git-compatible for check-ignore usage).
-	// Special case: "./" for directory should become "."
+	// Normalize leading "./" prefixes (Git strips these during processing)
+	// Special handling: "./" as a directory becomes "." (current directory)
 	if p == dotSlash && isDir {
 		p = "."
 	} else {
+		// Strip all leading "./" prefixes until none remain
 		for strings.HasPrefix(p, dotSlash) {
 			p = strings.TrimPrefix(p, dotSlash)
 			if p == "" {
-				return false
+				return false // Path becomes empty after normalization
 			}
 		}
 	}
 
-	// NEW: collapse redundant slashes & clean dot segments
-	p = normalizeCandidatePath(p)
+	// Apply Git's path normalization: collapse "//" to "/" and clean dot segments
+	// This ensures consistent path representation for pattern matching
+	p = normalizePathForMatching(p)
 
-	// No patterns means nothing is ignored
+	// Early exit: no patterns means nothing is ignored
 	if len(g.patterns) == 0 {
 		return false
 	}
 
+	// === TWO-PASS ALGORITHM ===
+
+	// Initialize the ignore status (will be modified by pattern matching)
 	ignored := false
 
-	// Track which directories are excluded after considering all patterns and negations
-	// Files under excluded directories can only be re-included if all parent directories
-	// on the path have been re-included
+	// === PASS 1: PARENT EXCLUSION DETECTION ===
+	// Identify which parent directories are permanently excluded by any pattern.
+	// This implements Git's fundamental rule: once a directory is excluded,
+	// its contents cannot be re-included by negation patterns.
 	excludedDirs := g.findExcludedParentDirectories(p)
 
-	// Check if any parent directory is excluded (implements parent exclusion rule)
-	parentExcluded := hasExcludedParent(p, excludedDirs)
+	// Determine if any parent directory is excluded (enforces parent exclusion rule)
+	// If true, negation patterns cannot re-include this path
+	parentExcluded := hasExcludedParentDirectory(p, excludedDirs)
 
-	// Second pass: apply patterns to the target path
+	// === PASS 2: PATTERN MATCHING ===
+	// Apply all patterns to the target path in order, respecting parent exclusion
 	for _, pat := range g.patterns {
-		if matches(pat, p, isDir) {
+		if matchesPattern(pat, p, isDir) {
 			if pat.negated {
-				// Git rule: cannot re-include file if parent directory is excluded
+				// NEGATION PATTERN: Attempts to re-include a previously ignored path
+				// Git rule: negation only works if no parent directory is excluded
 				if !parentExcluded {
-					// GITIGNORE QUIRK: Current directory "." cannot be un-ignored
+					// GITIGNORE QUIRK: Repository root "." cannot be un-ignored
 					// Reference: Verified with git version 2.34.1
 					// Behavior: Pattern "!." does not un-ignore the repository root
 					// This prevents the repository root from being accidentally excluded
 					if pat.pattern != "." || p != "." {
-						ignored = false
+						ignored = false // Successfully re-include the path
 					}
 				}
+				// If parentExcluded is true, negation is ignored (Git's parent exclusion rule)
 			} else {
+				// EXCLUSION PATTERN: Mark the path as ignored
 				ignored = true
 			}
 		}
 	}
 
-	// Apply parent exclusion rule: if parent is excluded but no pattern matched this path,
-	// the path should be ignored due to parent exclusion
+	// === FINAL PARENT EXCLUSION CHECK ===
+	// Even if no pattern directly matched this path, it may still be ignored
+	// due to parent exclusion (contents of excluded directories are always ignored)
 	if parentExcluded && !ignored {
 		ignored = true
 	}
@@ -279,20 +321,20 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	return ignored
 }
 
-// IgnoredStat behaves like Ignored but checks whether the path leads to a directory.
-// Will fall back to "not dir" in case of errors.
-func (g *GitIgnore) IgnoredStat(p string) bool {
-	isDir := false
-
-	if info, err := os.Stat(p); err == nil {
-		isDir = info.IsDir()
-	}
-
-	return g.Ignored(p, isDir)
-}
-
-// Patterns returns the original pattern strings after parsing.
+// Patterns returns a copy of the original pattern strings used to create this GitIgnore instance.
+// This method provides access to the raw gitignore patterns as they appeared in the input,
+// before any parsing or processing occurred.
+//
+// The returned slice is a copy, so modifications to it will not affect the GitIgnore instance.
+// Empty lines, comments, and invalid patterns that were skipped during parsing are not included.
+//
+// This is useful for debugging, logging, or recreating gitignore files from a GitIgnore instance.
+//
+// Returns:
+//   - A slice containing the original pattern strings in the order they were processed
+//   - Empty slice if no valid patterns were found during parsing
 func (g *GitIgnore) Patterns() []string {
+	// Create a copy to prevent external modification of our internal state
 	patterns := make([]string, len(g.patterns))
 	for i, p := range g.patterns {
 		patterns[i] = p.original
@@ -302,40 +344,74 @@ func (g *GitIgnore) Patterns() []string {
 }
 
 // findExcludedParentDirectories identifies which parent directories are permanently excluded.
-// Returns a map of excluded directory paths for fast lookup.
+// This function implements Pass 1 of Git's gitignore algorithm by checking all parent directories
+// against all patterns to determine which directories are excluded.
+//
+// The function builds a list of all parent directory paths from the target path, then applies
+// every pattern to each parent directory. A directory becomes permanently excluded if any
+// non-negation pattern matches it, and can only be re-included by a negation pattern that
+// specifically matches the directory itself.
+//
+// This is crucial for implementing Git's parent exclusion rule: once a directory is marked
+// as excluded here, its contents cannot be re-included by negation patterns during Pass 2.
+//
+// Returns a map of excluded directory paths for fast O(1) lookup during Pass 2.
+//
+// Example:
+//
+//	For path "src/main/java/App.java" with pattern "src/"
+//	- Creates parent paths: ["src", "src/main", "src/main/java"]
+//	- Applies pattern "src/" to each parent
+//	- "src" matches and becomes excluded
+//	- Returns map: {"src": true}
+//	- Later, "src/main/java/App.java" will be ignored due to parent exclusion
 func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]bool {
+	// Map to track which directories are excluded (key = directory path, value = true if excluded)
 	excludedDirs := make(map[string]bool)
 
-	// Build list of all parent paths to check
+	// === STEP 1: Build list of all parent directory paths ===
+	// Split target path into components to construct all possible parent paths
+	// Example: "src/main/java/App.java" → ["src", "main", "java", "App.java"]
 	parts := strings.Split(targetPath, "/")
 
+	// Pre-allocate slice for efficiency (we'll have at most len(parts) parent paths)
 	pathsToCheck := make([]string, 0, len(parts))
+
+	// Construct each parent path: "src", "src/main", "src/main/java"
+	// Note: we exclude the final component (the target file/directory itself)
 	for i := 1; i <= len(parts); i++ {
 		checkPath := strings.Join(parts[:i], "/")
 
-		checkPath = normalizeCandidatePath(checkPath)
+		// Apply same normalization as main path for consistency
+		checkPath = normalizePathForMatching(checkPath)
 		pathsToCheck = append(pathsToCheck, checkPath)
 	}
 
-	// First pass: determine which directories are excluded
-	// Check ALL patterns (not just dirOnly) as they can exclude directories
+	// === STEP 2: Apply all patterns to all parent directories ===
+	// This is the core of Pass 1: determine which directories are excluded
+	// We check ALL patterns (not just directory-only patterns) because any pattern
+	// can potentially exclude a directory
 	for _, pat := range g.patterns {
 		for _, checkPath := range pathsToCheck {
-			// Only check parent directories, not the target path itself
+			// Skip checking the target path itself (that's handled in Pass 2)
 			if checkPath == targetPath {
 				continue
 			}
 
-			// Check if this pattern EXPLICITLY excludes the directory itself.
-			// Any pattern that matches a directory entry (with or without a trailing '/')
-			// excludes that directory. This includes patterns like "foo/*" and "**/"
-			// which may match directories at various depths.
-			if matches(pat, checkPath, true) {
+			// Apply this pattern to this parent directory
+			// We always pass isDir=true because we're checking directory parents
+			// Any pattern that matches a directory path excludes that directory
+			// Examples: "foo/" matches "foo", "foo/*" matches "foo", "**/" matches any directory
+			if matchesPattern(pat, checkPath, true) {
 				if pat.negated {
-					// Allow explicit directory negation to clear exclusion
+					// NEGATION PATTERN: Remove directory from exclusion list
+					// This allows negation patterns to re-include directories that were
+					// previously excluded by earlier patterns in the same .gitignore file
 					delete(excludedDirs, checkPath)
 				} else {
-					// Directory is excluded - mark it permanently
+					// EXCLUSION PATTERN: Mark directory as permanently excluded
+					// Once marked here, this directory's contents cannot be re-included
+					// by negation patterns during Pass 2 (Git's parent exclusion rule)
 					excludedDirs[checkPath] = true
 				}
 			}
@@ -345,22 +421,27 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 	return excludedDirs
 }
 
-// isGitIgnoreQuirk detects patterns with special Git behaviors that need handling.
-func isGitIgnoreQuirk(pat pattern, path string, isDir bool) (bool, bool) {
+// detectGitPatternQuirk detects patterns with special Git behaviors that require custom handling.
+// Returns whether a quirk was detected and the result of applying that quirk's logic.
+// This function encapsulates Git-specific pattern matching behaviors that differ from standard glob matching.
+func detectGitPatternQuirk(pat pattern, path string, isDir bool) (bool, bool) {
 	// GITIGNORE QUIRK: Patterns ending with /** are "contents-only"
 	// They match everything under the base but NOT the base itself
 	// Reference: https://git-scm.com/docs/gitignore#_pattern_format
 	if strings.HasSuffix(pat.pattern, "/**") {
-		if isBaseOfPattern(pat, path, isDir) {
-			return true, false // Don't match the base
+		if isPatternBaseDirectory(pat, path, isDir) {
+			return true, false // Don't match the base directory
 		}
 	}
 
 	return false, false
 }
 
-func isBaseOfPattern(pat pattern, path string, isDir bool) bool {
-	base := extractBase(pat.pattern)
+// isPatternBaseDirectory checks if the given path represents the base directory of a contents-only pattern.
+// This is used to determine if a path like "build" should be excluded by a pattern like "build/**".
+// According to Git's gitignore semantics, "build/**" matches contents under build/ but not build/ itself.
+func isPatternBaseDirectory(pat pattern, path string, isDir bool) bool {
+	base := extractPatternBase(pat.pattern)
 	if base == "" || base == "**" || strings.HasSuffix(base, "**") {
 		return false
 	}
@@ -377,10 +458,13 @@ func isBaseOfPattern(pat pattern, path string, isDir bool) bool {
 		return false
 	}
 
-	return matchesSimple(basePattern, path, isDir)
+	return matchesSimplePattern(basePattern, path, isDir)
 }
 
-func extractBase(pattern string) string {
+// extractPatternBase extracts the base directory path from a contents-only pattern.
+// For patterns like "foo/**" or "foo/**/bar/**", this returns the base path "foo" or "foo/**/bar".
+// This is used to determine the directory that should NOT be matched by contents-only patterns.
+func extractPatternBase(pattern string) string {
 	// Strip all trailing /** groups to find the base
 	base := pattern
 	for strings.HasSuffix(base, "/**") {
@@ -390,24 +474,28 @@ func extractBase(pattern string) string {
 	return base
 }
 
-// matches determines if a pattern matches a given path using a unified approach.
-func matches(pat pattern, p string, isDir bool) bool {
+// matchesPattern determines if a pattern matches a given path using a unified approach.
+// This is the primary pattern matching function that handles both regular glob patterns
+// and Git-specific quirks. It follows Git's precedence rules and matching semantics.
+func matchesPattern(pat pattern, p string, isDir bool) bool {
 	// Directory-only patterns match directories ONLY (not files)
 	if pat.dirOnly && !isDir {
 		return false
 	}
 
 	// Check for Git quirks first
-	if hasQuirk, quirkResult := isGitIgnoreQuirk(pat, p, isDir); hasQuirk {
+	if hasQuirk, quirkResult := detectGitPatternQuirk(pat, p, isDir); hasQuirk {
 		return quirkResult
 	}
 
 	// Use the simple, unified matching
-	return matchesSimple(pat, p, isDir)
+	return matchesSimplePattern(pat, p, isDir)
 }
 
-// matchesSimple implements a unified, simple approach to pattern matching.
-func matchesSimple(pat pattern, p string, isDir bool) bool {
+// matchesSimplePattern implements a unified, simple approach to pattern matching.
+// This function handles the core glob pattern matching logic after Git quirks have been processed.
+// It determines the appropriate matching scope (basename vs full path) based on pattern characteristics.
+func matchesSimplePattern(pat pattern, p string, isDir bool) bool {
 	glob := pat.pattern
 
 	// Determine the target path to match against
@@ -419,21 +507,22 @@ func matchesSimple(pat pattern, p string, isDir bool) bool {
 	}
 
 	// Let the glob library handle the matching
-	return matchGlob(pat, matchPath)
+	return matchGlobPattern(pat, matchPath)
 }
 
-// matchGlob performs Git-compatible glob pattern matching using the doublestar library.
-// Handles brace escaping to prevent unintended expansion since Git treats braces as
-// literal characters rather than expansion syntax.
-func matchGlob(p pattern, targetPath string) bool {
+// matchGlobPattern performs Git-compatible glob pattern matching using the doublestar library.
+// This function handles all the complex pre-processing needed to make doublestar behave like Git's
+// pattern matching, including brace escaping, character class normalization, and escape sequence processing.
+// Git treats braces as literal characters rather than expansion syntax, requiring special handling.
+func matchGlobPattern(p pattern, targetPath string) bool {
 	// The pattern has already been processed by trimTrailingSpaces,
 	// which handles escape sequences for trailing spaces.
 	glob := p.pattern
 
 	// Check if this pattern has no wildcards (literal matching)
-	if !hasUnescapedWildcards(glob) {
+	if !containsUnescapedWildcards(glob) {
 		// Process escapes for literal matching - remove all escape backslashes
-		literal := processEscapes(glob, true)
+		literal := processEscapeSequences(glob, true)
 
 		return literal == targetPath
 	}
@@ -441,21 +530,21 @@ func matchGlob(p pattern, targetPath string) bool {
 	// Process escape sequences before glob matching
 	originalGlob := glob
 
-	glob = processEscapes(glob, false)
+	glob = processEscapeSequences(glob, false)
 
 	// Git does not support brace expansion, but doublestar does by default.
 	// We need to escape unescaped braces to prevent expansion.
-	glob = escapeBraces(glob)
+	glob = escapeBracesForGit(glob)
 
 	// Normalize first-literal ']' inside character classes to avoid engine differences.
-	glob = escapeFirstClosingBracketInCharClass(glob)
+	glob = normalizeCharacterClassBrackets(glob)
 
-	// Only apply normalizeMetaEscapes if we haven't explicitly escaped wildcards
+	// Only apply normalizeWildcardEscapes if we haven't explicitly escaped wildcards
 	// Check if the original pattern had escaped wildcards that we want to keep literal
 	hasEscapedWildcards := strings.Contains(originalGlob, "\\*") || strings.Contains(originalGlob, "\\?") ||
 		strings.Contains(originalGlob, "\\[")
 	if !hasEscapedWildcards {
-		glob = normalizeMetaEscapes(glob)
+		glob = normalizeWildcardEscapes(glob)
 	}
 
 	matched, _ := doublestar.Match(glob, targetPath)
@@ -463,8 +552,10 @@ func matchGlob(p pattern, targetPath string) bool {
 	return matched
 }
 
-// escapeBraces escapes unescaped brace characters to prevent brace expansion.
-func escapeBraces(p string) string {
+// escapeBracesForGit escapes unescaped brace characters to prevent brace expansion.
+// Git does not support brace expansion (unlike bash), so patterns like {a,b} should be treated
+// literally. This function ensures doublestar treats braces as literal characters, not expansion patterns.
+func escapeBracesForGit(p string) string {
 	if p == "" || (!strings.Contains(p, "{") && !strings.Contains(p, "}")) {
 		return p
 	}
@@ -474,9 +565,7 @@ func escapeBraces(p string) string {
 
 	inCharClass := false
 
-	for i := range len(p) {
-		c := p[i]
-
+	for i, c := range []byte(p) {
 		// Track character class boundaries
 		if c == '[' && (i == 0 || p[i-1] != '\\') {
 			inCharClass = true
@@ -501,9 +590,10 @@ func escapeBraces(p string) string {
 	return result.String()
 }
 
-// escapeFirstClosingBracketInCharClass ensures that a ']' used as the first character
+// normalizeCharacterClassBrackets ensures that a ']' used as the first character
 // inside a character class is escaped for consistent glob matching behavior.
-func escapeFirstClosingBracketInCharClass(p string) string {
+// This handles Git's specific behavior where the first ']' in [abc] is literal, not a class closer.
+func normalizeCharacterClassBrackets(p string) string {
 	if p == "" || !strings.Contains(p, "[") {
 		return p
 	}
@@ -560,8 +650,10 @@ func escapeFirstClosingBracketInCharClass(p string) string {
 	return b.String()
 }
 
-// hasExcludedParent checks if any parent directory is excluded.
-func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
+// hasExcludedParentDirectory checks if any parent directory is excluded according to Git's parent exclusion rule.
+// This implements Git's rule that once a directory is excluded, its contents cannot be re-included by negation.
+// Returns true if any parent directory in the path is marked as excluded.
+func hasExcludedParentDirectory(targetPath string, excludedDirs map[string]bool) bool {
 	parts := strings.Split(targetPath, "/")
 	if len(parts) <= 1 {
 		return false
@@ -577,8 +669,10 @@ func hasExcludedParent(targetPath string, excludedDirs map[string]bool) bool {
 	return false
 }
 
-// hasUnescapedWildcards checks if pattern has unescaped wildcards.
-func hasUnescapedWildcards(pattern string) bool {
+// containsUnescapedWildcards checks if pattern contains unescaped wildcard characters.
+// This is used to determine whether a pattern needs glob matching or can be handled as literal string matching.
+// Returns true if the pattern contains *, ?, or [ that are not preceded by an odd number of backslashes.
+func containsUnescapedWildcards(pattern string) bool {
 	for i := 0; i < len(pattern); i++ {
 		if pattern[i] == '\\' && i+1 < len(pattern) {
 			// Skip escaped character
@@ -595,8 +689,11 @@ func hasUnescapedWildcards(pattern string) bool {
 	return false
 }
 
-// processEscapes handles escape sequences in patterns with different modes.
-func processEscapes(pattern string, forLiteral bool) string {
+// processEscapeSequences handles escape sequences in patterns with different modes.
+// When forLiteral is true, escape backslashes are removed for literal string matching.
+// When false, escapes are preserved in a format compatible with the doublestar library.
+// This function handles Git's complex escape sequence rules including character class special cases.
+func processEscapeSequences(pattern string, forLiteral bool) string {
 	if pattern == "" {
 		return pattern
 	}
@@ -676,8 +773,10 @@ func processEscapes(pattern string, forLiteral bool) string {
 	return result.String()
 }
 
-// trimTrailingSpaces removes unescaped trailing spaces and processes escape sequences.
-func trimTrailingSpaces(str string) string {
+// trimTrailingUnescapedSpaces removes unescaped trailing spaces and processes escape sequences.
+// Git trims trailing spaces unless they are escaped with a backslash (\<space>).
+// This function implements Git's exact trailing space handling behavior.
+func trimTrailingUnescapedSpaces(str string) string {
 	if str == "" {
 		return str
 	}
@@ -756,7 +855,7 @@ func parsePattern(line string) *pattern {
 	}
 
 	// Trim trailing spaces unless escaped
-	line = trimTrailingSpaces(line)
+	line = trimTrailingUnescapedSpaces(line)
 
 	// Empty pattern after trimming
 	if len(line) == 0 {
