@@ -143,7 +143,7 @@ func New(lines ...string) *GitIgnore {
 //
 // Examples:
 //
-//	gi := New([]string{"build/", "*.log", "!important.log"})
+//	gi := New("build/", "*.log", "!important.log")
 //	gi.Ignored("build/file.txt", false)    // true (parent directory build/ is excluded)
 //	gi.Ignored("app.log", false)           // true (matches *.log pattern)
 //	gi.Ignored("important.log", false)     // false (re-included by !important.log)
