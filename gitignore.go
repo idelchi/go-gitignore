@@ -88,8 +88,7 @@ type GitIgnore struct {
 //
 // Example:
 //
-//	lines := []string{"*.log", "build/", "!important.log", "# comment"}
-//	gi := New(lines...)
+//	gi := New("*.log", "build/", "!important.log", "# comment")
 //	ignored := gi.Ignored("app.log", false) // true
 //	ignored = gi.Ignored("important.log", false) // false (negated)
 func New(lines ...string) *GitIgnore {
