@@ -18,9 +18,9 @@ Go through all tests/*.yml files and make sure the format is consistent
 ----------
 
 
-Assess the current implementation.
+Assess the current implementation. Read `OVERFITTING_GUIDE.md` for a current situation analysis.
 
-Read `avoid-overfitting.md` and strictly adhere to it.
+Read `GENERAL_OVERFITTING_GUIDE.md` and strictly adhere to it.
 
 Keep a holistic view in order to reach 1-1 parity. No "overfitting" to the tests.
 
@@ -58,5 +58,25 @@ Be mindful of the interaction with bmatcuk/doublestar and keep an eye on its beh
 ----------
 
 Run task go:lint and iteratively address all linting warnings EXCEPT gocognic, cyclop, nestif
+
+----------
+
+
+----------
+
+Modernize this package.
+
+Iteratively modernize `gitignore.go` while keeping all tests passing. Run `go test -run TestGitIgnore .` after each change.
+
+- Naming of methods/functions
+- Comments should be descriptive and document behavior and quirks of git
+
+You are only allowed to edit `gitignore.go`.
+
+If you require to create debug files to run, create them in cmd/debug and not in the root. Your debug files must always end with the suffix _debug.go.
+
+Strive to always run all tests so that you don't fixate/isolate on a single test case. Keep always a holistic view on the task.
+
+You are done only when 100% of the tests are successful. Keep your comments informative and concise (no making grandiose claims that cannot be backed.)
 
 ----------

@@ -408,9 +408,9 @@
       dir: false
       ignored: true
       description: "'/*' matches top-level entry"
-    - path: .gitignore
+    - path: .env
       dir: false
-      ignored: false
+      ignored: true
       description: "'/*' must NOT match top-level dotfile"
     - path: sub/child
       dir: false

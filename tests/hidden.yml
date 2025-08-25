@@ -154,21 +154,21 @@
       description: 'hidden directory under subdir ignored'
       ignored: true
 
-- name: unignore all, then re-ignore .gitkeep explicitly
+- name: unignore all, then re-ignore .hidden explicitly
   description: 'order matters; allow all dotpaths, then ignore .gitkeep by name'
   gitignore: |
     .*
     !.*
-    *.gitkeep
+    *.hidden
   cases:
-    - path: ".gitkeep"
-      description: 'matches *.gitkeep after being unignored by !.*'
+    - path: ".hidden"
+      description: 'matches *.hidden after being unignored by !.*'
       ignored: true
-    - path: "sub/.gitkeep"
+    - path: "sub/.hidden"
       description: 'same for nested'
       ignored: true
     - path: ".env"
-      description: 'remains unignored due to !.* and not matching *.gitkeep'
+      description: 'remains unignored due to !.* and not matching *.hidden'
       ignored: false
 
 - name: nested hidden directory under normal directory

@@ -199,35 +199,35 @@
       ignored: true
 
 - name: slash-anchored exact prefix matching
-  description: 'git/ vs /git/ from root .gitignore; only the directory named git matches, not git-foo'
+  description: 'dotfolder/ vs /dotfolder/ from root .gitignore; only the directory named dotfolder matches, not dotfolder-foo'
   gitignore: |
-    /git/
+    /dotfolder/
   cases:
-    - path: "git"
+    - path: "dotfolder"
       description: 'directory entry matches'
       dir: true
       ignored: true
-    - path: "git/foo"
+    - path: "dotfolder/foo"
       description: 'content inside matches due to dir-only pattern'
       ignored: true
-    - path: "git-foo"
+    - path: "dotfolder-foo"
       description: 'prefix is not enough'
       dir: true
       ignored: false
 
 - name: unrooted dir with similar prefix
-  description: 'git/ pattern must not match git-foo or its children'
+  description: 'dotfolder/ pattern must not match dotfolder-foo or its children'
   gitignore: |
-    git/
+    dotfolder/
   cases:
-    - path: "a/git"
-      description: 'subdir named git ignored'
+    - path: "a/dotfolder"
+      description: 'subdir named dotfolder ignored'
       dir: true
       ignored: true
-    - path: "a/git/foo"
+    - path: "a/dotfolder/foo"
       description: 'child under ignored dir'
       ignored: true
-    - path: "a/git-foo"
+    - path: "a/dotfolder-foo"
       description: 'should not match'
       dir: true
       ignored: false
@@ -598,19 +598,19 @@
       ignored: false
 
 - name: prefix vs exact match in root
-  description: '/git/ matches git but not git-foo; and does not match subdir at other depth'
+  description: '/dotfolder/ matches dotfolder but not dotfolder-foo; and does not match subdir at other depth'
   gitignore: |
-    /git/
+    /dotfolder/
   cases:
-    - path: "git-foo"
+    - path: "dotfolder-foo"
       description: 'prefix not enough'
       dir: true
       ignored: false
-    - path: "x/git"
+    - path: "x/dotfolder"
       description: 'root-anchored; deeper does not match'
       dir: true
       ignored: false
-    - path: "git/readme.md"
+    - path: "dotfolder/readme.md"
       description: 'inside the exact dir'
       ignored: true
 
@@ -1075,15 +1075,15 @@
   description: 'Asterisk matches dotfiles too'
   gitignore: |
     *
-    !.gitignore
+    !.dotfile
   cases:
     - path: ".env"
       description: 'dotfile matched by *'
       ignored: true
-    - path: ".gitignore"
-      description: 'negated .gitignore is allowed'
+    - path: ".dotfile"
+      description: 'negated .dotfile is allowed'
       ignored: false
-    - path: "src/.gitignore"
+    - path: "src/.dotfile"
       description: 'negation does not imply recursive unless pattern matches'
       ignored: true
 

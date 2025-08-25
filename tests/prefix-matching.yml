@@ -18,16 +18,16 @@
       description: "git/ doesn't match file in git-foo"
       ignored: false
 
-- name: rooted git directory patterns
-  description: Root-anchored git directory patterns
+- name: rooted dotfolder directory patterns
+  description: Root-anchored dotfolder directory patterns
   gitignore: |
-    /git/
+    /dotfolder/
   cases:
-    - path: "git"
-      description: "/git/ matches git at root"
+    - path: "dotfolder"
+      description: "/dotfolder/ matches dotfolder at root"
       dir: true
       ignored: true
-    - path: "a/git"
-      description: "/git/ doesn't match git in subdirectory"
+    - path: "a/dotfolder"
+      description: "/dotfolder/ doesn't match dotfolder in subdirectory"
       dir: true
       ignored: false

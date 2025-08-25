@@ -72,54 +72,54 @@
 - name: exact prefix with root slash
   description: Test exact prefix matching with root anchoring
   gitignore: |
-    /git/
+    /folder/
   cases:
-    - path: "git"
+    - path: "folder"
       dir: true
-      description: directory 'git' at root
+      description: directory 'folder' at root
       ignored: true
-    - path: "git/foo"
+    - path: "folder/foo"
       description: file inside ignored directory
       ignored: true
-    - path: "git-foo"
+    - path: "folder-foo"
       dir: true
-      description: directory with 'git' prefix but different name
+      description: directory with 'folder' prefix but different name
       ignored: false
-    - path: "git-foo/bar"
+    - path: "folder-foo/bar"
       description: file in non-matching directory
       ignored: false
-    - path: "a/git"
+    - path: "a/folder"
       dir: true
-      description: "'git' directory in subdirectory (anchored pattern)"
+      description: "'folder' directory in subdirectory (anchored pattern)"
       ignored: false
-    - path: "a/git/foo"
+    - path: "a/folder/foo"
       description: file in non-matching subdirectory
       ignored: false
 
 - name: exact prefix without root slash
   description: Test exact prefix matching without root anchoring
   gitignore: |
-    git/
+    folder/
   cases:
-    - path: "git"
+    - path: "folder"
       dir: true
-      description: directory 'git' at root
+      description: directory 'folder' at root
       ignored: true
-    - path: "git/foo"
+    - path: "folder/foo"
       description: file inside ignored directory
       ignored: true
-    - path: "git-foo"
+    - path: "folder-foo"
       dir: true
-      description: directory with 'git' prefix but different name
+      description: directory with 'folder' prefix but different name
       ignored: false
-    - path: "git-foo/bar"
+    - path: "folder-foo/bar"
       description: file in non-matching directory
       ignored: false
-    - path: "a/git"
+    - path: "a/folder"
       dir: true
-      description: "'git' directory in subdirectory (unanchored)"
+      description: "'folder' directory in subdirectory (unanchored)"
       ignored: true
-    - path: "a/git/foo"
+    - path: "a/folder/foo"
       description: file in ignored subdirectory
       ignored: true
 

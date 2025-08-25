@@ -3,26 +3,26 @@
   gitignore: |
     *
     !*/
-    !.gitignore
+    !.dotfile
   cases:
-    - path: ".gitignore"
-      description: "* !*/ !.gitignore - .gitignore allowed"
+    - path: ".dotfile"
+      description: "* !*/ !.dotfile - .dotfile allowed"
       ignored: false
     - path: ".env"
-      description: "* !*/ !.gitignore - other hidden file matched by *"
+      description: "* !*/ !.dotfile - other hidden file matched by *"
       ignored: true
-    - path: "subdir/.gitignore"
-      description: "* !*/ !.gitignore - nested .gitignore allowed"
+    - path: "subdir/.dotfile"
+      description: "* !*/ !.dotfile - nested .dotfile allowed"
       ignored: false
 
-- name: git directory exception
-  description: Special handling for .git directory
+- name: dotfolder directory exception
+  description: Special handling for .dotfolder directory
   gitignore: |
     *
     !*/
-    !.git/
+    !.dotfolder/
   cases:
-    - path: ".git"
-      description: "* !*/ !.git/ - .git dir allowed"
+    - path: ".dotfolder"
+      description: "* !*/ !.dotfolder/ - .dotfolder dir allowed"
       dir: true
       ignored: false

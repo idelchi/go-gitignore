@@ -2,7 +2,7 @@
   description: "'*' matches dotfiles, but Git never treats '.' itself as ignored"
   gitignore: |
     *
-    !/.gitignore
+    !/.env
   cases:
     - path: "."
       dir: true
@@ -18,12 +18,12 @@
     - path: "dir/.hidden"
       ignored: true
       description: Basename match at any depth
-    - path: ".gitignore"
+    - path: ".env"
       ignored: false
-      description: Rescued at repo root by '!/.gitignore'
-    - path: "sub/.gitignore"
+      description: Rescued at repo root by '!/.env'
+    - path: "sub/.env"
       ignored: true
-      description: Rescue is root-anchored; nested .gitignore remains ignored
+      description: Rescue is root-anchored; nested .env remains ignored
 
 - name: exclude-dir-cannot-rescue
   description: Once a directory is excluded (e.g., "build/"), children cannot be re-included
