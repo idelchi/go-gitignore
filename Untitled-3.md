@@ -40,11 +40,11 @@ If you truly believe the the suggestions in `OVERFITTING_GUIDE.md` will NOT work
 
 ----------
 
-I am questioning whether this package needs to be as complex as it is.
+Assess whether there's potential for simpifications now that we've made multiple passes on the package.
 
-Come up with a simplification plan. Strive for modern Go practices as much as possible.
+Strive for modern Go practices as much as possible.
 
-Iteratively try to simplify `gitignore.go` while keeping all tests passing. Run `go test -run TestGitIgnore .` after each change.
+If you do find potential, iteratively try to simplify `gitignore.go` while keeping all tests passing. Run `go test -run TestGitIgnore .` after each change.
 
 You are only allowed to edit `gitignore.go`.
 
