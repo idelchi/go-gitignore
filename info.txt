@@ -1,0 +1,90 @@
+Looking at the failing tests, I can identify two issues:
+
+## 1. Character Class with Backslashes (`test[\\].txt`)
+
+The pattern `test[\\].txt` should match `test\.txt` because in a character class, `[\\]` matches a single backslash character. The issue is likely in how backslashes are processed within character classes.
+
+## 2. Special Path `.` with Wildcard (`*`)
+
+The test expects `.` (current directory) to be matched by `*`. However, the code has this logic:
+
+```go
+// In Git, * does not match files starting with . (dotfiles)
+if strings.HasPrefix(filePath, ".") {
+    return false
+}
+```
+
+This is incorrect for the special case of `.` itself. In Git:
+- `*` DOES match the special directory `.` (current directory)
+
+The issue is that the code treats `.` as if it were a dotfile, but `.` as a directory reference is special and should be matched by `*`.
+
+Here's the fix for the special path issue in `matchesFilePattern`:
+
+```go
+// Special case: * pattern should match a single path component.
+// If it's rooted (/*), it should only match at root level.
+if pat.pattern == wildcard {
+    if pat.rooted {
+        // /* should only match top-level entries
+        if strings.Contains(filePath, "/") {
+            return false // Not at top level
+        }
+        // In Git, * does not match dotfiles EXCEPT for "." itself
+        if strings.HasPrefix(filePath, ".") && filePath != "." {
+            return false
+        }
+        matched, _ := doublestar.Match(wildcard, filePath)
+        return matched
+    }
+    // Unrooted * matches a single component at any depth
+    basename := path.Base(filePath)
+    if basename == "" {
+        return false
+    }
+    // Check for dotfiles but allow "." itself
+    if strings.HasPrefix(basename, ".") && basename != "." {
+        return false
+    }
+    matched, _ := doublestar.Match(wildcard, basename)
+    return matched
+}
+```
+
+And similar logic needs to be added to `patternExcludesDirectory`:
+
+```go
+if pat.pattern == wildcard {
+    if pat.rooted {
+        // "/*" excludes top-level directories it matches
+        if strings.Contains(dirPath, "/") {
+            return false // Not at top level
+        }
+        // In Git, * does not match dotdirs EXCEPT for "." itself
+        if strings.HasPrefix(dirPath, ".") && dirPath != "." {
+            return false
+        }
+        matched, _ := doublestar.Match(wildcard, dirPath)
+        return matched
+    }
+    // "*" can exclude directories by matching their basename
+    basename := path.Base(dirPath)
+    if basename == "" {
+        return false
+    }
+    // Check for dotfiles but allow "." itself
+    if strings.HasPrefix(basename, ".") && basename != "." {
+        return false
+    }
+    matched, _ := doublestar.Match(wildcard, basename)
+    return matched
+}
+```
+
+For the character class issue, the problem is likely in how backslashes are being processed. The pattern `test[\\].txt` should be left as-is for the character class to work correctly, but the escape processing might be interfering.
+
+The key insight is:
+1. `.` is a special directory reference that SHOULD be matched by `*`
+2. Regular dotfiles like `.gitignore` should NOT be matched by `*`
+3. Character classes with backslashes need special handling to preserve the backslash for matching

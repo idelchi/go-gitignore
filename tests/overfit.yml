@@ -413,13 +413,13 @@
       ignored: true
     - path: "x/file.txt"
       description: "file ignored by ** and **/*"
-      ignored: true  # Changed: not rescued by !**/
+      ignored: true
     - path: "x/node_modules"
       dir: true
-      description: "explicitly negated directory"
-      ignored: false  # Changed: pattern order matters
+      description: "still ignored despite negation attempt"
+      ignored: true 
     - path: "x/node_modules/file.js"
-      description: "file in negated directory still ignored by **/*"
+      description: "file in directory still ignored"
       ignored: true
 
 - name: symlink_and_special_paths
