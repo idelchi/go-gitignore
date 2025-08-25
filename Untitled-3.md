@@ -11,8 +11,8 @@ If you believe it is biased, return a concentrated set of YAML defined tests (10
 
 Go through all tests/*.yml files and make sure the format is consistent
 
-1. Simple strings are unquoted, for all field members.
-2. Strings that have special characters or spaces are quoted such that the YAML parsing is successful.
+1. Simple strings are unquoted, for fields name, description, cases.path, cases.description
+2. Strings that have special characters or spaces are quoted such that the YAML parsing is successful. This is commonly happening in description and cases.description and sometimes cases.path
 3. Make sure "name:" is wellformed - that is, it should be a string text, not with underscores, but with free text style. So "escaped_special_char" -> "escaped special characters", and so on. So a free text descriptive style. Search for underscores in "name:" fields and keep iterating until there are none left.
 
 ----------
