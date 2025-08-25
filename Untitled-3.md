@@ -32,9 +32,11 @@ If you require to create debug files to run, create them in cmd/debug and not in
 
 Strive to always run all tests so that you don't fixate/isolate on a single test case.
 
-You are done only when 100% of the tests are successful and the concerns in `avoid-overfitting.md` are addressed.
+You are done only when 100% of the tests are successful and the concerns in `GENERAL_OVERFITTING_GUIDE.md` are addressed.
 
 Be mindful of the interaction with bmatcuk/doublestar, the quirks of `gitignore` that might need tailored solutions, and keep an eye on its behavior.
+
+If you truly believe the the suggestions in `OVERFITTING_GUIDE.md` will NOT work - stop - make a situation analysis and return the analysis to me.
 
 ----------
 
@@ -50,7 +52,7 @@ If you require to create debug files to run, create them in cmd/debug and not in
 
 Strive to always run all tests so that you don't fixate/isolate on a single test case. Keep always a holistic view on the task.
 
-You are done only when 100% of the tests are successful.
+You are done only when 100% of the tests are successful and the concerns in `GENERAL_OVERFITTING_GUIDE.md` are still fulfilled.
 
 Be mindful of the interaction with bmatcuk/doublestar and keep an eye on its behavior.
 

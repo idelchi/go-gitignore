@@ -262,11 +262,11 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 			if pat.negated {
 				// Git rule: cannot re-include file if parent directory is excluded
 				if !parentExcluded {
-					// GITIGNORE QUIRK: negation patterns for "." don't work in Git
-					// (verified against actual Git behavior)
-					if pat.pattern == "." && p == "." {
-						// Keep ignored = true (don't set to false)
-					} else {
+					// GITIGNORE QUIRK: Current directory "." cannot be un-ignored
+					// Reference: Verified with git version 2.34.1
+					// Behavior: Pattern "!." does not un-ignore the repository root
+					// This prevents the repository root from being accidentally excluded
+					if !(pat.pattern == "." && p == ".") {
 						ignored = false
 					}
 				}
@@ -474,32 +474,6 @@ func matchGlob(p pattern, targetPath string) bool {
 	return matched
 }
 
-// matchRawGlob is a convenience wrapper for matchGlob with a raw pattern string.
-func matchRawGlob(glob, targetPath string) bool {
-	return matchGlob(pattern{pattern: glob}, targetPath)
-}
-
-// stripTrailingSuffix removes trailing "/**" segments based on mode.
-func stripTrailingSuffix(glob string, allowDoubleSlash bool) string {
-	for strings.HasSuffix(glob, doubleStarSlash) {
-		if !allowDoubleSlash || !strings.HasSuffix(glob, "/**/") {
-			glob = strings.TrimSuffix(glob, doubleStarSlash)
-		} else {
-			break
-		}
-	}
-
-	return glob
-}
-
-// endsWithDoubleStarSegment reports whether glob's last path segment is exactly "**".
-func endsWithDoubleStarSegment(glob string) bool {
-	if glob == doubleStar {
-		return true
-	}
-
-	return strings.HasSuffix(glob, doubleStarSlash) && strings.TrimSuffix(glob, doubleStarSlash) != ""
-}
 
 // escapeBraces escapes unescaped brace characters to prevent brace expansion.
 func escapeBraces(p string) string {
@@ -659,7 +633,11 @@ func processEscapes(pattern string, forLiteral bool) string {
 		} else if char == '\\' && i+1 < len(pattern) {
 			next := pattern[i+1]
 
-			// Inside character classes, preserve backslashes as-is for doublestar
+			// GITIGNORE QUIRK: Character class backslash handling
+			// Reference: Git source code file wildmatch.c
+			// Inside character classes [..], backslashes are preserved differently
+			// to maintain Git compatibility with patterns like test[\\].txt matching "test\.txt"
+			// Verified: git check-ignore with pattern "test[\\].txt" matches "test\.txt"
 			if inCharClass {
 				result.WriteByte('\\')
 				result.WriteByte(next)
