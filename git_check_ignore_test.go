@@ -4,6 +4,7 @@ package gitignore_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -13,6 +14,8 @@ import (
 )
 
 // TestGitCheckIgnore validates YAML test specifications against actual Git check-ignore behavior.
+//
+//nolint:gocognit	// Long and complex setup is warranted.
 func TestGitCheckIgnore(t *testing.T) {
 	t.Parallel()
 
@@ -59,6 +62,8 @@ func TestGitCheckIgnore(t *testing.T) {
 
 						// Each test case runs as a separate subtest for precise failure reporting
 						t.Run(testName, func(t *testing.T) {
+							t.Parallel()
+
 							result := runGitCheckIgnoreTest(t, spec, c)
 
 							if !result.Pass {
@@ -97,6 +102,8 @@ func TestGitCheckIgnore(t *testing.T) {
 // a temporary git repository, writing the gitignore patterns, materializing the test path,
 // and running the actual git check-ignore command to validate behavior.
 func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case) validatorResult {
+	t.Helper()
+
 	// Fresh temp repo per case to avoid file/dir collisions across cases
 	tmp := t.TempDir()
 
@@ -106,26 +113,26 @@ func runGitCheckIgnoreTest(t *testing.T, spec GitIgnore, c Case) validatorResult
 	}
 
 	// Write .gitignore for this test
-	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte(spec.Gitignore), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(tmp, ".gitignore"), []byte(spec.Gitignore), 0o600); err != nil {
 		t.Fatalf("write .gitignore: %v", err)
 	}
 	// Ensure repo-local excludes empty
-	_ = os.WriteFile(filepath.Join(tmp, ".git", "info", "exclude"), []byte{}, 0o644)
+	_ = os.WriteFile(filepath.Join(tmp, ".git", "info", "exclude"), []byte{}, 0o600)
 
 	// Materialize the path under test
 	target := filepath.Join(tmp, filepath.FromSlash(c.Path))
 	if c.Dir {
-		if err := os.MkdirAll(target, 0o755); err != nil {
+		if err := os.MkdirAll(target, 0o750); err != nil {
 			t.Fatalf("mkdir %q: %v", c.Path, err)
 		}
 
-		_ = os.WriteFile(filepath.Join(target, ".keep"), []byte{}, 0o644)
+		_ = os.WriteFile(filepath.Join(target, ".keep"), []byte{}, 0o600)
 	} else {
-		if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
 			t.Fatalf("mkdir parents for %q: %v", c.Path, err)
 		}
 
-		if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		if err := os.WriteFile(target, []byte("x"), 0o600); err != nil {
 			t.Fatalf("write file %q (test=%q): %v", target, c.Description, err)
 		}
 	}
@@ -170,7 +177,7 @@ type validatorResult struct {
 // and returns stdout, stderr, and exit code. This is used specifically for
 // running git check-ignore commands during validation.
 func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, exitCode int) {
-	cmd := exec.Command("git", args...)
+	cmd := exec.CommandContext(context.Background(), "git", args...)
 
 	cmd.Dir = workingDir
 
@@ -199,7 +206,7 @@ func runValidatorGit(workingDir string, args ...string) (stdout, stderr string, 
 // runValidatorCmd executes a generic command in the specified working directory.
 // This is used for setup commands like git init during test preparation.
 func runValidatorCmd(workingDir, name string, args ...string) (string, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.CommandContext(context.Background(), name, args...)
 
 	cmd.Dir = workingDir
 

@@ -13,7 +13,7 @@ import (
 // testFilter allows filtering which test files to run via command line.
 // Usage: go test -f "basic,directories" to run only basic.yml and directories.yml.
 //
-// nolint:gochecknoglobals	// Test flag needs to be global for reuse.
+//nolint:gochecknoglobals	// Test flag needs to be global for reuse.
 var testFilter = flag.String("f", "", "YAML file to validate (e.g. 'basic.yml')")
 
 // Case represents a single test case within a gitignore test group.

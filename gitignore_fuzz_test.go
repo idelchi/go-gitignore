@@ -109,7 +109,7 @@ func sanitizeGitignore(s string) string {
 	var lines []string
 
 	b := []byte(s)
-	if len(b) == 0 {
+	if len(b) == 0 { //nolint:nestif	// Function is complex by design.
 		lines = append(lines, vocab[0])
 	} else {
 		for i := 0; i < len(b) && len(lines) < maxLines; i++ {
@@ -140,6 +140,8 @@ func sanitizeGitignore(s string) string {
 
 // sanitizePath makes a safe relative path (no "..", no absolute, bounded length)
 // using a restricted character set that still exercises interesting cases.
+//
+//nolint:gocognit	// Function is complex by design.
 func sanitizePath(s string) string {
 	if s == "" {
 		return "a/b/file.txt"

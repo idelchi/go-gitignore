@@ -247,31 +247,32 @@ func New(lines []string) *GitIgnore {
 //	gi.Ignored("src/important.log", false) // depends on whether src/ is excluded
 //
 //nolint:gocognit	// Function is complex by design.
-func (g *GitIgnore) Ignored(p string, isDir bool) bool {
+func (g *GitIgnore) Ignored(inputPath string, isDir bool) bool {
 	// === PREPROCESSING PHASE ===
 	// Handle edge cases and normalize the input path according to Git's rules
 
 	// Empty paths are never ignored (Git behavior)
-	if p == "" {
+	if inputPath == "" {
 		return false
 	}
 
 	// GITIGNORE QUIRK: Double-slash paths are never ignored
 	// POSIX systems treat "//" specially, and Git respects this by never ignoring such paths
 	// However, "///" and beyond are treated as regular paths
-	if strings.HasPrefix(p, doubleSlash) && !strings.HasPrefix(p, tripleSlash) {
+	if strings.HasPrefix(inputPath, doubleSlash) && !strings.HasPrefix(inputPath, tripleSlash) {
 		return false
 	}
 
 	// Normalize leading "./" prefixes (Git strips these during processing)
 	// Special handling: "./" as a directory becomes "." (current directory)
-	if p == dotSlash && isDir {
-		p = "."
+	normalizedPath := inputPath
+	if normalizedPath == dotSlash && isDir {
+		normalizedPath = "."
 	} else {
 		// Strip all leading "./" prefixes until none remain
-		for strings.HasPrefix(p, dotSlash) {
-			p = strings.TrimPrefix(p, dotSlash)
-			if p == "" {
+		for strings.HasPrefix(normalizedPath, dotSlash) {
+			normalizedPath = strings.TrimPrefix(normalizedPath, dotSlash)
+			if normalizedPath == "" {
 				return false // Path becomes empty after normalization
 			}
 		}
@@ -279,7 +280,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 
 	// Apply Git's path normalization: collapse "//" to "/" and clean dot segments
 	// This ensures consistent path representation for pattern matching
-	p = normalizePathForMatching(p)
+	normalizedPath = normalizePathForMatching(normalizedPath)
 
 	// Early exit: no patterns means nothing is ignored
 	if len(g.patterns) == 0 {
@@ -295,16 +296,16 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	// Identify which parent directories are permanently excluded by any pattern.
 	// This implements Git's fundamental rule: once a directory is excluded,
 	// its contents cannot be re-included by negation patterns.
-	excludedDirs := g.findExcludedParentDirectories(p)
+	excludedDirs := g.findExcludedParentDirectories(normalizedPath)
 
 	// Determine if any parent directory is excluded (enforces parent exclusion rule)
 	// If true, negation patterns cannot re-include this path
-	parentExcluded := hasExcludedParentDirectory(p, excludedDirs)
+	parentExcluded := hasExcludedParentDirectory(normalizedPath, excludedDirs)
 
 	// === PASS 2: PATTERN MATCHING ===
 	// Apply all patterns to the target path in order, respecting parent exclusion
 	for _, pat := range g.patterns {
-		if matchesPattern(pat, p, isDir) { //nolint:nestif	// Function is complex by design.
+		if matchesPattern(pat, normalizedPath, isDir) { //nolint:nestif	// Function is complex by design.
 			if pat.negated {
 				// NEGATION PATTERN: Attempts to re-include a previously ignored path
 				// Git rule: negation only works if no parent directory is excluded
@@ -313,7 +314,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 					// Reference: Verified with git version 2.34.1
 					// Behavior: Pattern "!." does not un-ignore the repository root
 					// This prevents the repository root from being accidentally excluded
-					if pat.pattern != "." || p != "." {
+					if pat.pattern != "." || normalizedPath != "." {
 						ignored = false // Successfully re-include the path
 					}
 				}
@@ -571,29 +572,29 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 // literally. This function ensures doublestar treats braces as literal characters, not expansion patterns.
 //
 //nolint:gocognit	// Function is complex by design.
-func escapeBracesForGit(p string) string {
-	if p == "" || (!strings.Contains(p, "{") && !strings.Contains(p, "}")) {
-		return p
+func escapeBracesForGit(pattern string) string {
+	if pattern == "" || (!strings.Contains(pattern, "{") && !strings.Contains(pattern, "}")) {
+		return pattern
 	}
 
 	var result strings.Builder
-	result.Grow(len(p) + mediumBufferGrowth)
+	result.Grow(len(pattern) + mediumBufferGrowth)
 
 	inCharClass := false
 
-	for charIdx := range len(p) {
-		currentChar := p[charIdx]
+	for charIdx := range len(pattern) {
+		currentChar := pattern[charIdx]
 
 		// Track character class boundaries
-		if currentChar == '[' && (charIdx == 0 || p[charIdx-1] != '\\') {
+		if currentChar == '[' && (charIdx == 0 || pattern[charIdx-1] != '\\') {
 			inCharClass = true
-		} else if currentChar == ']' && inCharClass && (charIdx == 0 || p[charIdx-1] != '\\') {
+		} else if currentChar == ']' && inCharClass && (charIdx == 0 || pattern[charIdx-1] != '\\') {
 			inCharClass = false
 		} else if (currentChar == '{' || currentChar == '}') && !inCharClass {
 			// Count preceding backslashes
 			backslashes := 0
 
-			for j := charIdx - 1; j >= 0 && p[j] == '\\'; j-- {
+			for j := charIdx - 1; j >= 0 && pattern[j] == '\\'; j-- {
 				backslashes++
 			}
 			// Escape if not already escaped (even number of backslashes)
@@ -613,18 +614,18 @@ func escapeBracesForGit(p string) string {
 // This handles Git's specific behavior where the first ']' in [abc] is literal, not a class closer.
 //
 //nolint:gocognit	// Function is complex by design.
-func normalizeCharacterClassBrackets(p string) string {
-	if p == "" || !strings.Contains(p, "[") {
-		return p
+func normalizeCharacterClassBrackets(pattern string) string {
+	if pattern == "" || !strings.Contains(pattern, "[") {
+		return pattern
 	}
 
 	var builder strings.Builder
-	builder.Grow(len(p) + smallBufferGrowth)
+	builder.Grow(len(pattern) + smallBufferGrowth)
 
 	idx := 0
-	for idx < len(p) {
-		if p[idx] != '[' || (idx > 0 && p[idx-1] == '\\') {
-			builder.WriteByte(p[idx])
+	for idx < len(pattern) {
+		if pattern[idx] != '[' || (idx > 0 && pattern[idx-1] == '\\') {
+			builder.WriteByte(pattern[idx])
 
 			idx++
 
@@ -637,14 +638,14 @@ func normalizeCharacterClassBrackets(p string) string {
 		idx++
 
 		// Skip negation characters
-		if idx < len(p) && (p[idx] == '!' || p[idx] == '^') {
-			builder.WriteByte(p[idx])
+		if idx < len(pattern) && (pattern[idx] == '!' || pattern[idx] == '^') {
+			builder.WriteByte(pattern[idx])
 
 			idx++
 		}
 
 		// Check if first listed character is ']'
-		if idx < len(p) && p[idx] == ']' {
+		if idx < len(pattern) && pattern[idx] == ']' {
 			builder.WriteByte('\\')
 			builder.WriteByte(']')
 
@@ -652,8 +653,8 @@ func normalizeCharacterClassBrackets(p string) string {
 		}
 
 		// Copy until we find the closing ']'
-		for idx < len(p) {
-			if p[idx] == ']' && (idx == 0 || p[idx-1] != '\\') {
+		for idx < len(pattern) {
+			if pattern[idx] == ']' && (idx == 0 || pattern[idx-1] != '\\') {
 				builder.WriteByte(']')
 
 				idx++
@@ -661,7 +662,7 @@ func normalizeCharacterClassBrackets(p string) string {
 				break
 			}
 
-			builder.WriteByte(p[idx])
+			builder.WriteByte(pattern[idx])
 
 			idx++
 		}
