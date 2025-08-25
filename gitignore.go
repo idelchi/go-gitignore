@@ -561,6 +561,9 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 		glob = normalizeWildcardEscapes(glob)
 	}
 
+	// Normalize redundant wildcards (*** -> *) to match Git's behavior
+	glob = normalizeRedundantWildcards(glob)
+
 	matched, _ := doublestar.Match(glob, targetPath)
 
 	return matched
@@ -922,4 +925,16 @@ func parsePattern(line string) *pattern {
 	pat.pattern = line
 
 	return pat
+}
+
+// normalizeRedundantWildcards collapses sequences of 3+ asterisks to a single asterisk
+// when they're not separated by slashes, matching Git's behavior
+func normalizeRedundantWildcards(pattern string) string {
+	// Replace sequences of 3+ asterisks with a single asterisk
+	// but preserve ** when it's exactly 2 asterisks
+	result := pattern
+	for strings.Contains(result, "***") {
+		result = strings.ReplaceAll(result, "***", "*")
+	}
+	return result
 }
