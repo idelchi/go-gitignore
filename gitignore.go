@@ -138,13 +138,6 @@ type pattern struct {
 	dirOnly bool
 	// rooted indicates this pattern is anchored to the repository root (starts with /)
 	rooted bool
-
-	// Derived forms for **-semantics handling
-	formBareAnyDir     bool   // exactly **/ (optionally with leading /)
-	formDirDescendants bool   // ends with /**/ with non-empty base before it
-	formContentsOnly   bool   // ends with /** (not dir-only) - matches contents not base
-	formSandwich       bool   // pattern like **/middle/** - matches contents under middle
-	sandwichMiddle     string // middle part for sandwich patterns
 }
 
 // GitIgnore represents a collection of gitignore patterns and provides
@@ -360,18 +353,75 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 	return excludedDirs
 }
 
+// isBareAnyDir checks if pattern is exactly **/ (optionally with leading /)
+func isBareAnyDir(pat pattern) bool {
+	if !pat.dirOnly {
+		return false
+	}
+	classifyNoRoot := strings.TrimPrefix(pat.pattern, "/")
+	return classifyNoRoot == "**"
+}
+
+// isDirDescendants checks if pattern ends with /** with non-empty base before it (for dir-only patterns)
+func isDirDescendants(pat pattern) bool {
+	if !pat.dirOnly {
+		return false
+	}
+	classifyNoRoot := strings.TrimPrefix(pat.pattern, "/")
+	if strings.HasSuffix(classifyNoRoot, "/**") {
+		base := strings.TrimSuffix(classifyNoRoot, "/**")
+		return base != ""
+	}
+	return false
+}
+
+// isContentsOnly checks if pattern ends with /** (not dir-only) - matches contents not base
+func isContentsOnly(pat pattern) bool {
+	if pat.dirOnly {
+		return false
+	}
+	classifyNoRoot := strings.TrimPrefix(pat.pattern, "/")
+	return strings.HasSuffix(classifyNoRoot, "/**") && !strings.HasSuffix(classifyNoRoot, "/**/")
+}
+
+// isSandwichPattern checks if pattern is a sandwich pattern like **/middle/**
+func isSandwichPattern(pat pattern) (bool, string) {
+	if pat.dirOnly || !strings.Contains(pat.pattern, doubleStarSlash) {
+		return false, ""
+	}
+
+	var middle string
+	// Pattern: **/middle/**
+	if strings.HasPrefix(pat.pattern, "**/") && strings.HasSuffix(pat.pattern, doubleStarSlash) {
+		middle = strings.TrimPrefix(pat.pattern, "**/")
+		middle = strings.TrimSuffix(middle, doubleStarSlash)
+	} else if idx := strings.Index(pat.pattern, "/**/"); idx != -1 {
+		// Rooted sandwich pattern like /a/**/middle/**
+		remaining := pat.pattern[idx+4:]
+		if strings.HasSuffix(remaining, doubleStarSlash) {
+			middle = strings.TrimSuffix(remaining, doubleStarSlash)
+		}
+	}
+
+	// Accept only if middle is valid (no wildcards)
+	if middle != "" && middle != wildcard && middle != doubleStar &&
+		!strings.Contains(middle, wildcard) && !strings.Contains(middle, doubleStar) {
+		return true, middle
+	}
+	return false, ""
+}
+
 // isSandwichBase checks if path is the base directory of a sandwich pattern (should not match).
 func isSandwichBase(pat pattern, path string) bool {
-	if !pat.formSandwich {
+	isSandwich, middle := isSandwichPattern(pat)
+	if !isSandwich {
 		return false
 	}
 
-	if strings.HasSuffix(path, pat.sandwichMiddle) {
-		prefix := strings.TrimSuffix(path, pat.sandwichMiddle)
-
+	if strings.HasSuffix(path, middle) {
+		prefix := strings.TrimSuffix(path, middle)
 		return prefix == "" || strings.HasSuffix(prefix, "/")
 	}
-
 	return false
 }
 
@@ -381,12 +431,12 @@ func matches(pat pattern, p string, isDir bool) bool {
 	// Directory-only patterns match directories ONLY (not files).
 	if pat.dirOnly {
 		// bareAnyDir (**/) => any directory at any depth
-		if pat.formBareAnyDir {
+		if isBareAnyDir(pat) {
 			return isDir
 		}
 
 		// dirDescendants (<base>/**/) => directories strictly under base, not the base
-		if pat.formDirDescendants {
+		if isDirDescendants(pat) {
 			if !isDir {
 				return false
 			}
@@ -786,30 +836,6 @@ func parsePattern(line string) *pattern {
 		return nil
 	}
 
-	// Check for trailing slash before stripping
-	classifyNoRoot := strings.TrimPrefix(line, "/")
-	originalDirOnly := strings.HasSuffix(classifyNoRoot, "/")
-
-	// Compute derived flags from the original string (post-negation, post-trim).
-	if originalDirOnly {
-		// Bare "**/" (with or without a single leading slash).
-		if classifyNoRoot == "**/" {
-			pat.formBareAnyDir = true
-		}
-		// Ends with "/**/" and has non-empty base: "<base>/**/"
-		if strings.HasSuffix(classifyNoRoot, "/**/") {
-			base := strings.TrimSuffix(classifyNoRoot, "/**/")
-			if base != "" {
-				pat.formDirDescendants = true
-			}
-		}
-	} else {
-		// Contents-only: ANY pattern that ends with "/**" (but not "/**/") should be treated as
-		// "descendants only" (i.e., does not match the base entry itself). This mirrors Git's behavior.
-		if strings.HasSuffix(classifyNoRoot, "/**") && !strings.HasSuffix(classifyNoRoot, "/**/") {
-			pat.formContentsOnly = true
-		}
-	}
 
 	// Check if pattern matches directories only (trailing /)
 	if strings.HasSuffix(line, "/") {
@@ -831,30 +857,6 @@ func parsePattern(line string) *pattern {
 
 	pat.pattern = line
 
-	// Detect sandwich patterns like **/node_modules/** or **/foo/bar/**
-	if !pat.dirOnly && strings.Contains(pat.pattern, doubleStarSlash) {
-		var middle string
-
-		// Pattern: **/middle/**
-		if strings.HasPrefix(pat.pattern, "**/") && strings.HasSuffix(pat.pattern, doubleStarSlash) {
-			middle = strings.TrimPrefix(pat.pattern, "**/")
-			middle = strings.TrimSuffix(middle, doubleStarSlash)
-		} else if idx := strings.Index(pat.pattern, "/**/"); idx != -1 {
-			// Rooted sandwich pattern like /a/**/middle/**
-			remaining := pat.pattern[idx+4:]
-			if strings.HasSuffix(remaining, doubleStarSlash) {
-				middle = strings.TrimSuffix(remaining, doubleStarSlash)
-			}
-		}
-
-		// Accept only if middle is valid (no wildcards)
-		if middle != "" && middle != wildcard && middle != doubleStar &&
-			!strings.Contains(middle, wildcard) && !strings.Contains(middle, doubleStar) {
-			pat.formSandwich = true
-			pat.sandwichMiddle = middle
-		}
-	}
-
 	return pat
 }
 
@@ -868,14 +870,15 @@ func matchesFilePattern(pat pattern, filePath string, isDir bool) bool {
 		return false
 	}
 
-	if pat.formSandwich {
+	isSandwich, _ := isSandwichPattern(pat)
+	if isSandwich {
 		return matchGlob(pat, filePath)
 	}
 
 	// Contents-only patterns (<base>/**) should NOT match the base entry itself,
 	// even when multiple trailing "/**" groups are present. We also handle degenerate
 	// cases like "**/**" where the stripped base ends with a "**" segment.
-	if pat.formContentsOnly {
+	if isContentsOnly(pat) {
 		base := stripTrailingSuffix(pat.pattern, true)
 
 		// If we have a meaningful base (doesn't end with an all-wildcard "**" segment),
@@ -955,18 +958,19 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 		return false
 	}
 
-	if pat.formSandwich {
+	isSandwich, _ := isSandwichPattern(pat)
+	if isSandwich {
 		return matchGlob(pat, dirPath)
 	}
 
 	if pat.dirOnly {
 		// Directory-only patterns (ending with /) explicitly exclude directories.
 		// bareAnyDir (**/) excludes any directory (or un-excludes via negation).
-		if pat.formBareAnyDir {
+		if isBareAnyDir(pat) {
 			return true
 		}
 		// dirDescendants (<base>/**/) excludes directories strictly below base, not the base
-		if pat.formDirDescendants {
+		if isDirDescendants(pat) {
 			base := stripTrailingSuffix(pat.pattern, false)
 			// If base is meaningful, do a strict-descendant check; otherwise fallback.
 			if base != "" && !endsWithDoubleStarSegment(base) {
@@ -992,7 +996,7 @@ func patternExcludesDirectory(pat pattern, dirPath string) bool {
 	// it must NOT exclude the base directory entry itself, but it DOES
 	// exclude directories strictly below the base. Handle multiple trailing groups
 	// and degenerate bases like "**".
-	if pat.formContentsOnly {
+	if isContentsOnly(pat) {
 		base := stripTrailingSuffix(pat.pattern, true)
 		if base != "" && !endsWithDoubleStarSegment(base) {
 			if matchRawGlob(base, dirPath) {
