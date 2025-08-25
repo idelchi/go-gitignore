@@ -1,16 +1,14 @@
-// Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach 1:1 parity with Git's
+// Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach parity with Git's
 // ignore behavior. This package provides gitignore semantics including pattern parsing with escape sequences,
-// two-pass ignore checking with parent exclusion detection, complex negation rules that match Git's exact behavior,
+// two-pass ignore checking with parent exclusion detection, negation rules that attempt to match Git's behavior,
 // brace escaping to prevent expansion, and cross-platform path handling using forward slashes only.
 //
 // Core Algorithm:
 //
-// The implementation uses a two-pass algorithm that tries to mirror Git's internal gitignore processing:
+// The implementation uses a two-pass algorithm that attempts to mirror Git's internal gitignore processing:
 //
 //	Pass 1 - Parent Exclusion Detection:
 //	  Identifies which parent directories are permanently excluded by patterns.
-//	  This implements Git's fundamental rule: once a directory is excluded,
-//	  its contents cannot be re-included by negation patterns.
 //
 //	Pass 2 - Pattern Matching:
 //	  Applies all patterns to the target path, respecting the parent exclusion rule.
@@ -216,8 +214,6 @@ func New(lines []string) *GitIgnore {
 //   - Builds a list of all parent directories in the target path
 //   - Applies all patterns to each parent directory to determine which are excluded
 //   - Creates a map of permanently excluded directories
-//   - This implements Git's fundamental rule: once a directory is excluded by any pattern,
-//     its contents cannot be re-included by negation patterns, no matter the order
 //
 // Pass 2 - Pattern Matching:
 //   - Applies all patterns to the target path in the order they appear
@@ -297,8 +293,6 @@ func (g *GitIgnore) Ignored(inputPath string, isDir bool) bool {
 
 	// === PASS 1: PARENT EXCLUSION DETECTION ===
 	// Identify which parent directories are permanently excluded by any pattern.
-	// This implements Git's fundamental rule: once a directory is excluded,
-	// its contents cannot be re-included by negation patterns.
 	excludedDirs := g.findExcludedParentDirectories(normalizedPath)
 
 	// Determine if any parent directory is excluded (enforces parent exclusion rule)
@@ -684,7 +678,6 @@ func normalizeCharacterClassBrackets(pattern string) string {
 }
 
 // hasExcludedParentDirectory checks if any parent directory is excluded according to Git's parent exclusion rule.
-// This implements Git's rule that once a directory is excluded, its contents cannot be re-included by negation.
 // Returns true if any parent directory in the path is marked as excluded.
 func hasExcludedParentDirectory(targetPath string, excludedDirs map[string]bool) bool {
 	parts := strings.Split(targetPath, "/")
@@ -804,8 +797,10 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 					}
 
 				default:
-					// Keep backslash for other cases
-					result.WriteByte(char)
+					// For non-special characters, remove the backslash (Git behavior)
+					result.WriteByte(next)
+
+					idx++ // Skip the next character
 				}
 			}
 

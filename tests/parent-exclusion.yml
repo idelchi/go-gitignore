@@ -18,3 +18,52 @@
       description: Can re-include directory itself
       dir: true
       ignored: false
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: directory re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    build/
+    !build/
+  cases:
+    - path: "build/file.txt"
+      description: Can re-include a file
+      ignored: false
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+    !build/
+  cases:
+    - path: "build/file.txt"
+      description: File ignored
+      ignored: true
+
+- name: wildcard re-inclusion
+  description: Re-including directories themselves
+  gitignore: |
+    *
+    !build/
+    !*.txt
+  cases:
+    - path: "build/file.txt"
+      description: Can re-include a file
+      ignored: false
