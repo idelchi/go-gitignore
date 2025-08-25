@@ -106,11 +106,14 @@ func normalizeWildcardEscapes(glob string) string {
 		currentChar := glob[idx]
 
 		// Track character class boundaries
-		if currentChar == '[' && !inClass {
+		switch {
+		case currentChar == '[' && !inClass:
 			inClass = true
-		} else if currentChar == ']' && inClass {
+
+		case currentChar == ']' && inClass:
 			inClass = false
-		} else if currentChar == '\\' && idx+1 < len(glob) {
+
+		case currentChar == '\\' && idx+1 < len(glob):
 			// Count consecutive backslashes
 			runStart := idx
 			for idx < len(glob) && glob[idx] == '\\' {
@@ -305,7 +308,7 @@ func (g *GitIgnore) Ignored(inputPath string, isDir bool) bool {
 	// === PASS 2: PATTERN MATCHING ===
 	// Apply all patterns to the target path in order, respecting parent exclusion
 	for _, pat := range g.patterns {
-		if matchesPattern(pat, normalizedPath, isDir) { //nolint:nestif	// Function is complex by design.
+		if matchesPattern(pat, normalizedPath, isDir) { //nolint:nestif		// Function is complex by design.
 			if pat.negated {
 				// NEGATION PATTERN: Attempts to re-include a previously ignored path
 				// Git rule: negation only works if no parent directory is excluded
@@ -439,6 +442,8 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 // detectGitPatternQuirk detects patterns with special Git behaviors that require custom handling.
 // Returns whether a quirk was detected and the result of applying that quirk's logic.
 // This function encapsulates Git-specific pattern matching behaviors that differ from standard glob matching.
+//
+//nolint:unparam	// Function designed to support future quirks
 func detectGitPatternQuirk(pat pattern, path string, isDir bool) (bool, bool) {
 	// GITIGNORE QUIRK: Patterns ending with /** are "contents-only"
 	// They match everything under the base but NOT the base itself
@@ -586,20 +591,27 @@ func escapeBracesForGit(pattern string) string {
 		currentChar := pattern[charIdx]
 
 		// Track character class boundaries
-		if currentChar == '[' && (charIdx == 0 || pattern[charIdx-1] != '\\') {
-			inCharClass = true
-		} else if currentChar == ']' && inCharClass && (charIdx == 0 || pattern[charIdx-1] != '\\') {
-			inCharClass = false
-		} else if (currentChar == '{' || currentChar == '}') && !inCharClass {
-			// Count preceding backslashes
-			backslashes := 0
-
-			for j := charIdx - 1; j >= 0 && pattern[j] == '\\'; j-- {
-				backslashes++
+		switch currentChar {
+		case '[':
+			if charIdx == 0 || pattern[charIdx-1] != '\\' {
+				inCharClass = true
 			}
-			// Escape if not already escaped (even number of backslashes)
-			if backslashes%2 == 0 {
-				result.WriteByte('\\')
+		case ']':
+			if inCharClass && (charIdx == 0 || pattern[charIdx-1] != '\\') {
+				inCharClass = false
+			}
+		case '{', '}':
+			if !inCharClass {
+				// Count preceding backslashes
+				backslashes := 0
+
+				for j := charIdx - 1; j >= 0 && pattern[j] == '\\'; j-- {
+					backslashes++
+				}
+				// Escape if not already escaped (even number of backslashes)
+				if backslashes%2 == 0 {
+					result.WriteByte('\\')
+				}
 			}
 		}
 
@@ -730,15 +742,18 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 		char := pattern[idx]
 
 		// Track character class boundaries
-		if char == '[' && (idx == 0 || pattern[idx-1] != '\\') {
+		switch {
+		case char == '[' && (idx == 0 || pattern[idx-1] != '\\'):
 			inCharClass = true
 
 			result.WriteByte(char)
-		} else if char == ']' && inCharClass && (idx == 0 || pattern[idx-1] != '\\') {
+
+		case char == ']' && inCharClass && (idx == 0 || pattern[idx-1] != '\\'):
 			inCharClass = false
 
 			result.WriteByte(char)
-		} else if char == '\\' && idx+1 < len(pattern) {
+
+		case char == '\\' && idx+1 < len(pattern):
 			next := pattern[idx+1]
 
 			// GITIGNORE QUIRK: Character class backslash handling
@@ -746,7 +761,7 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 			// Inside character classes [..], backslashes are preserved differently
 			// to maintain Git compatibility with patterns like test[\\].txt matching "test\.txt"
 			// Verified: git check-ignore with pattern "test[\\].txt" matches "test\.txt"
-			if inCharClass {
+			if inCharClass { //nolint:nestif		// Function is complex by design.
 				result.WriteByte('\\')
 				result.WriteByte(next)
 
@@ -765,11 +780,13 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 					}
 
 					idx++ // Skip the next character
+
 				case '#', '{', '}', '!':
 					// Always remove backslash for these special chars
 					result.WriteByte(next)
 
 					idx++ // Skip the next character
+
 				case '\\':
 					nextNextIsWildcard := idx+2 < len(pattern) &&
 						(pattern[idx+2] == '*' || pattern[idx+2] == '?' || pattern[idx+2] == '[')
@@ -785,12 +802,14 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 
 						idx++
 					}
+
 				default:
 					// Keep backslash for other cases
 					result.WriteByte(char)
 				}
 			}
-		} else {
+
+		default:
 			result.WriteByte(char)
 		}
 	}
