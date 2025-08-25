@@ -357,67 +357,49 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 
 // isGitIgnoreQuirk detects patterns with special Git behaviors that need handling
 func isGitIgnoreQuirk(pat pattern, path string, isDir bool) (bool, bool) {
-	glob := pat.pattern
-	
-	// GITIGNORE QUIRK 1: Contents-only patterns (ending with /** but not dir-only)
-	// These match contents under the base but NOT the base directory itself
-	// Handle multiple /** suffixes like abc/**/** or abc/**/**/
-	if strings.HasSuffix(glob, "/**") && !pat.dirOnly {
-		// Strip all trailing /** groups to find the base
-		base := glob
-		for strings.HasSuffix(base, "/**") {
-			base = strings.TrimSuffix(base, "/**")
-		}
-		if base == "" || base == "**" || strings.HasSuffix(base, "**") {
-			// Skip quirk handling for patterns like **/**/** where base is just **
-			// These should be handled by normal glob matching
-			return false, false
-		}
-		
-		// Create base pattern to test against
-		basePattern := pattern{
-			pattern: base,
-			rooted:  pat.rooted,
-			negated: false,
-			dirOnly: false,
-		}
-		
-		// If current path IS the base, don't match it
-		if matchesSimple(basePattern, path, isDir) {
-			return true, false
+	// GITIGNORE QUIRK: Patterns ending with /** are "contents-only"
+	// They match everything under the base but NOT the base itself
+	// Reference: https://git-scm.com/docs/gitignore#_pattern_format
+	if hasContentsOnlyQuirk(pat.pattern, pat.dirOnly) {
+		if isBaseOfPattern(pat, path, isDir) {
+			return true, false // Don't match the base
 		}
 	}
-	
-	// GITIGNORE QUIRK 2: Directory-only patterns ending with /** 
-	// These match directories under the base but NOT the base itself
-	// Handle multiple /** suffixes like abc/**/**/ 
-	if strings.HasSuffix(glob, "/**") && pat.dirOnly {
-		// Strip all trailing /** groups to find the base
-		base := glob
-		for strings.HasSuffix(base, "/**") {
-			base = strings.TrimSuffix(base, "/**")
-		}
-		if base == "" || base == "**" || strings.HasSuffix(base, "**") {
-			// Skip quirk handling for patterns like **/**/  where base is just **
-			// These should be handled by normal glob matching
-			return false, false
-		}
-		
-		basePattern := pattern{
-			pattern: base,
-			rooted:  pat.rooted,
-			negated: false,
-			dirOnly: false,
-		}
-		
-		// If current path IS the base, don't match it (for directories)
-		if isDir && matchesSimple(basePattern, path, true) {
-			return true, false
-		}
-	}
-	
-	
 	return false, false
+}
+
+func hasContentsOnlyQuirk(pattern string, dirOnly bool) bool {
+	return strings.HasSuffix(pattern, "/**")
+}
+
+func isBaseOfPattern(pat pattern, path string, isDir bool) bool {
+	base := extractBase(pat.pattern)
+	if base == "" || base == "**" || strings.HasSuffix(base, "**") {
+		return false
+	}
+
+	basePattern := pattern{
+		pattern: base,
+		rooted:  pat.rooted,
+		negated: false,
+		dirOnly: false,
+	}
+	
+	// For directory-only patterns, only check directories
+	if pat.dirOnly && !isDir {
+		return false
+	}
+	
+	return matchesSimple(basePattern, path, isDir)
+}
+
+func extractBase(pattern string) string {
+	// Strip all trailing /** groups to find the base
+	base := pattern
+	for strings.HasSuffix(base, "/**") {
+		base = strings.TrimSuffix(base, "/**")
+	}
+	return base
 }
 
 // matches determines if a pattern matches a given path using a unified approach
