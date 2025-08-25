@@ -1,0 +1,148 @@
+- name: basename_no_spillover_after_reinclude
+  description: A bare-name pattern must not match grandchildren after the directory has been re-included
+  gitignore: |
+    b
+    !a/b/
+  cases:
+    - path: "a/b"
+      dir: true
+      ignored: false
+    - path: "a/b/c"
+      dir: true
+      ignored: false
+
+- name: basename_with_wildcard_no_spillover
+  description: Wildcarded bare-name must not match grandchildren once parent dir is re-included
+  gitignore: |
+    b*
+    !a/b/
+  cases:
+    - path: "a/b"
+      dir: true
+      ignored: false
+    - path: "a/bb/c"
+      dir: true
+      ignored: true
+
+- name: charclass_no_spillover_after_reinclude
+  description: Charclass bare-name must not match grandchildren once parent dir is re-included
+  gitignore: |
+    [b]
+    !a/b/
+  cases:
+    - path: "a/b"
+      dir: true
+      ignored: false
+    - path: "a/b/c"
+      dir: true
+      ignored: false
+
+- name: repeated_bare_name_after_reinclude
+  description: A later repeat of the same bare-name must still not match grandchildren
+  gitignore: |
+    b
+    !a/b/
+    b
+  cases:
+    - path: "a/b"
+      dir: true
+      ignored: true
+    - path: "a/b/c"
+      dir: true
+      ignored: true
+
+- name: spillover_does_not_apply_to_files
+  description: Bare-name should not hit a file via parent basename regardless of re-includes
+  gitignore: |
+    b
+    !a/b/
+  cases:
+    - path: "a/b/c.txt"
+      dir: false
+      ignored: false
+
+- name: confirm_legit_parent_exclusion_then_rescue
+  description: Show the right way to re-include after a bare-name ignore (re-include the dir first)
+  gitignore: |
+    b
+    !a/b/
+    !a/b/**/keep.txt
+  cases:
+    - path: "a/b/x/keep.txt"
+      dir: false
+      ignored: false
+
+- name: dstar_slash_blocks_reinclude_of_files
+  description: "'**/' excludes directories; files inside cannot be re-included unless the dir itself is re-included first"
+  gitignore: |
+    **/
+    !**/*.keep
+  cases:
+    - path: "a/file.keep"
+      dir: false
+      ignored: true
+    - path: "a/b/file.keep"
+      dir: false
+      ignored: true
+
+- name: reinclude_dir_then_files_after_dstar_slash
+  description: If you re-include the directory, files can be rescued
+  gitignore: |
+    **/
+    !a/
+    !a/**/*.keep
+  cases:
+    - path: "a/file.keep"
+      dir: false
+      ignored: false
+    - path: "b/file.keep"
+      dir: false
+      ignored: true
+
+- name: anchor_semantics_for_star_slash_name
+  description: 'Pattern "*/foo" matches only one level below root; not deeper'
+  gitignore: |
+    */foo
+  cases:
+    - path: "x/foo"
+      dir: true
+      ignored: true
+    - path: "a/x/foo"
+      dir: true
+      ignored: false
+
+- name: multi_component_anchor_semantics
+  description: 'Pattern "*/bar/baz" matches only at depth=2, not deeper'
+  gitignore: |
+    */bar/baz
+  cases:
+    - path: "a/bar/baz"
+      dir: true
+      ignored: true
+    - path: "x/a/bar/baz"
+      dir: true
+      ignored: false
+
+- name: deep_duplicate_slashes_in_path
+  description: Normalization must treat "a///b///c.txt" the same as "a/b/c.txt"
+  gitignore: |
+    a/b/c.txt
+  cases:
+    - path: "a///b///c.txt"
+      dir: false
+      ignored: true
+
+- name: reinclude_dir_must_precede_file_rescue_under_contents_only
+  description: 'With "x/**", descendants are ignored; rescuing a file requires rescuing its parent dir chain'
+  gitignore: |
+    x/**
+    !x/
+    !x/y/
+    !x/y/z.txt
+  cases:
+    - path: "x/y/z.txt"
+      dir: false
+      ignored: false
+    - path: "x/a.txt"
+      dir: false
+      ignored: true
