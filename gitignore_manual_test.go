@@ -8,6 +8,8 @@ import (
 )
 
 func TestGitIgnoreManual(t *testing.T) {
+	t.Parallel()
+
 	type testCase struct {
 		name         string
 		gitignore    string
@@ -172,6 +174,8 @@ func TestGitIgnoreManual(t *testing.T) {
 
 	for _, tc := range tcs {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
 			gi := gitignore.New(strings.Split(tc.gitignore, "\n"))
 			got := gi.Ignored(tc.path, tc.isDir)
 
@@ -188,7 +192,11 @@ func TestGitIgnoreManual(t *testing.T) {
 }
 
 func TestGitIgnoreEdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty gitignore", func(t *testing.T) {
+		t.Parallel()
+
 		gi := gitignore.New([]string{})
 		if gi.Ignored("anyfile.txt", false) {
 			t.Error("Empty gitignore should not ignore any files")
@@ -196,6 +204,8 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	})
 
 	t.Run("comment lines", func(t *testing.T) {
+		t.Parallel()
+
 		gi := gitignore.New([]string{
 			"# This is a comment",
 			"*.log",
@@ -213,6 +223,8 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	})
 
 	t.Run("trailing spaces", func(t *testing.T) {
+		t.Parallel()
+
 		// Test with escaped trailing space
 		gi := gitignore.New([]string{"file\\ "})
 		if !gi.Ignored("file ", false) {
@@ -225,6 +237,8 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	})
 
 	t.Run("dot files", func(t *testing.T) {
+		t.Parallel()
+
 		gi := gitignore.New([]string{".*"})
 		if !gi.Ignored(".gitignore", false) {
 			t.Error("Should ignore dot files")
@@ -236,6 +250,8 @@ func TestGitIgnoreEdgeCases(t *testing.T) {
 	})
 
 	t.Run("character classes", func(t *testing.T) {
+		t.Parallel()
+
 		gi := gitignore.New([]string{"test[0-9].txt"})
 		if !gi.Ignored("test5.txt", false) {
 			t.Error("Should match test5.txt")

@@ -59,6 +59,7 @@ Iteratively modernize `gitignore.go` while keeping all tests passing. Run `go te
 
 - Naming of methods/functions
 - Comments should be descriptive and document behavior and quirks of git
+- Since this is a quite complex package, it's worth keeping the comments that pertain to the specific steps each method is taking and why.
 
 You are only allowed to edit `gitignore.go`.
 
@@ -91,5 +92,13 @@ At the end, run `go test -run TestGitCheckIgnore .` to make sure you didn't brea
 Run task go:lint and iteratively address all linting warnings EXCEPT gocognic, cyclop, nestif
 
 Run `go test -run TestGitIgnore .` after each change to make sure you didn't break any of the tests.
+
+It is MANDATORY that you run `go test -run TestGitIgnore .` after each change so that you keep track of WHEN and WHERE you accidentally introduce errors.
+
+Add
+
+`//nolint:<linter>      // <motivation>
+
+for the remaining linter warnings
 
 ----------

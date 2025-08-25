@@ -1,11 +1,11 @@
 // Package gitignore implements Git-compatible gitignore pattern matching with the aim to reach 1:1 parity with Git's
-// ignore behavior. This package provides complete gitignore semantics including pattern parsing with escape sequences,
+// ignore behavior. This package provides gitignore semantics including pattern parsing with escape sequences,
 // two-pass ignore checking with parent exclusion detection, complex negation rules that match Git's exact behavior,
 // brace escaping to prevent expansion, and cross-platform path handling using forward slashes only.
 //
 // Core Algorithm:
 //
-// The implementation uses a two-pass algorithm that mirrors Git's internal gitignore processing:
+// The implementation uses a two-pass algorithm that tries to mirror Git's internal gitignore processing:
 //
 //	Pass 1 - Parent Exclusion Detection:
 //	  Identifies which parent directories are permanently excluded by patterns.
@@ -15,15 +15,6 @@
 //	Pass 2 - Pattern Matching:
 //	  Applies all patterns to the target path, respecting the parent exclusion rule.
 //	  Negation patterns can only re-include files if no parent directory is excluded.
-//
-// Git Compatibility Features:
-//   - Implements Git's parent exclusion semantics exactly
-//   - Handles all Git gitignore quirks (contents-only patterns, dot negation, etc.)
-//   - Supports Git's complex escape sequence processing
-//   - Proper handling of directory-only patterns (trailing /)
-//   - Respects pattern precedence and ordering rules
-//   - Cross-platform path normalization using forward slashes
-//   - Prevents brace expansion (Git treats braces literally, unlike bash)
 //
 // Usage:
 //
@@ -43,96 +34,117 @@ import (
 // Pattern matching constants used throughout gitignore processing.
 // These represent common pattern elements and path prefixes that require special handling.
 const (
-	doubleStarSlash = "/**" // Contents-only pattern suffix (matches everything under a directory but not the directory itself)
-	doubleSlash     = "//"  // Double slash prefix (has special POSIX meaning, never ignored by Git)
-	tripleSlash     = "///" // Triple slash prefix (treated as regular path by Git)
-	dotSlash        = "./"  // Current directory prefix (normalized away during processing)
+	// Double star pattern (matches any file or directory recursively).
+	doubleStar = "**"
+	// Contents-only pattern suffix (matches everything under a directory but not the directory itself).
+	doubleStarSlash = "/**"
+	// Double slash prefix (has special POSIX meaning, never ignored by Git).
+	doubleSlash = "//"
+	// Triple slash prefix (treated as regular path by Git).
+	tripleSlash = "///"
+	// Current directory prefix (normalized away during processing).
+	dotSlash = "./"
+)
+
+// Buffer growth constants for string building operations.
+const (
+	// Small buffer growth for short patterns.
+	smallBufferGrowth = 8
+	// Medium buffer growth for typical patterns.
+	mediumBufferGrowth = 10
+	// Offset for backslash counting operations.
+	backslashOffset = 2
 )
 
 // normalizePathForMatching collapses runs of '/' and cleans dot segments like Git does.
 // This ensures paths are in canonical form before pattern matching, following Git's
 // internal path normalization behavior used during gitignore evaluation.
-func normalizePathForMatching(p string) string {
-	if p == "" || p == "." {
-		return p
+func normalizePathForMatching(inputPath string) string {
+	if inputPath == "" || inputPath == "." {
+		return inputPath
 	}
 
+	processedPath := inputPath
+
 	// Special case: preserve leading double slash (POSIX behavior)
-	preserveDoubleSlash := strings.HasPrefix(p, doubleSlash) && !strings.HasPrefix(p, tripleSlash)
+	preserveDoubleSlash := strings.HasPrefix(processedPath, doubleSlash) &&
+		!strings.HasPrefix(processedPath, tripleSlash)
 	if preserveDoubleSlash {
-		p = doubleSlash + p[2:]
+		processedPath = doubleSlash + processedPath[2:]
 	}
 
 	// Collapse all runs of '/'
-	for strings.Contains(p, doubleSlash) {
-		p = strings.ReplaceAll(p, doubleSlash, "/")
+	for strings.Contains(processedPath, doubleSlash) {
+		processedPath = strings.ReplaceAll(processedPath, doubleSlash, "/")
 	}
 
 	// Restore leading double slash if needed
-	if preserveDoubleSlash && !strings.HasPrefix(p, doubleSlash) {
-		p = "/" + p
+	if preserveDoubleSlash && !strings.HasPrefix(processedPath, doubleSlash) {
+		processedPath = "/" + processedPath
 	}
 
 	// Clean dot segments
-	return path.Clean(p)
+	return path.Clean(processedPath)
 }
 
 // normalizeWildcardEscapes ensures that * and ? remain meta even if preceded by odd number of backslashes.
 // This handles Git's specific behavior where backslash handling for wildcards requires special normalization
 // to maintain compatibility with Git's pattern matching engine.
+//
+//nolint:gocognit	// Function is complex by design.
 func normalizeWildcardEscapes(glob string) string {
 	if glob == "" {
 		return glob
 	}
 
-	var b strings.Builder
-	b.Grow(len(glob) + 8)
+	var builder strings.Builder
+	builder.Grow(len(glob) + smallBufferGrowth)
 
 	inClass := false
 
-	for i := 0; i < len(glob); i++ {
-		ch := glob[i]
+	for idx := 0; idx < len(glob); idx++ {
+		currentChar := glob[idx]
 
 		// Track character class boundaries
-		if ch == '[' && !inClass {
+		if currentChar == '[' && !inClass {
 			inClass = true
-		} else if ch == ']' && inClass {
+		} else if currentChar == ']' && inClass {
 			inClass = false
-		} else if ch == '\\' && i+1 < len(glob) {
+		} else if currentChar == '\\' && idx+1 < len(glob) {
 			// Count consecutive backslashes
-			runStart := i
-			for i < len(glob) && glob[i] == '\\' {
-				i++
+			runStart := idx
+			for idx < len(glob) && glob[idx] == '\\' {
+				idx++
 			}
 
-			runLen := i - runStart
+			runLen := idx - runStart
 
 			// Check if next character is a meta character
-			if i < len(glob) && !inClass && (glob[i] == '*' || glob[i] == '?') {
+			if idx < len(glob) && !inClass && (glob[idx] == '*' || glob[idx] == '?') {
 				// Write original backslashes
 				for range runLen {
-					b.WriteByte('\\')
+					builder.WriteByte('\\')
 				}
 				// Add extra backslash if odd number (to keep meta unescaped)
 				if runLen%2 == 1 {
-					b.WriteByte('\\')
+					builder.WriteByte('\\')
 				}
 			} else {
 				// Write backslashes as-is
 				for range runLen {
-					b.WriteByte('\\')
+					builder.WriteByte('\\')
 				}
 			}
 
-			i-- // Back up since outer loop will increment
+			idx-- // Back up since outer loop will increment
 
 			continue
 		}
 
-		b.WriteByte(ch)
+		builder.WriteByte(currentChar)
 	}
 
-	return b.String()
+	return builder.String()
 }
 
 // pattern represents a parsed gitignore pattern with its attributes.
@@ -233,6 +245,8 @@ func New(lines []string) *GitIgnore {
 //	gi.Ignored("app.log", false)           // true (matches *.log pattern)
 //	gi.Ignored("important.log", false)     // false (re-included by !important.log)
 //	gi.Ignored("src/important.log", false) // depends on whether src/ is excluded
+//
+//nolint:gocognit	// Function is complex by design.
 func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	// === PREPROCESSING PHASE ===
 	// Handle edge cases and normalize the input path according to Git's rules
@@ -290,7 +304,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 	// === PASS 2: PATTERN MATCHING ===
 	// Apply all patterns to the target path in order, respecting parent exclusion
 	for _, pat := range g.patterns {
-		if matchesPattern(pat, p, isDir) {
+		if matchesPattern(pat, p, isDir) { //nolint:nestif	// Function is complex by design.
 			if pat.negated {
 				// NEGATION PATTERN: Attempts to re-include a previously ignored path
 				// Git rule: negation only works if no parent directory is excluded
@@ -428,7 +442,7 @@ func detectGitPatternQuirk(pat pattern, path string, isDir bool) (bool, bool) {
 	// GITIGNORE QUIRK: Patterns ending with /** are "contents-only"
 	// They match everything under the base but NOT the base itself
 	// Reference: https://git-scm.com/docs/gitignore#_pattern_format
-	if strings.HasSuffix(pat.pattern, "/**") {
+	if strings.HasSuffix(pat.pattern, doubleStarSlash) {
 		if isPatternBaseDirectory(pat, path, isDir) {
 			return true, false // Don't match the base directory
 		}
@@ -442,7 +456,7 @@ func detectGitPatternQuirk(pat pattern, path string, isDir bool) (bool, bool) {
 // According to Git's gitignore semantics, "build/**" matches contents under build/ but not build/ itself.
 func isPatternBaseDirectory(pat pattern, path string, isDir bool) bool {
 	base := extractPatternBase(pat.pattern)
-	if base == "" || base == "**" || strings.HasSuffix(base, "**") {
+	if base == "" || base == doubleStar || strings.HasSuffix(base, doubleStar) {
 		return false
 	}
 
@@ -467,8 +481,8 @@ func isPatternBaseDirectory(pat pattern, path string, isDir bool) bool {
 func extractPatternBase(pattern string) string {
 	// Strip all trailing /** groups to find the base
 	base := pattern
-	for strings.HasSuffix(base, "/**") {
-		base = strings.TrimSuffix(base, "/**")
+	for strings.HasSuffix(base, doubleStarSlash) {
+		base = strings.TrimSuffix(base, doubleStarSlash)
 	}
 
 	return base
@@ -477,33 +491,33 @@ func extractPatternBase(pattern string) string {
 // matchesPattern determines if a pattern matches a given path using a unified approach.
 // This is the primary pattern matching function that handles both regular glob patterns
 // and Git-specific quirks. It follows Git's precedence rules and matching semantics.
-func matchesPattern(pat pattern, p string, isDir bool) bool {
+func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 	// Directory-only patterns match directories ONLY (not files)
 	if pat.dirOnly && !isDir {
 		return false
 	}
 
 	// Check for Git quirks first
-	if hasQuirk, quirkResult := detectGitPatternQuirk(pat, p, isDir); hasQuirk {
+	if hasQuirk, quirkResult := detectGitPatternQuirk(pat, targetPath, isDir); hasQuirk {
 		return quirkResult
 	}
 
 	// Use the simple, unified matching
-	return matchesSimplePattern(pat, p, isDir)
+	return matchesSimplePattern(pat, targetPath, isDir)
 }
 
 // matchesSimplePattern implements a unified, simple approach to pattern matching.
 // This function handles the core glob pattern matching logic after Git quirks have been processed.
 // It determines the appropriate matching scope (basename vs full path) based on pattern characteristics.
-func matchesSimplePattern(pat pattern, p string, isDir bool) bool {
+func matchesSimplePattern(pat pattern, targetPath string, _ bool) bool {
 	glob := pat.pattern
 
 	// Determine the target path to match against
-	matchPath := p
+	matchPath := targetPath
 
 	if !pat.rooted && !strings.Contains(glob, "/") {
 		// Non-rooted patterns without slash match only the basename
-		matchPath = path.Base(p)
+		matchPath = path.Base(targetPath)
 	}
 
 	// Let the glob library handle the matching
@@ -555,27 +569,31 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 // escapeBracesForGit escapes unescaped brace characters to prevent brace expansion.
 // Git does not support brace expansion (unlike bash), so patterns like {a,b} should be treated
 // literally. This function ensures doublestar treats braces as literal characters, not expansion patterns.
+//
+//nolint:gocognit	// Function is complex by design.
 func escapeBracesForGit(p string) string {
 	if p == "" || (!strings.Contains(p, "{") && !strings.Contains(p, "}")) {
 		return p
 	}
 
 	var result strings.Builder
-	result.Grow(len(p) + 10)
+	result.Grow(len(p) + mediumBufferGrowth)
 
 	inCharClass := false
 
-	for i, c := range []byte(p) {
+	for charIdx := range len(p) {
+		currentChar := p[charIdx]
+
 		// Track character class boundaries
-		if c == '[' && (i == 0 || p[i-1] != '\\') {
+		if currentChar == '[' && (charIdx == 0 || p[charIdx-1] != '\\') {
 			inCharClass = true
-		} else if c == ']' && inCharClass && (i == 0 || p[i-1] != '\\') {
+		} else if currentChar == ']' && inCharClass && (charIdx == 0 || p[charIdx-1] != '\\') {
 			inCharClass = false
-		} else if (c == '{' || c == '}') && !inCharClass {
+		} else if (currentChar == '{' || currentChar == '}') && !inCharClass {
 			// Count preceding backslashes
 			backslashes := 0
 
-			for j := i - 1; j >= 0 && p[j] == '\\'; j-- {
+			for j := charIdx - 1; j >= 0 && p[j] == '\\'; j-- {
 				backslashes++
 			}
 			// Escape if not already escaped (even number of backslashes)
@@ -584,7 +602,7 @@ func escapeBracesForGit(p string) string {
 			}
 		}
 
-		result.WriteByte(c)
+		result.WriteByte(currentChar)
 	}
 
 	return result.String()
@@ -593,61 +611,63 @@ func escapeBracesForGit(p string) string {
 // normalizeCharacterClassBrackets ensures that a ']' used as the first character
 // inside a character class is escaped for consistent glob matching behavior.
 // This handles Git's specific behavior where the first ']' in [abc] is literal, not a class closer.
+//
+//nolint:gocognit	// Function is complex by design.
 func normalizeCharacterClassBrackets(p string) string {
 	if p == "" || !strings.Contains(p, "[") {
 		return p
 	}
 
-	var b strings.Builder
-	b.Grow(len(p) + 8)
+	var builder strings.Builder
+	builder.Grow(len(p) + smallBufferGrowth)
 
-	i := 0
-	for i < len(p) {
-		if p[i] != '[' || (i > 0 && p[i-1] == '\\') {
-			b.WriteByte(p[i])
+	idx := 0
+	for idx < len(p) {
+		if p[idx] != '[' || (idx > 0 && p[idx-1] == '\\') {
+			builder.WriteByte(p[idx])
 
-			i++
+			idx++
 
 			continue
 		}
 
 		// Found unescaped '[', start of character class
-		b.WriteByte('[')
+		builder.WriteByte('[')
 
-		i++
+		idx++
 
 		// Skip negation characters
-		if i < len(p) && (p[i] == '!' || p[i] == '^') {
-			b.WriteByte(p[i])
+		if idx < len(p) && (p[idx] == '!' || p[idx] == '^') {
+			builder.WriteByte(p[idx])
 
-			i++
+			idx++
 		}
 
 		// Check if first listed character is ']'
-		if i < len(p) && p[i] == ']' {
-			b.WriteByte('\\')
-			b.WriteByte(']')
+		if idx < len(p) && p[idx] == ']' {
+			builder.WriteByte('\\')
+			builder.WriteByte(']')
 
-			i++
+			idx++
 		}
 
 		// Copy until we find the closing ']'
-		for i < len(p) {
-			if p[i] == ']' && (i == 0 || p[i-1] != '\\') {
-				b.WriteByte(']')
+		for idx < len(p) {
+			if p[idx] == ']' && (idx == 0 || p[idx-1] != '\\') {
+				builder.WriteByte(']')
 
-				i++
+				idx++
 
 				break
 			}
 
-			b.WriteByte(p[i])
+			builder.WriteByte(p[idx])
 
-			i++
+			idx++
 		}
 	}
 
-	return b.String()
+	return builder.String()
 }
 
 // hasExcludedParentDirectory checks if any parent directory is excluded according to Git's parent exclusion rule.
@@ -673,15 +693,15 @@ func hasExcludedParentDirectory(targetPath string, excludedDirs map[string]bool)
 // This is used to determine whether a pattern needs glob matching or can be handled as literal string matching.
 // Returns true if the pattern contains *, ?, or [ that are not preceded by an odd number of backslashes.
 func containsUnescapedWildcards(pattern string) bool {
-	for i := 0; i < len(pattern); i++ {
-		if pattern[i] == '\\' && i+1 < len(pattern) {
+	for charIdx := 0; charIdx < len(pattern); charIdx++ {
+		if pattern[charIdx] == '\\' && charIdx+1 < len(pattern) {
 			// Skip escaped character
-			i++
+			charIdx++
 
 			continue
 		}
 		// Check for unescaped wildcards
-		if pattern[i] == '*' || pattern[i] == '?' || pattern[i] == '[' {
+		if pattern[charIdx] == '*' || pattern[charIdx] == '?' || pattern[charIdx] == '[' {
 			return true
 		}
 	}
@@ -693,30 +713,32 @@ func containsUnescapedWildcards(pattern string) bool {
 // When forLiteral is true, escape backslashes are removed for literal string matching.
 // When false, escapes are preserved in a format compatible with the doublestar library.
 // This function handles Git's complex escape sequence rules including character class special cases.
+//
+//nolint:gocognit	// Function is complex by design.
 func processEscapeSequences(pattern string, forLiteral bool) string {
 	if pattern == "" {
 		return pattern
 	}
 
 	var result strings.Builder
-	result.Grow(len(pattern) + 10)
+	result.Grow(len(pattern) + mediumBufferGrowth)
 
 	inCharClass := false
 
-	for i := 0; i < len(pattern); i++ {
-		char := pattern[i]
+	for idx := 0; idx < len(pattern); idx++ {
+		char := pattern[idx]
 
 		// Track character class boundaries
-		if char == '[' && (i == 0 || pattern[i-1] != '\\') {
+		if char == '[' && (idx == 0 || pattern[idx-1] != '\\') {
 			inCharClass = true
 
 			result.WriteByte(char)
-		} else if char == ']' && inCharClass && (i == 0 || pattern[i-1] != '\\') {
+		} else if char == ']' && inCharClass && (idx == 0 || pattern[idx-1] != '\\') {
 			inCharClass = false
 
 			result.WriteByte(char)
-		} else if char == '\\' && i+1 < len(pattern) {
-			next := pattern[i+1]
+		} else if char == '\\' && idx+1 < len(pattern) {
+			next := pattern[idx+1]
 
 			// GITIGNORE QUIRK: Character class backslash handling
 			// Reference: Git source code file wildmatch.c
@@ -727,7 +749,7 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 				result.WriteByte('\\')
 				result.WriteByte(next)
 
-				i++ // Skip the next character
+				idx++ // Skip the next character
 			} else {
 				// Outside character classes, use existing logic
 				switch next {
@@ -741,24 +763,26 @@ func processEscapeSequences(pattern string, forLiteral bool) string {
 						result.WriteByte(next)
 					}
 
-					i++ // Skip the next character
+					idx++ // Skip the next character
 				case '#', '{', '}', '!':
 					// Always remove backslash for these special chars
 					result.WriteByte(next)
 
-					i++ // Skip the next character
+					idx++ // Skip the next character
 				case '\\':
-					if !forLiteral && i+2 < len(pattern) && (pattern[i+2] == '*' || pattern[i+2] == '?' || pattern[i+2] == '[') {
+					nextNextIsWildcard := idx+2 < len(pattern) &&
+						(pattern[idx+2] == '*' || pattern[idx+2] == '?' || pattern[idx+2] == '[')
+					if !forLiteral && nextNextIsWildcard {
 						// For glob matching with \\* or \\? or \\[ - preserve for doublestar
 						result.WriteByte('\\')
 						result.WriteByte('\\')
 
-						i++ // Skip the second backslash
+						idx++ // Skip the second backslash
 					} else {
 						// Regular double backslash becomes single
 						result.WriteByte('\\')
 
-						i++
+						idx++
 					}
 				default:
 					// Keep backslash for other cases
@@ -785,7 +809,7 @@ func trimTrailingUnescapedSpaces(str string) string {
 	for len(str) > 0 && str[len(str)-1] == ' ' {
 		backslashes := 0
 
-		for i := len(str) - 2; i >= 0 && str[i] == '\\'; i-- {
+		for i := len(str) - backslashOffset; i >= 0 && str[i] == '\\'; i-- {
 			backslashes++
 		}
 
@@ -800,13 +824,13 @@ func trimTrailingUnescapedSpaces(str string) string {
 	var result strings.Builder
 	result.Grow(len(str))
 
-	for i := 0; i < len(str); i++ {
-		if i < len(str)-1 && str[i] == '\\' && str[i+1] == ' ' {
+	for idx := 0; idx < len(str); idx++ {
+		if idx < len(str)-1 && str[idx] == '\\' && str[idx+1] == ' ' {
 			result.WriteByte(' ')
 
-			i++
+			idx++
 		} else {
-			result.WriteByte(str[i])
+			result.WriteByte(str[idx])
 		}
 	}
 

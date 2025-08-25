@@ -26,6 +26,8 @@ import (
 )
 
 // TestGitIgnore is the main test function that loads and executes all YAML-based tests.
+//
+//nolint:gocognit	// Long and complex setup is warranted.
 func TestGitIgnore(t *testing.T) {
 	t.Parallel()
 

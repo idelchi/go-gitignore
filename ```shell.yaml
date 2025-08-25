@@ -1,30 +1,4 @@
 ```yaml
 
 
-
---- FAIL: TestGitIgnore (0.00s)
-    --- FAIL: TestGitIgnore/overfit (0.01s)
-        --- FAIL: TestGitIgnore/overfit/basename_no_spillover_after_reinclude (0.00s)
-            --- FAIL: TestGitIgnore/overfit/basename_no_spillover_after_reinclude/a/b/c/ (0.00s)
-                gitignore_test.go:93: overfit -> basename_no_spillover_after_reinclude -> a/b/c/
-                    Pattern: [b !a/b/]
-                    Group: A bare-name pattern must not match grandchildren after the directory has been re-included
-                    Expected Ignored("a/b/c", isDir=true) = false, got true
-        --- FAIL: TestGitIgnore/overfit/basename_with_wildcard_no_spillover (0.00s)
-            --- FAIL: TestGitIgnore/overfit/basename_with_wildcard_no_spillover/a/b/c/ (0.00s)
-                gitignore_test.go:93: overfit -> basename_with_wildcard_no_spillover -> a/b/c/
-                    Pattern: [b* !a/b/]
-                    Group: Wildcarded bare-name must not match grandchildren once parent dir is re-included
-                    Expected Ignored("a/b/c", isDir=true) = false, got true
-        --- FAIL: TestGitIgnore/overfit/charclass_no_spillover_after_reinclude (0.00s)
-            --- FAIL: TestGitIgnore/overfit/charclass_no_spillover_after_reinclude/a/b/c/ (0.00s)
-                gitignore_test.go:93: overfit -> charclass_no_spillover_after_reinclude -> a/b/c/
-                    Pattern: [[b] !a/b/]
-                    Group: Charclass bare-name must not match grandchildren once parent dir is re-included
-                    Expected Ignored("a/b/c", isDir=true) = false, got true
-FAIL
-FAIL    github.com/idelchi/go-gitignore 0.037s
-FAIL
-
-
 ```

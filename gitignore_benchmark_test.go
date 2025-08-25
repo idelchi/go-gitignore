@@ -9,7 +9,7 @@ import (
 )
 
 // result is a package-level variable to ensure the compiler doesn't optimize away benchmark calls.
-var result bool
+var result bool //nolint:gochecknoglobals		// See above
 
 func BenchmarkNew(b *testing.B) {
 	b.Run("1000_Simple_Patterns", func(b *testing.B) {
