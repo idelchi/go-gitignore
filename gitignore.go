@@ -38,8 +38,6 @@ const (
 	doubleSlash     = "//"
 	tripleSlash     = "///"
 	dotSlash        = "./"
-	wildcard        = "*"
-	doubleStar      = "**"
 )
 
 // normalizeCandidatePath collapses runs of '/' and cleans dot segments like Git does.
@@ -165,10 +163,6 @@ type GitIgnore struct {
 //	ignored := gi.Ignored("app.log", false) // true
 //	ignored = gi.Ignored("important.log", false) // false (negated)
 func New(lines []string) *GitIgnore {
-	if len(lines) == 0 {
-		return &GitIgnore{}
-	}
-
 	// Pre-allocate slice with capacity to avoid multiple allocations
 	patterns := make([]pattern, 0, len(lines))
 
@@ -266,7 +260,7 @@ func (g *GitIgnore) Ignored(p string, isDir bool) bool {
 					// Reference: Verified with git version 2.34.1
 					// Behavior: Pattern "!." does not un-ignore the repository root
 					// This prevents the repository root from being accidentally excluded
-					if !(pat.pattern == "." && p == ".") {
+					if pat.pattern != "." || p != "." {
 						ignored = false
 					}
 				}
@@ -299,10 +293,6 @@ func (g *GitIgnore) IgnoredStat(p string) bool {
 
 // Patterns returns the original pattern strings after parsing.
 func (g *GitIgnore) Patterns() []string {
-	if len(g.patterns) == 0 {
-		return nil
-	}
-
 	patterns := make([]string, len(g.patterns))
 	for i, p := range g.patterns {
 		patterns[i] = p.original
@@ -340,7 +330,7 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 			// Any pattern that matches a directory entry (with or without a trailing '/')
 			// excludes that directory. This includes patterns like "foo/*" and "**/"
 			// which may match directories at various depths.
-			if dirMatches := patternExcludesDirectory(pat, checkPath); dirMatches {
+			if matches(pat, checkPath, true) {
 				if pat.negated {
 					// Allow explicit directory negation to clear exclusion
 					delete(excludedDirs, checkPath)
@@ -355,21 +345,18 @@ func (g *GitIgnore) findExcludedParentDirectories(targetPath string) map[string]
 	return excludedDirs
 }
 
-// isGitIgnoreQuirk detects patterns with special Git behaviors that need handling
+// isGitIgnoreQuirk detects patterns with special Git behaviors that need handling.
 func isGitIgnoreQuirk(pat pattern, path string, isDir bool) (bool, bool) {
 	// GITIGNORE QUIRK: Patterns ending with /** are "contents-only"
 	// They match everything under the base but NOT the base itself
 	// Reference: https://git-scm.com/docs/gitignore#_pattern_format
-	if hasContentsOnlyQuirk(pat.pattern, pat.dirOnly) {
+	if strings.HasSuffix(pat.pattern, "/**") {
 		if isBaseOfPattern(pat, path, isDir) {
 			return true, false // Don't match the base
 		}
 	}
-	return false, false
-}
 
-func hasContentsOnlyQuirk(pattern string, dirOnly bool) bool {
-	return strings.HasSuffix(pattern, "/**")
+	return false, false
 }
 
 func isBaseOfPattern(pat pattern, path string, isDir bool) bool {
@@ -384,12 +371,12 @@ func isBaseOfPattern(pat pattern, path string, isDir bool) bool {
 		negated: false,
 		dirOnly: false,
 	}
-	
+
 	// For directory-only patterns, only check directories
 	if pat.dirOnly && !isDir {
 		return false
 	}
-	
+
 	return matchesSimple(basePattern, path, isDir)
 }
 
@@ -399,36 +386,38 @@ func extractBase(pattern string) string {
 	for strings.HasSuffix(base, "/**") {
 		base = strings.TrimSuffix(base, "/**")
 	}
+
 	return base
 }
 
-// matches determines if a pattern matches a given path using a unified approach
+// matches determines if a pattern matches a given path using a unified approach.
 func matches(pat pattern, p string, isDir bool) bool {
 	// Directory-only patterns match directories ONLY (not files)
 	if pat.dirOnly && !isDir {
 		return false
 	}
-	
+
 	// Check for Git quirks first
 	if hasQuirk, quirkResult := isGitIgnoreQuirk(pat, p, isDir); hasQuirk {
 		return quirkResult
 	}
-	
+
 	// Use the simple, unified matching
 	return matchesSimple(pat, p, isDir)
 }
 
-// matchesSimple implements a unified, simple approach to pattern matching
+// matchesSimple implements a unified, simple approach to pattern matching.
 func matchesSimple(pat pattern, p string, isDir bool) bool {
 	glob := pat.pattern
-	
+
 	// Determine the target path to match against
 	matchPath := p
+
 	if !pat.rooted && !strings.Contains(glob, "/") {
 		// Non-rooted patterns without slash match only the basename
 		matchPath = path.Base(p)
 	}
-	
+
 	// Let the glob library handle the matching
 	return matchGlob(pat, matchPath)
 }
@@ -473,7 +462,6 @@ func matchGlob(p pattern, targetPath string) bool {
 
 	return matched
 }
-
 
 // escapeBraces escapes unescaped brace characters to prevent brace expansion.
 func escapeBraces(p string) string {
@@ -775,7 +763,6 @@ func parsePattern(line string) *pattern {
 		return nil
 	}
 
-
 	// Check if pattern matches directories only (trailing /)
 	if strings.HasSuffix(line, "/") {
 		pat.dirOnly = true
@@ -797,12 +784,4 @@ func parsePattern(line string) *pattern {
 	pat.pattern = line
 
 	return pat
-}
-
-
-// patternExcludesDirectory determines if a pattern explicitly excludes a directory.
-// Uses the same unified matching approach as regular pattern matching.
-func patternExcludesDirectory(pat pattern, dirPath string) bool {
-	// Simply use the same matching logic, treating the directory as a directory
-	return matches(pat, dirPath, true)
 }

@@ -8,41 +8,41 @@ import (
 
 func main() {
 	fmt.Println("=== DEBUGGING TRIPLE DOUBLE STAR PATTERN ===")
-	
+
 	// The failing case: Pattern [**/**/foo a/**/b/**/c **/**/** **/x**y/**]
 	// Should match "anything/anywhere" but doesn't
-	
+
 	patterns := []string{
 		"**/**/foo",
-		"a/**/b/**/c", 
-		"**/**/**",    // This should match "anything/anywhere"
+		"a/**/b/**/c",
+		"**/**/**", // This should match "anything/anywhere"
 		"**/x**y/**",
 	}
-	
+
 	gi := gitignore.New(patterns)
-	
+
 	testPath := "anything/anywhere"
 	result := gi.Ignored(testPath, false)
-	
+
 	fmt.Printf("Patterns: %v\n", patterns)
 	fmt.Printf("Test path: '%s'\n", testPath)
 	fmt.Printf("Result: ignored=%v (expected=true)\n", result)
-	
+
 	if !result {
 		fmt.Println("\n❌ FAILED - Let's debug each pattern individually:")
-		
+
 		for i, pattern := range patterns {
 			singleGi := gitignore.New([]string{pattern})
 			singleResult := singleGi.Ignored(testPath, false)
 			fmt.Printf("  Pattern %d '%s': ignored=%v\n", i+1, pattern, singleResult)
-			
+
 			if pattern == "**/**/**" {
 				fmt.Println("    ^ This pattern should match any path with 2+ components")
 				fmt.Println("    'anything/anywhere' has 2 components, should match!")
 			}
 		}
 	}
-	
+
 	// Test some simpler cases to understand the issue
 	fmt.Println("\n=== TESTING SIMPLER CASES ===")
 	simpleCases := []struct {
@@ -56,7 +56,7 @@ func main() {
 		{"**/**/**", "a/b/c", "triple double star vs 3 components"},
 		{"**/**/**", "single", "triple double star vs single component"},
 	}
-	
+
 	for _, tc := range simpleCases {
 		gi := gitignore.New([]string{tc.pattern})
 		result := gi.Ignored(tc.path, false)

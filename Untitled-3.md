@@ -7,16 +7,7 @@ What is the risk that gitignore.go is biased against "just" solving the test sui
 If you believe it is biased, return a concentrated set of YAML defined tests (10-15), which aim to prove that above is the case or not.
 
 
-----------
-
-Go through all tests/*.yml files and make sure the format is consistent
-
-1. Simple strings are unquoted, for fields name, description, cases .path, cases.description
-2. Strings that have special characters or spaces are quoted such that the YAML parsing is successful. This is commonly happening in description and cases.description and sometimes cases.path
-3. Make sure "name:" is wellformed - that is, it should be a string text, not with underscores, but with free text style. So "escaped_special_char" -> "escaped special characters", and so on. So a free text descriptive style. Search for underscores in "name:" fields and keep iterating until there are none left.
-
-----------
-
+-----------
 
 Assess the current implementation. Read `OVERFITTING_GUIDE.md` for a current situation analysis.
 
@@ -57,11 +48,7 @@ You are done only when 100% of the tests are successful and the concerns in `GEN
 Be mindful of the interaction with bmatcuk/doublestar and keep an eye on its behavior.
 
 
-----------
 
-Run task go:lint and iteratively address all linting warnings EXCEPT gocognic, cyclop, nestif
-
-----------
 
 
 ----------
@@ -80,5 +67,29 @@ If you require to create debug files to run, create them in cmd/debug and not in
 Strive to always run all tests so that you don't fixate/isolate on a single test case. Keep always a holistic view on the task.
 
 You are done only when 100% of the tests are successful. Keep your comments informative and concise (no making grandiose claims that cannot be backed.)
+
+----------
+
+
+----------
+
+Go through all tests/*.yml files and make sure the format is consistent
+
+1. Simple strings are unquoted, for fields name, description, cases .path, cases.description
+2. Strings that have special characters or spaces are quoted such that the YAML parsing is successful. This is commonly happening in description and cases.description and sometimes cases.path
+3. Make sure "name:" is wellformed - that is, it should be a string text, not with underscores, but with free text style. So "escaped_special_char" -> "escaped special characters", and so on. So a free text descriptive style. Search for underscores in "name:" fields and keep iterating until there are none left.
+
+You MUST not change the test cases in anyway - so be careful when doing this so that you don't accidentally strip away intended whitespaces etc.
+
+At the end, run `go test -run TestGitCheckIgnore .` to make sure you didn't break any of the tests.
+
+----------
+
+
+----------
+
+Run task go:lint and iteratively address all linting warnings EXCEPT gocognic, cyclop, nestif
+
+Run `go test -run TestGitIgnore .` after each change to make sure you didn't break any of the tests.
 
 ----------
