@@ -1,5 +1,5 @@
 - name: bare exclamation line
-  description: 'A line with only ! is ignored as empty/invalid; * still ignores files'
+  description: "A line with only ! is ignored as empty/invalid; * still ignores files"
   gitignore: |
     *
     !
@@ -8,7 +8,7 @@
       ignored: true
 
 - name: exclamation inside token
-  description: '! in the middle of a token is literal'
+  description: "! in the middle of a token is literal"
   gitignore: |
     foo!bar
   cases:

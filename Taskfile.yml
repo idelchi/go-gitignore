@@ -11,6 +11,7 @@ env:
 
   CSPELL_CONFIG: ./settings/cspell.yaml
   CODESPELL_WORDLIST: ./settings/project-words
+  WSLINT_ARGS: "-e **/.build/**,**/tests/**"
 
 includes:
   aux: "{{.DEVENV}}/taskfiles/Taskfile.aux.yml"
@@ -60,27 +61,26 @@ tasks:
   info:
     - task: git
 
-  generate:
-    run: once
-    cmds:
-      - go generate ./...
-
   format:
     deps:
-      - generate
-    cmds:
-      - task: format:default
-      - task: go:format
+      - task: format:json
+      - task: format:docker
+      - task: format:md
+      - task: format:shell
+      - task: format:jenkins
+      - task: format:ws
+      - task: go:lint
 
   lint:
     deps:
-      - generate
-    cmds:
-      # TODO(Idelchi): Move as `deps` when fixed.
-      - cmd: task lint:default
-        ignore_error: true
-      - cmd: task go:lint
-        ignore_error: true
+      - task: lint:ws
+      - task: lint:docker
+      - task: lint:json
+      - task: lint:shell
+      - task: lint:md
+      - task: lint:spell
+      - task: lint:cp
+      - task: go:lint
 
   build:
     deps:

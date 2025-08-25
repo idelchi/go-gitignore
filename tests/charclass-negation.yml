@@ -1,5 +1,5 @@
 - name: negated character class
-  description: '[!a] should match any single char not a'
+  description: "[!a] should match any single char not a"
   gitignore: |
     file[!a].txt
   cases:
@@ -9,7 +9,7 @@
       ignored: false
 
 - name: hyphen literal in class
-  description: 'Hyphen at edges should be literal; [!-] excludes -'
+  description: "Hyphen at edges should be literal; [!-] excludes -"
   gitignore: |
     name[-].txt
     rng[!-].txt
@@ -17,7 +17,7 @@
     - path: "name-.txt"
       ignored: true
     - path: "rng-.txt"
-      description: '- is excluded by [!-], so it should NOT match'
+      description: "- is excluded by [!-], so it should NOT match"
       ignored: false
     - path: "rnga.txt"
       ignored: true

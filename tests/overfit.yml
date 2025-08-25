@@ -530,7 +530,7 @@
       ignored: true
 
 - name: sandwich pattern not matching middle
-  description: "A sandwich pattern '**/node_modules/**' must not ignore the 'node_modules' directory entry itself. This is a critical and often mis-implemented edge case."
+  description: "A sandwich pattern '**/node_modules/**' must not ignore the 'node_modules' directory entry itself. This is a critical and often misimplemented edge case."
   gitignore: |
     **/node_modules/**
   cases:

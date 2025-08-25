@@ -119,9 +119,7 @@
 
 - name: complex escaped trailing spaces
   description: "An odd number of backslashes escapes a space; an even number does not."
-  gitignore: |
-    odd\\\ 
-    even\\\\ 
+  gitignore: "odd\\\\\\ \neven\\\\\\\\ \n"
   cases:
     - path: "odd "
       description: "Path with one space. The pattern 'odd\\ ' does not match."

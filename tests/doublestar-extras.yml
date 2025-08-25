@@ -1,5 +1,5 @@
 - name: bare double-asterisk
-  description: '** alone should match anything'
+  description: "** alone should match anything"
   gitignore: |
     **
   cases:
@@ -9,7 +9,7 @@
       ignored: true
 
 - name: double-asterisk directories allowlist
-  description: 'Unignore directories only via !**/ pattern'
+  description: "Unignore directories only via !**/ pattern"
   gitignore: |
     *
     !**/
@@ -18,11 +18,11 @@
       dir: true
       ignored: false
     - path: "dir/file.txt"
-      description: 'Files remain ignored unless unignored separately'
+      description: "Files remain ignored unless unignored separately"
       ignored: true
 
 - name: double sandwich node modules
-  description: '/**/node_modules/** matches node_modules at any depth'
+  description: "/**/node_modules/** matches node_modules at any depth"
   gitignore: |
     /**/node_modules/**
   cases:

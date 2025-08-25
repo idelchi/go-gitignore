@@ -57,7 +57,7 @@
       ignored: true
 
 - name: single-star depth anchoring
-  description: '*/doc/frotz hits exactly one segment deep, not deeper'
+  description: "*/doc/frotz hits exactly one segment deep, not deeper"
   gitignore: |
     */doc/frotz
   cases:
@@ -90,7 +90,7 @@
       ignored: true
 
 - name: double-asterisk at any depth (root too)
-  description: '**/doc/frotz matches root and deeper; non-matching suffixes do not'
+  description: "**/doc/frotz matches root and deeper; non-matching suffixes do not"
   gitignore: |
     **/doc/frotz
   cases:
@@ -156,7 +156,7 @@
       ignored: false
 
 - name: double asterisk anchoring (dir cases)
-  description: '** allows matching directories named doc/frotz at any depth (including root)'
+  description: "** allows matching directories named doc/frotz at any depth (including root)"
   gitignore: |
     **/doc/frotz
   cases:

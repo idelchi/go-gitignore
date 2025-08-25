@@ -28,7 +28,7 @@
       ignored: false
 
 - name: multiple wildstarts
-  description: 'Pattern with ***'
+  description: "Pattern with ***"
   gitignore: |
     build/
     0***

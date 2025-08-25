@@ -477,14 +477,14 @@
       ignored: false
 
 - name: question-mark does not cross slash and is single-char
-  description: 't?st matches test, tast; not t/st or tst'
+  description: 't?st matches test, tyst; not t/st or tst'
   gitignore: |
     t?st
   cases:
     - path: "test"
       description: 'single substitution'
       ignored: true
-    - path: "tast"
+    - path: "tyst"
       description: 'another single substitution'
       ignored: true
     - path: "tst"

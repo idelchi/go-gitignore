@@ -928,7 +928,7 @@ func parsePattern(line string) *pattern {
 }
 
 // normalizeRedundantWildcards collapses sequences of 3+ asterisks to a single asterisk
-// when they're not separated by slashes, matching Git's behavior
+// when they're not separated by slashes, matching Git's behavior.
 func normalizeRedundantWildcards(pattern string) string {
 	// Replace sequences of 3+ asterisks with a single asterisk
 	// but preserve ** when it's exactly 2 asterisks
@@ -936,5 +936,6 @@ func normalizeRedundantWildcards(pattern string) string {
 	for strings.Contains(result, "***") {
 		result = strings.ReplaceAll(result, "***", "*")
 	}
+
 	return result
 }

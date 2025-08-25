@@ -9,7 +9,6 @@
 .env
 *.aggr
 
-
 # Ignored folders
 .build
 .cache

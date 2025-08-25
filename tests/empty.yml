@@ -1,6 +1,6 @@
 - name: empty gitignore
   description: Verify correct Git behavior when empty
-  gitignore: |
+  gitignore: ""
   cases:
     - path: "doc/frotz"
       description: doc/frotz must match at repo root

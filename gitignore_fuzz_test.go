@@ -138,33 +138,44 @@ func sanitizeGitignore(s string) string {
 	return strings.ReplaceAll(joined, "\r\n", "\n")
 }
 
+// isSafeRune reports whether r is allowed in sanitized paths and printable patterns.
+func isSafeRune(r rune) bool {
+	if r < 0x20 || r == 0x7f {
+		return false
+	}
+
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return true
+	}
+
+	switch r {
+	case '/', '-', '_', '.', ' ', '[', ']', '{', '}', '!', '#', '*', '?', '\\':
+		return true
+	}
+
+	return false
+}
+
+// filterToSafeRunes returns a slice of runes from s that pass isSafeRune.
+func filterToSafeRunes(s string) []rune {
+	out := make([]rune, 0, len(s))
+	for _, r := range s {
+		if isSafeRune(r) {
+			out = append(out, r)
+		}
+	}
+
+	return out
+}
+
 // sanitizePath makes a safe relative path (no "..", no absolute, bounded length)
 // using a restricted character set that still exercises interesting cases.
-//
-//nolint:gocognit	// Function is complex by design.
 func sanitizePath(s string) string {
 	if s == "" {
 		return "a/b/file.txt"
 	}
 	// Keep only a safe subset of runes; drop control chars.
-	var out []rune
-
-	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
-			continue
-		}
-
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			out = append(out, r)
-
-			continue
-		}
-
-		switch r {
-		case '/', '-', '_', '.', ' ', '[', ']', '{', '}', '!', '#', '*', '?', '\\':
-			out = append(out, r)
-		}
-	}
+	out := filterToSafeRunes(s)
 
 	ss := string(out)
 
@@ -207,24 +218,7 @@ func sanitizePath(s string) string {
 
 // compactToPrintable builds a small literal pattern from s, removing control chars.
 func compactToPrintable(s string) string {
-	var out []rune
-
-	for _, r := range s {
-		if r < 0x20 || r == 0x7f {
-			continue
-		}
-		// Keep a broad-but-safe set for patterns.
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			out = append(out, r)
-
-			continue
-		}
-
-		switch r {
-		case '/', '-', '_', '.', ' ', '[', ']', '{', '}', '!', '#', '*', '?', '\\':
-			out = append(out, r)
-		}
-	}
+	out := filterToSafeRunes(s)
 
 	return strings.TrimSpace(string(out))
 }

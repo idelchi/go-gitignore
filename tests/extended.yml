@@ -14,7 +14,7 @@
       description: Leading ./ normalization, still matched by '*'
     - path: ".hidden"
       ignored: true
-      description: "'*' matches dotfiles (no \"dotfile special-case\" in gitignore)"
+      description: '''*'' matches dotfiles (no "dotfile special-case" in gitignore)'
     - path: "dir/.hidden"
       ignored: true
       description: Basename match at any depth
@@ -183,8 +183,7 @@
 
 - name: unescaped trailing spaces are trimmed
   description: Unescaped trailing spaces are ignored in the pattern
-  gitignore: |
-    ws/trailing   
+  gitignore: "ws/trailing   \n"
   cases:
     - path: "ws/trailing"
       ignored: true
@@ -194,8 +193,7 @@
 
 - name: simple escaped trailing space
   description: Single escaped trailing space
-  gitignore: |
-    ws/one\ 
+  gitignore: "ws/one\\ \n"
   cases:
     - path: "ws/one "
       ignored: true

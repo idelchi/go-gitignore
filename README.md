@@ -22,18 +22,18 @@ go get github.com/idelchi/go-gitignore
 package main
 
 import (
-	"fmt"
+    "fmt"
 
-	gitignore "github.com/idelchi/go-gitignore"
+    gitignore "github.com/idelchi/go-gitignore"
 )
 
 func main() {
-	// Pass a slice of patterns to construct the gitignorer
-	gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
+    // Pass a slice of patterns to construct the gitignorer
+    gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
 
-	// Pass a path as well as a boolean indicating if it's a directory or not
-	fmt.Println(gi.Ignored("app.log", false))        // true
-	fmt.Println(gi.Ignored("important.log", false))  // false
-	fmt.Println(gi.Ignored("build/file.txt", false)) // true
+    // Pass a path as well as a boolean indicating if it's a directory or not
+    fmt.Println(gi.Ignored("app.log", false))        // true
+    fmt.Println(gi.Ignored("important.log", false))  // false
+    fmt.Println(gi.Ignored("build/file.txt", false)) // true
 }
 ```
