@@ -58,7 +58,7 @@ func TestGitIgnore(t *testing.T) {
 				t.Run(spec.Name, func(t *testing.T) {
 					t.Parallel()
 
-					g := gitignore.New(strings.Split(spec.Gitignore, "\n"))
+					g := gitignore.New(strings.Split(spec.Gitignore, "\n")...)
 
 					// Process each individual test case
 					for _, tc := range spec.Cases {

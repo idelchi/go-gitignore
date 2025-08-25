@@ -58,7 +58,7 @@ func FuzzGitIgnoreParity(f *testing.F) {
 		want := res.Actual
 
 		// 2) Run our implementation under test on the same inputs.
-		g := gitignore.New(strings.Split(gi, "\n"))
+		g := gitignore.New(strings.Split(gi, "\n")...)
 		got := g.Ignored(p, isDir)
 
 		if got != want {

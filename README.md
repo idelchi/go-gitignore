@@ -28,8 +28,8 @@ import (
 )
 
 func main() {
-    // Pass a slice of patterns to construct the gitignorer
-    gi := gitignore.New([]string{"*.log", "build/", "!important.log"})
+    // Pass patterns to construct the gitignorer
+    gi := gitignore.New("*.log", "build/", "!important.log")
 
     // Pass a path as well as a boolean indicating if it's a directory or not
     fmt.Println(gi.Ignored("app.log", false))        // true
