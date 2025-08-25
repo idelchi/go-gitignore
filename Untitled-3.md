@@ -18,11 +18,11 @@ Go through all tests/*.yml files and make sure the format is consistent
 ----------
 
 
-Run `go test -run TestGitIgnore .` and amend gitignore.go until all tests pass.
+Assess the current implementation.
+
+Read `avoid-overfitting.md` and strictly adhere to it.
 
 Keep a holistic view in order to reach 1-1 parity. No "overfitting" to the tests.
-
-Read avoid-overfitting.txt and strictly adhere to it.
 
 Keeping running `go test -run TestGitIgnore .` after each change.
 
@@ -32,9 +32,9 @@ If you require to create debug files to run, create them in cmd/debug and not in
 
 Strive to always run all tests so that you don't fixate/isolate on a single test case.
 
-You are done only when 100% of the tests are successful.
+You are done only when 100% of the tests are successful and the concerns in `avoid-overfitting.md` are addressed.
 
-Be mindful of the interaction with bmatcuk/doublestar and keep an eye on its behavior.
+Be mindful of the interaction with bmatcuk/doublestar, the quirks of `gitignore` that might need tailored solutions, and keep an eye on its behavior.
 
 ----------
 
