@@ -1,0 +1,50 @@
+[go:lint] gitignore.go:191:2: return with no blank line before (nlreturn)
+[go:lint] 	return res
+[go:lint] 	^
+[go:lint] gitignore.go:253:2: return with no blank line before (nlreturn)
+[go:lint] 	return "", false
+[go:lint] 	^
+[go:lint] gitignore.go:738:2: return with no blank line before (nlreturn)
+[go:lint] 	return matchesPattern(pat, targetPath, isDir), false
+[go:lint] 	^
+[go:lint] gitignore.go:170:8: QF1001: could apply De Morgan's law (staticcheck)
+[go:lint] 				if !(pat.pattern == "." && normalizedPath == ".") {
+[go:lint] 				   ^
+[go:lint] gitignore.go:218:7: variable name 'p' is too short for the scope of its usage (varnamelen)
+[go:lint] 		for _, p := range parents {
+[go:lint] 		    ^
+[go:lint] gitignore.go:150:2: missing whitespace above this line (invalid statement above assign) (wsl_v5)
+[go:lint] 	res.ParentExcluded = hasParent
+[go:lint] 	^
+[go:lint] gitignore.go:151:2: missing whitespace above this line (invalid statement above assign) (wsl_v5)
+[go:lint] 	parentCause := ""
+[go:lint] 	^
+[go:lint] gitignore.go:152:2: missing whitespace above this line (no shared variables above if) (wsl_v5)
+[go:lint] 	if hasParent {
+[go:lint] 	^
+[go:lint] gitignore.go:184:3: missing whitespace above this line (no shared variables above if) (wsl_v5)
+[go:lint] 		if details == "" {
+[go:lint] 		^
+[go:lint] gitignore.go:211:2: missing whitespace above this line (too many statements above for) (wsl_v5)
+[go:lint] 	parents := make([]string, 0, len(parts))
+[go:lint] 	^
+[go:lint] gitignore.go:214:3: missing whitespace above this line (invalid statement above assign) (wsl_v5)
+[go:lint] 		parents = append(parents, p)
+[go:lint] 		^
+[go:lint] gitignore.go:222:4: missing whitespace above this line (invalid statement above assign) (wsl_v5)
+[go:lint] 			matched, contentsOnlySkip := matchesPatternWithSkip(pat, p, true)
+[go:lint] 			^
+[go:lint] gitignore.go:226:4: missing whitespace above this line (invalid statement above if) (wsl_v5)
+[go:lint] 			if pat.negated {
+[go:lint] 			^
+[go:lint] gitignore.go:230:5: missing whitespace above this line (invalid statement above assign) (wsl_v5)
+[go:lint] 				lastCause[p] = pat.original
+[go:lint] 				^
+[go:lint] gitignore.go:247:2: missing whitespace above this line (invalid statement above for) (wsl_v5)
+[go:lint] 	for i := 1; i < len(parts); i++ {
+[go:lint] 	^
+[go:lint] 15 issues:
+[go:lint] * nlreturn: 3
+[go:lint] * staticcheck: 1
+[go:lint] * varnamelen: 1
+[go:lint] * wsl_v5: 10

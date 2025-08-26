@@ -25,10 +25,10 @@ import (
 	gitignore "github.com/idelchi/go-gitignore"
 )
 
-// TestGitIgnore is the main test function that loads and executes all YAML-based tests.
+// TestGitIgnored is the main test function that loads and executes all YAML-based tests.
 //
 //nolint:gocognit	// Long and complex setup is warranted.
-func TestGitIgnore(t *testing.T) {
+func TestGitIgnored(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)
@@ -73,7 +73,7 @@ func TestGitIgnore(t *testing.T) {
 							t.Parallel()
 
 							// Test the actual gitignore logic
-							got := g.Ignored(tc.Path, tc.Dir)
+							got := g.Decide(tc.Path, tc.Dir).Ignored
 							if got != tc.Ignored {
 								// Create detailed error message with hierarchical context
 								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
