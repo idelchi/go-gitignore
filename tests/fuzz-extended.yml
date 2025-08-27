@@ -252,3 +252,34 @@
       dir: true
       description: Should match 0**/**/ pattern
       ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**// should ignore directory 0
+  gitignore: |
+    build/
+    0**/**//
+    !data/**/
+    !data/**/
+    !*.log
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+  cases:
+    - path: "0"
+      dir: true
+      description: Should ignore 0**/**// pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern \/B should not match file B
+  gitignore: |
+    build/
+    !*.log
+    name\ \ 
+    \/B
+  cases:
+    - path: "B"
+      dir: false
+      description: Should NOT match \/B pattern
+      ignored: false

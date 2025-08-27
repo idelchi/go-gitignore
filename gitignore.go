@@ -333,9 +333,25 @@ func matchesDoubleSlashPattern(pat pattern, targetPath string, isDir bool) bool 
 		return false
 	}
 
+	// Handle patterns with specific structures for double slash
+	
+	// Pattern like "literal**/**" - should match the literal directory
+	if strings.Contains(original, "**/**") {
+		// Find the literal prefix before the first **
+		doublestarPos := strings.Index(original, "**")
+		if doublestarPos > 0 {
+			literalPrefix := original[:doublestarPos]
+			
+			// Only match if it's a pure literal prefix, a directory, and exact match
+			if !strings.ContainsAny(literalPrefix, "*?[") && isDir && targetPath == literalPrefix {
+				return true
+			}
+		}
+	}
+	
 	// If the original pattern ends with "**" (like "0**", "1**"),
 	// extract the literal prefix and only match that exact directory
-	if strings.HasSuffix(original, "**") {
+	if strings.HasSuffix(original, "**") && !strings.Contains(original, "**/**") {
 		literalPrefix := strings.TrimSuffix(original, "**")
 		// Handle rooted patterns by removing leading "/"
 		literalPrefix = strings.TrimPrefix(literalPrefix, "/")
@@ -831,6 +847,7 @@ func processEscapeSequences(pattern string) string {
 		return pattern
 	}
 
+
 	// Process Git escapes character by character
 	var result strings.Builder
 	result.Grow(len(pattern))
@@ -996,6 +1013,14 @@ func parsePattern(line string) *pattern {
 	// Trim trailing spaces unless escaped
 	line = trimTrailingUnescapedSpaces(line)
 
+	// Check if pattern is rooted (starts with /) BEFORE processing escapes
+	// This ensures that escaped slashes (\/B) don't get treated as rooted patterns
+	isRooted := false
+	if strings.HasPrefix(line, "/") && !strings.HasPrefix(line, "\\/") {
+		isRooted = true
+		line = strings.TrimPrefix(line, "/")
+	}
+
 	// Process escape sequences
 	line = processEscapeSequences(line)
 
@@ -1045,11 +1070,8 @@ func parsePattern(line string) *pattern {
 		}
 	}
 
-	// Check if pattern is rooted (starts with /)
-	if strings.HasPrefix(line, "/") {
-		pat.rooted = true
-		line = strings.TrimPrefix(line, "/")
-	}
+	// Set rooted flag from earlier detection
+	pat.rooted = isRooted
 
 	// Handle edge case: if pattern becomes empty after trimming "/" (i.e., the original was just "/")
 	// This should be treated as a no-op pattern
