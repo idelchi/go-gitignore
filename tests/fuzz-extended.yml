@@ -318,3 +318,53 @@
       dir: true
       description: Should NOT match 0\/ pattern
       ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [0-?] should not ignore file -
+  gitignore: |
+    !*.log
+    build/
+    [0-?]
+    # comment
+    data/**
+    /build/
+  cases:
+    - path: "-"
+      dir: false
+      description: Should NOT match [0-?] pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [/0]? should match directory 00
+  gitignore: |
+    !*.log
+    !*.log
+    build/
+    [/0]?
+    /build/
+    data/**
+  cases:
+    - path: "00"
+      dir: true
+      description: Should match [/0]? pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**//x should match path 0/x/0
+  gitignore: |
+    build/
+    0**/**//x
+    !data/**/
+    !data/**/
+    !*.log
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+    */cache/
+    0**/**//x
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: Should match 0**/**//x pattern
+      ignored: true

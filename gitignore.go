@@ -454,11 +454,70 @@ func matchesSimplePattern(pat pattern, targetPath string) bool {
 	return matchGlobPattern(pat, matchPath)
 }
 
+// matchDoubleSlashWithSuffix handles patterns with // followed by additional content (like "0**/**//x")
+// In Git, // indicates contents-only matching, and the suffix specifies what content to match
+func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
+	// Find the // position
+	doubleSlashPos := strings.Index(pattern, "//")
+	if doubleSlashPos == -1 {
+		return false
+	}
+	
+	// Split pattern into base and suffix
+	base := pattern[:doubleSlashPos]
+	suffix := pattern[doubleSlashPos+2:] // skip //
+	
+	
+	// If there's no suffix after //, treat it as a normal pattern
+	if suffix == "" {
+		return doublestar.MatchUnvalidated(pattern, targetPath)
+	}
+	
+	// For patterns like "0**/**//x", we need to:
+	// 1. Check if the base pattern (without //suffix) can match some prefix of the path
+	// 2. Check if the remaining path components contain the suffix pattern
+	
+	// Try to match the base pattern against prefixes of the target path
+	// Split target path into components
+	pathParts := strings.Split(targetPath, "/")
+	
+	// Try matching base against each prefix of the path
+	for i := 0; i <= len(pathParts); i++ {
+		var prefix string
+		if i == 0 {
+			prefix = ""
+		} else {
+			prefix = strings.Join(pathParts[:i], "/")
+		}
+		
+		// Check if base pattern matches this prefix
+		baseMatches := doublestar.MatchUnvalidated(base, prefix)
+		
+		if baseMatches {
+			// Check if ANY path component (not just remaining) contains the suffix
+			// The // syntax means "contents-only" - the suffix can appear anywhere in the path structure
+			
+			
+			for _, component := range pathParts {
+				// Try to match suffix against each path component
+				suffixMatches := doublestar.MatchUnvalidated(suffix, component)
+				
+				if suffixMatches {
+					return true
+				}
+			}
+		}
+	}
+	
+	return false
+}
+
 // matchGlobPattern performs Git-compatible glob pattern matching using doublestar.
 func matchGlobPattern(p pattern, targetPath string) bool {
 	// The pattern has already been processed by trimTrailingSpaces,
 	// which handles escape sequences for trailing spaces.
 	glob := p.pattern
+	
 	
 	// Git does not support brace expansion, but doublestar does by default.
 	// We need to escape unescaped braces to prevent expansion.
@@ -472,9 +531,17 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 		glob = strings.ReplaceAll(glob, "***", "**")
 	}
 
+	// Handle special Git syntax: patterns with **//suffix (like "0**/**//x")
+	// The // after ** indicates "contents-only" matching, and suffix specifies what to match
+	// This must be handled before the general ** handling below
+	if strings.Contains(glob, "**/") && strings.Contains(glob, "//") && !strings.HasSuffix(glob, "//") {
+		return matchDoubleSlashWithSuffix(glob, targetPath)
+	}
+
 	// Git handles patterns like "a**/0" by trying both single-level and multi-level matching
 	// This is a special case where ** is not preceded by / and not followed by /
 	if strings.Contains(glob, "**") {
+		
 		hasSpecialDoublestar := false
 		
 		// Look for ** that's preceded by literal prefix AND appears in path-like context
@@ -531,6 +598,7 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 				zeroWidthSuffix = "*" + zeroWidthSuffix
 			}
 			zeroWidthPattern := prefix + zeroWidthSuffix
+			
 			if doublestar.MatchUnvalidated(zeroWidthPattern, targetPath) {
 				return true
 			}
@@ -550,6 +618,8 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 			// Variant 2: Single-level match (** becomes one path segment)  
 			if suffix != "" {
 				singleLevelPattern := prefix + "*" + suffix
+				
+				
 				if doublestar.MatchUnvalidated(singleLevelPattern, targetPath) {
 					return true
 				}
@@ -567,6 +637,8 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 				// This allows the first * to match the continuation of the prefix (like "a1")
 				// and the ** to match the remaining path segments
 				multiLevelPattern := prefix + "*/**" + suffix
+				
+				
 				if doublestar.MatchUnvalidated(multiLevelPattern, targetPath) {
 					return true
 				}
@@ -589,6 +661,8 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 
 	// in matchGlobPattern (near the end)
 	matched := doublestar.MatchUnvalidated(glob, targetPath)
+	
+	
 	if matched {
 		return true
 	}
@@ -606,11 +680,57 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 	return false
 }
 
+// splitPatternRespectingCharacterClasses splits a pattern on '/' but ignores '/' inside character classes [...]
+func splitPatternRespectingCharacterClasses(pattern string) []string {
+	if !strings.Contains(pattern, "/") {
+		return []string{pattern}
+	}
+	
+	var parts []string
+	var currentPart strings.Builder
+	inCharClass := false
+	
+	for i := 0; i < len(pattern); i++ {
+		char := pattern[i]
+		
+		switch char {
+		case '[':
+			inCharClass = true
+			currentPart.WriteByte(char)
+		case ']':
+			if inCharClass {
+				inCharClass = false
+			}
+			currentPart.WriteByte(char)
+		case '/':
+			if inCharClass {
+				// Inside character class, '/' is literal
+				currentPart.WriteByte(char)
+			} else {
+				// Outside character class, '/' is path separator
+				if currentPart.Len() > 0 {
+					parts = append(parts, currentPart.String())
+					currentPart.Reset()
+				}
+			}
+		default:
+			currentPart.WriteByte(char)
+		}
+	}
+	
+	if currentPart.Len() > 0 {
+		parts = append(parts, currentPart.String())
+	}
+	
+	return parts
+}
+
 // matchPathAwareByteBasedPattern performs byte-based pattern matching that respects path boundaries.
 // Git treats '?' as matching exactly one byte, not one Unicode character.
 func matchPathAwareByteBasedPattern(pattern, targetPath string) bool {
 	// Split pattern and target into path components
-	patternParts := strings.Split(pattern, "/")
+	// IMPORTANT: Don't split on '/' inside character classes [...]
+	patternParts := splitPatternRespectingCharacterClasses(pattern)
 	targetParts := strings.Split(targetPath, "/")
 	
 	// For simple patterns (no slash), use direct byte matching
@@ -771,24 +891,24 @@ func matchCharacterClass(pattern, target []byte, patternPos, targetPos int) bool
 	matched := false
 
 	// Handle character ranges like [0-9] or [a-z]
-	for idx := range classContent {
+	for idx := 0; idx < len(classContent); {
 		if idx+2 < len(classContent) && classContent[idx+1] == '-' {
 			// Range: check if target is between start and end
 			start := classContent[idx]
-
 			end := classContent[idx+2]
 			if targetByte >= start && targetByte <= end {
 				matched = true
-
 				break
 			}
+			// Skip the range components (start, -, end)
+			idx += 3
 		} else {
 			// Single character
 			if classContent[idx] == targetByte {
 				matched = true
-
 				break
 			}
+			idx++
 		}
 	}
 
