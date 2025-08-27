@@ -174,7 +174,7 @@
       description: Should match 0**/**/* pattern
       ignored: true
 
-- name: understanding 0**/**/* pattern
+- name: fuzzy test cases
   description: Testing what 0**/**/* matches
   gitignore: |
     0**/**/*
@@ -199,4 +199,18 @@
       ignored: true
     - path: "notmatch"
       description: Should 0**/**/* match notmatch?
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern ?\* should not match 0
+  gitignore: |
+    data/**
+    build/
+    !data/**/
+    */cache/
+    ?\*
+  cases:
+    - path: "0"
+      dir: false
+      description: Should NOT match ?\* pattern
       ignored: false

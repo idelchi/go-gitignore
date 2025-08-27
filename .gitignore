@@ -8,7 +8,8 @@
 .gitconfig
 
 # Ignored folders
-.build
-.cache
-.task
-testdata
+.build/
+.cache/
+.task/
+testdata/
+cmd/
