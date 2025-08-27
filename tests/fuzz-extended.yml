@@ -155,3 +155,48 @@
       dir: true
       description: 0/** should match nested directory 0/0
       ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/* should match 0
+  gitignore: |
+    build/
+    0**/**/*
+    !data/**/
+    !data/**/
+    !*.log
+    !data/**/
+    !data/**/
+    !*.log
+    !data/**/
+  cases:
+    - path: "0"
+      dir: false
+      description: Should match 0**/**/* pattern
+      ignored: true
+
+- name: understanding 0**/**/* pattern
+  description: Testing what 0**/**/* matches
+  gitignore: |
+    0**/**/*
+  cases:
+    - path: "0"
+      description: Should 0**/**/* match file 0?
+      ignored: true
+    - path: "00"
+      description: Should 0**/**/* match file 00?
+      ignored: true
+    - path: "01"
+      description: Should 0**/**/* match file 01?
+      ignored: true
+    - path: "0abc"
+      description: Should 0**/**/* match file 0abc?
+      ignored: true
+    - path: "0/file"
+      description: Should 0**/**/* match 0/file?
+      ignored: true
+    - path: "0/x/file"
+      description: Should 0**/**/* match 0/x/file?
+      ignored: true
+    - path: "notmatch"
+      description: Should 0**/**/* match notmatch?
+      ignored: false

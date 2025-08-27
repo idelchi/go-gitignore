@@ -500,6 +500,17 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 				return true
 			}
 			
+			// Special case: if suffix is "/**/*" or similar, the target itself might match
+			// Git treats patterns like "0**/**/*" as matching "0" itself
+			if strings.HasPrefix(suffix, "/**/*") {
+				// Try matching the target as if it's the final component
+				// For "0**/**/*" matching "0", we check if "0**" matches "0"
+				prefixPattern := prefix + "**"
+				if doublestar.MatchUnvalidated(prefixPattern, targetPath) {
+					return true
+				}
+			}
+			
 			// Variant 2: Single-level match (** becomes one path segment)  
 			if suffix != "" {
 				singleLevelPattern := prefix + "*" + suffix
