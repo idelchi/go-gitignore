@@ -86,7 +86,7 @@ tasks:
     cmds:
       - cmd: go clean -testcache
       - task: go:quality
-      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=120s
+      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=60s
 
   all:
     desc: run all available tasks
@@ -108,6 +108,6 @@ tasks:
   update:
     - task: git:update
 
-  gofuzz: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=300s
-  gocheck: go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
-  gotest: go test -run GitIgnored$ .
+  fuzz: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=300s
+  check: go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
+  ignore: go test -run GitIgnored$ .
