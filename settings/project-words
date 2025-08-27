@@ -22,6 +22,7 @@ ignorecase
 nestif
 nolint
 pycache
+occs
 subtest
 unparam
 unrooted

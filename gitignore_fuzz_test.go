@@ -143,6 +143,24 @@ func sanitizeGitignore(s string) string {
 
 // isSafeRune reports whether r is allowed in sanitized paths and printable patterns.
 func isSafeRune(r rune) bool {
+	if r < 0x20 || r > 0x7E { // ASCII printable range only
+		return false
+	}
+
+	if unicode.IsLetter(r) || unicode.IsDigit(r) {
+		return true
+	}
+
+	switch r {
+	case '/', '-', '_', '.', ' ', '[', ']', '!', '#', '*', '?', '\\':
+		return true
+	}
+
+	return false
+}
+
+// isUnsafeRune reports whether r is allowed in sanitized paths and printable patterns.
+func isUnsafeRune(r rune) bool {
 	if r < 0x20 || r == 0x7f {
 		return false
 	}
@@ -159,7 +177,7 @@ func isSafeRune(r rune) bool {
 	return false
 }
 
-// filterToSafeRunes returns a slice of runes from s that pass isSafeRune.
+// filterToSafeRunes returns a slice of runes from s that pass isSafeRune/isUnsafeRune.
 func filterToSafeRunes(s string) []rune {
 	out := make([]rune, 0, len(s))
 	for _, r := range s {

@@ -701,7 +701,7 @@
       description: "double star within component"
       ignored: true
 
-- name: escape sequence torture
+- name: escape sequence
   description: Complex escape sequences that might break parsing
   gitignore: |
     file\\\\\ 

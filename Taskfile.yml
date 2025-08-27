@@ -107,3 +107,7 @@ tasks:
 
   update:
     - task: git:update
+
+  gofuzz: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=300s
+  gocheck: go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
+  gotest: go test -run GitIgnored$ .

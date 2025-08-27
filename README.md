@@ -8,7 +8,7 @@
 
 Git-compatible `.gitignore` pattern matching for Go.
 
-Tested against [a large number of cases](./tests) validated with `git check-ignore` to ensure behavior matches Git exactly.
+Tested against [a large number of cases](./tests) and fuzzy testing validated with `git check-ignore` to ensure behavior matches Git exactly.
 
 ## Installation
 
@@ -40,7 +40,10 @@ func main() {
 
 ## Limitations
 
-Expects relative paths for both gitignore patterns and input paths. Absolute paths are treated as non-ignored.
+- Expects relative paths for both gitignore patterns and input paths.
+  Absolute paths are treated as non-ignored.
+
+- Has a realistic risk of being over-fitted to the test cases ([see contributing](#contributing)).
 
 ## Contributing
 

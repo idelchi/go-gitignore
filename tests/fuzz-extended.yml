@@ -1,0 +1,147 @@
+- name: fuzzy test cases
+  description: Pattern a**/00 with complex gitignore rules
+  gitignore: |
+    **/*.tmp
+    !data/**/
+    !data/**/
+    !*.log
+    build/
+    a**/00
+    build/
+    a**/00
+  cases:
+    - path: "a/b/file.txt"
+      dir: true
+      description: Should not be ignored by a**/00 pattern
+      ignored: false
+
+- name: test a**/00 pattern specifically
+  description: Understanding a**/00 pattern behavior
+  gitignore: |
+    a**/00
+  cases:
+    - path: "a00"
+      description: Should match literal a00
+      ignored: true
+    - path: "a/00"
+      description: Should match a/00 (single level)
+      ignored: true
+    - path: "a/b/00"
+      description: Should match a/b/00 (multi level)
+      ignored: true
+    - path: "a/b/file.txt"
+      dir: true
+      description: Should NOT match directory a/b/file.txt
+      ignored: false
+    - path: "a/b"
+      dir: true
+      description: Should NOT match directory a/b
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern a**/0 should match a1/x/0
+  gitignore: |
+    **/*.tmp
+    !data/**/
+    !data/**/
+    !*.log
+    build/
+    a**/0
+  cases:
+    - path: "a1/x/0"
+      description: Should match a**/0 pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern a** should match a0 directory
+  gitignore: |
+    **/*.tmp
+    !data/**/
+    !data/**/
+    */cache/
+    a**
+  cases:
+    - path: "a0"
+      dir: true
+      description: Should match a** pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Testing what a** should match
+  gitignore: |
+    a**
+  cases:
+    - path: "a"
+      description: Should a** match file 'a'?
+      ignored: true
+    - path: "a"
+      dir: true
+      description: Should a** match directory 'a'?
+      ignored: true
+    - path: "a0"
+      description: Should match file a0
+      ignored: true
+    - path: "a0"
+      dir: true
+      description: Should match directory a0
+      ignored: true
+    - path: "ab"
+      description: Should match file ab
+      ignored: true
+    - path: "ab"
+      dir: true
+      description: Should match directory ab
+      ignored: true
+    - path: "a/file"
+      description: Should match file inside a/
+      ignored: true
+    - path: "a/dir"
+      dir: true
+      description: Should match directory inside a/
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0***// should match 0 directory
+  gitignore: |
+    build/
+    0***/
+    !data/**/
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+  cases:
+    - path: "0"
+      dir: true
+      description: Should match 0***/ pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0***// should match 0 directory
+  gitignore: |
+    build/
+    0***//
+    !data/**/
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+  cases:
+    - path: "0"
+      dir: true
+      description: Should match 0***// pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern *?/0 should not match 0/x/0
+  gitignore: |
+    !data/**/
+    data/**
+    !*.log
+    build/
+    *?/0
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: Should NOT match *?/0 pattern
+      ignored: false
