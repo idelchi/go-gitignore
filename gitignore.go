@@ -272,45 +272,49 @@ func hasExcludedParentDirectory(targetPath string, excludedDirs map[string]bool)
 }
 
 // detectGitPatternQuirk detects patterns with special Git behaviors that require custom handling.
-func detectGitPatternQuirk(pat pattern, path string) bool {
-	if !hasContentsOnlySuffix(pat.pattern) {
-		return false
-	}
+func detectGitPatternQuirk(pat pattern, targetPath string) bool {
+    // Only applies to patterns that end with one or more "/**+" groups
+    if !hasContentsOnlySuffix(pat.pattern) {
+        return false
+    }
 
-	// Extract and normalize the base once.
-	baseRaw := extractPatternBase(pat.pattern)
-	base := baseRaw
-	// Collapse *** sequences to **
-	for strings.Contains(base, "***") {
-		base = strings.ReplaceAll(base, "***", "**")
-	}
+    // Extract and normalize the base once.
+    baseRaw := extractPatternBase(pat.pattern)
+    base := baseRaw
+    // Collapse *** sequences to ** to avoid degenerate cases.
+    for strings.Contains(base, "***") {
+        base = strings.ReplaceAll(base, "***", "**")
+    }
 
-	// If there's no meaningful base, nothing to suppress.
-	if base == "" || base == doubleStar {
-		return false
-	}
+    // If there's no meaningful base, nothing to suppress.
+    if base == "" || base == doubleStar {
+        return false
+    }
 
-	// If the base is of the form <literal> + "**", we let doublestar decide
-	// (i.e., we do NOT suppress matching the base).
-	if strings.HasSuffix(base, doubleStar) {
-		prefix := base[:len(base)-len(doubleStar)]
-		if prefix != "" && !strings.ContainsAny(prefix, "*?[/") {
-			return false // literal prefix + "**"
-		}
-	}
+    // If the base is of the form <literal> + "**", we let doublestar decide
+    // (i.e., we do NOT suppress matching the base).
+    if strings.HasSuffix(base, doubleStar) {
+        prefix := base[:len(base)-len(doubleStar)]
+        if prefix != "" && !strings.ContainsAny(prefix, "*?[/") {
+            return false // literal prefix + "**"
+        }
+    }
 
-	// Otherwise, if the target path matches the base, suppress (contents-only).
-	basePattern := pattern{
-		pattern: base,
-		rooted:  pat.rooted,
-		negated: false,
-		dirOnly: false,
-	}
-	if matchesSimplePattern(basePattern, path) {
-		return true // suppress base match
-	}
+    // Suppress ONLY when the target path matches the base pattern as a full path
+    // (no basename-only fallback). Example: pattern "a/**" should not match
+    // directory "a", but should match "a/x". Likewise, "**/node_modules/**"
+    // should not match any ".../node_modules" directory entry itself.
+    glob := base
+    glob = escapeBracesForGit(glob)
+    glob = normalizeCharacterClassBrackets(glob)
+    for strings.Contains(glob, "***") {
+        glob = strings.ReplaceAll(glob, "***", "**")
+    }
+    if doublestar.MatchUnvalidated(glob, targetPath) {
+        return true
+    }
 
-	return false
+    return false
 }
 
 // matchesDoubleSlashPattern handles patterns that originally ended with //

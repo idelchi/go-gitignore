@@ -145,3 +145,13 @@
       dir: false
       description: Should NOT match *?/0 pattern
       ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0/** should ignore directory 0/0
+  gitignore: |
+    0/**
+  cases:
+    - path: "0/0"
+      dir: true
+      description: 0/** should match nested directory 0/0
+      ignored: true
