@@ -17,7 +17,7 @@ func BenchmarkNew(b *testing.B) {
 
 		b.ResetTimer()
 
-		for range b.N {
+		for b.Loop() {
 			_ = gitignore.New(patterns...)
 		}
 	})
@@ -27,7 +27,7 @@ func BenchmarkNew(b *testing.B) {
 
 		b.ResetTimer()
 
-		for range b.N {
+		for b.Loop() {
 			_ = gitignore.New(patterns...)
 		}
 	})
@@ -43,12 +43,12 @@ func BenchmarkIgnored(b *testing.B) {
 		deepPath := "a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/file.go"
 
 		b.Run("Shallow", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				result = giRealWorld.Ignored("src/components/button.tsx", false)
 			}
 		})
 		b.Run("Deep", func(b *testing.B) {
-			for range b.N {
+			for b.Loop() {
 				result = giRealWorld.Ignored(deepPath, false)
 			}
 		})
@@ -72,7 +72,7 @@ func BenchmarkIgnored(b *testing.B) {
 
 			b.ResetTimer()
 
-			for range b.N {
+			for b.Loop() {
 				result = gi.Ignored(path, false)
 			}
 		})

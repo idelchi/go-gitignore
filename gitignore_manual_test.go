@@ -7,7 +7,8 @@ import (
 	gitignore "github.com/idelchi/go-gitignore"
 )
 
-func TestGitIgnoreManual(t *testing.T) {
+// TestGitIgnoreBasic contains basic test cases for gitignore patterns.
+func TestGitIgnoreBasic(t *testing.T) {
 	t.Parallel()
 
 	type testCase struct {

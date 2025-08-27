@@ -1,0 +1,257 @@
+- name: simple star exclude
+  gitignore: |
+    *
+  cases:
+    - path: "a.log"
+      ignored: true
+      details: "*"
+
+- name: star then rescue file
+  gitignore: |
+    *
+    !a.log
+  cases:
+    - path: "a.log"
+      ignored: false
+      details: "!a.log"
+
+- name: parent exclusion by dir slash
+  gitignore: |
+    build/
+  cases:
+    - path: "build/file.txt"
+      ignored: true
+      details: "build/"
+
+- name: contents-only does not exclude base dir
+  gitignore: |
+    build/**
+  cases:
+    - path: "build"
+      dir: true
+      ignored: false
+      details: ""
+
+- name: contents-only excludes child
+  gitignore: |
+    build/**
+  cases:
+    - path: "build/x.txt"
+      ignored: true
+      details: "build/**"
+
+- name: build star rescue specific file
+  gitignore: |
+    build/*
+    !build/keep.txt
+  cases:
+    - path: "build/keep.txt"
+      ignored: false
+      details: "!build/keep.txt"
+
+- name: directory-glob-only (/**/)
+  gitignore: |
+    dir/**/
+  cases:
+    - path: "dir/x"
+      dir: true
+      ignored: true
+      details: "dir/**/"
+
+- name: ignore all, unignore dirs only
+  gitignore: |
+    *
+    !*/
+  cases:
+    - path: "x"
+      dir: true
+      ignored: false
+      details: "!*/"
+
+- name: allow md under any dir
+  gitignore: |
+    *
+    !*/
+    !*.md
+  cases:
+    - path: "docs/readme.md"
+      ignored: false
+      details: "!*.md"
+
+- name: star leaves non-md ignored
+  gitignore: |
+    *
+    !*/
+    !*.md
+  cases:
+    - path: "readme.txt"
+      ignored: true
+      details: "*"
+
+- name: escaped braces literal
+  gitignore: |
+    \{a\}
+  cases:
+    - path: "{a}"
+      ignored: true
+      details: '\{a\}'
+
+- name: escaped star literal
+  gitignore: |
+    \*.txt
+  cases:
+    - path: "*.txt"
+      ignored: true
+      details: '\*.txt'
+
+- name: rooted file
+  gitignore: |
+    /foo
+  cases:
+    - path: "foo"
+      ignored: true
+      details: "/foo"
+
+- name: rooted does not hit deeper
+  gitignore: |
+    /foo
+  cases:
+    - path: "a/foo"
+      ignored: false
+      details: ""
+
+- name: segment exactness
+  gitignore: |
+    foo/bar
+  cases:
+    - path: "foo/barbaz"
+      ignored: false
+      details: ""
+
+- name: dstar any depth
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: "src/node_modules/file.js"
+      ignored: true
+      details: "**/node_modules/**"
+
+- name: dstar base entry not excluded
+  gitignore: |
+    **/node_modules/**
+  cases:
+    - path: "node_modules"
+      dir: true
+      ignored: false
+      details: ""
+
+- name: blocked negation inside excluded dir
+  gitignore: |
+    build/
+    !build/keep.txt
+  cases:
+    - path: "build/keep.txt"
+      ignored: true
+      details: "build/"
+
+- name: bang-dot cannot rescue root
+  gitignore: |
+    *
+    !.
+  cases:
+    - path: "."
+      dir: true
+      ignored: true
+      details: "*"
+
+- name: dot-slash normalization rescue
+  gitignore: |
+    *
+    !x.txt
+  cases:
+    - path: "./x.txt"
+      ignored: false
+      details: "!x.txt"
+
+- name: double-slash POSIX special never ignored
+  gitignore: |
+    *
+  cases:
+    - path: "//share"
+      ignored: false
+      details: ""
+
+- name: char class negation
+  gitignore: |
+    file[!a].txt
+  cases:
+    - path: "fileb.txt"
+      ignored: true
+      details: "file[!a].txt"
+
+- name: escaped question literal
+  gitignore: |
+    file\?.txt
+  cases:
+    - path: "file?.txt"
+      ignored: true
+      details: 'file\?.txt'
+
+- name: bare name excludes dir
+  gitignore: |
+    foo
+  cases:
+    - path: "foo"
+      dir: true
+      ignored: true
+      details: "foo"
+
+- name: child of bare-name-excluded dir
+  gitignore: |
+    foo
+  cases:
+    - path: "foo/bar.txt"
+      ignored: true
+      details: "foo"
+
+- name: negation rescues specific log
+  gitignore: |
+    *.log
+    !important.log
+  cases:
+    - path: "important.log"
+      ignored: false
+      details: "!important.log"
+
+- name: empty gitignore means include
+  gitignore: ""
+  cases:
+    - path: "a/b"
+      ignored: false
+      details: ""
+
+- name: slash no-op then txt exclude
+  gitignore: |
+    /
+    *.txt
+  cases:
+    - path: "file.txt"
+      ignored: true
+      details: "*.txt"
+
+- name: bare double-star matches all
+  gitignore: |
+    **
+  cases:
+    - path: "a/b"
+      ignored: true
+      details: "**"
+
+- name: abc dstar does not exclude base dir
+  gitignore: |
+    abc/**
+  cases:
+    - path: "abc"
+      dir: true
+      ignored: false
+      details: ""

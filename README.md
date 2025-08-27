@@ -6,9 +6,9 @@
 [![Build Status](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Package **go-gitignore** provides `.gitignore` pattern matching with close parity to git's behavior.
+Git-compatible `.gitignore` pattern matching for Go.
 
-Tests are compared to the behavior of `git check-ignore`, and are available in [the tests directory](./tests).
+Tested against [a large number of cases](./tests) validated with `git check-ignore` to ensure behavior matches Git exactly.
 
 ## Installation
 
@@ -37,3 +37,7 @@ func main() {
     fmt.Println(gi.Ignored("build/file.txt", false)) // true
 }
 ```
+
+## Contributing
+
+Contributors are encouraged to add more test cases to prevent over-fitting in the algorithm.

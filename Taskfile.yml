@@ -78,7 +78,6 @@ tasks:
       - task: lint:shell
       - task: lint:md
       - task: lint:spell
-      - task: lint:cp
       - task: go:lint
 
   build: echo "This project is library only"

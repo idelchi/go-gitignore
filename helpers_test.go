@@ -28,6 +28,8 @@ type Case struct {
 	Ignored bool `yaml:"ignored"`
 	// Description provides human-readable context for this test case
 	Description string `yaml:"description"`
+	// Details holds an optional value detailing the expected output of `git check-ignore -v`
+	Details *string `yaml:"details,omitempty"`
 }
 
 // GitIgnore represents a test group with a specific set of gitignore patterns
@@ -181,4 +183,13 @@ func LoadGitIgnoreSpecs(path string) (GitIgnores, error) {
 	}
 
 	return spec, nil
+}
+
+// boolToIgnored converts a boolean value to its string representation for gitignore status.
+func boolToIgnored(ign bool) string {
+	if ign {
+		return "ignored"
+	}
+
+	return "not ignored"
 }

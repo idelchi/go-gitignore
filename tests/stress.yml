@@ -1080,6 +1080,93 @@
       description: "leading double slash"
       ignored: false
 
+- name: ambiguous slash semantics
+  description: Test ambiguous uses of slashes (doesn't match anything)
+  gitignore: |
+    //a/b
+  cases:
+    - path: "/a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "x/a/b"
+      dir: true
+      description: "nested with various anchoring"
+      ignored: false
+    - path: "a//b"
+      description: "double slash in path"
+      ignored: false
+    - path: "//a/b"
+      description: "leading double slash"
+      ignored: false
+
+- name: ambiguous slash semantics
+  description: Test ambiguous uses of slashes (doesn't match anything)
+  gitignore: |
+    /a//b
+  cases:
+    - path: "/a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "x/a/b"
+      dir: true
+      description: "nested with various anchoring"
+      ignored: false
+    - path: "a//b"
+      description: "double slash in path"
+      ignored: false
+    - path: "//a/b"
+      description: "leading double slash"
+      ignored: false
+
+- name: ambiguous slash semantics
+  description: Test ambiguous uses of slashes (doesn't match anything)
+  gitignore: |
+    a//b
+  cases:
+    - path: "/a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "a/b"
+      dir: true
+      description: "multiple slash patterns for same path"
+      ignored: false
+    - path: "x/a/b"
+      dir: true
+      description: "nested with various anchoring"
+      ignored: false
+    - path: "a//b"
+      description: "double slash in path"
+      ignored: false
+    - path: "//a/b"
+      description: "leading double slash"
+      ignored: false
+
+- name: ambiguous slash semantics
+  description: Test ambiguous uses of slashes (trims extra slashes)
+  gitignore: |
+    a/b
+  cases:
+    - path: "a//b"
+      description: "double slash in path"
+      ignored: true
+    - path: "a//b//"
+      description: "double slash in path"
+      ignored: true
+    - path: "a/////////////b//"
+      description: "double slash in path"
+      ignored: true
+
 - name: empty and invalid patterns
   description: Test handling of invalid or edge case patterns
   gitignore: |

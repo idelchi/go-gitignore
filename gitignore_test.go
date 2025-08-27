@@ -38,9 +38,12 @@ func TestGitIgnore(t *testing.T) {
 		t.Fatalf("scan test dir: %v", err)
 	}
 
+	if len(files) == 0 {
+		t.Fatal("no test files found")
+	}
+
 	// Process each test file concurrently
 	for _, f := range files {
-		// capture range variable for closure
 		base := BaseNameWithoutExt(f)
 
 		// Each test file runs as a separate subtest
@@ -52,11 +55,19 @@ func TestGitIgnore(t *testing.T) {
 				t.Fatalf("load specs from %s: %v", f, err)
 			}
 
+			if len(specs) == 0 {
+				t.Fatal("no test specs found")
+			}
+
 			// Process each test group within the file
 			for _, spec := range specs {
 				// Each test group runs as a separate subtest
 				t.Run(spec.Name, func(t *testing.T) {
 					t.Parallel()
+
+					if len(spec.Cases) == 0 {
+						t.Fatal("no test cases found")
+					}
 
 					g := gitignore.New(strings.Split(spec.Gitignore, "\n")...)
 
