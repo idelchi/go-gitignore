@@ -495,14 +495,22 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 			
 			// Variant 1: Zero-width match (** matches nothing)
 			// For pattern "a**/0", this becomes "a0" (remove ** and leading slash from suffix)
-			zeroWidthPattern := prefix + strings.TrimPrefix(suffix, "/")
+			// For complex patterns like "0**/**/*0", we need to collapse the suffix pattern
+			zeroWidthSuffix := strings.TrimPrefix(suffix, "/")
+			// Handle nested doublestar patterns in suffix by collapsing /**/* to *
+			if strings.HasPrefix(zeroWidthSuffix, "**/*") {
+				zeroWidthSuffix = strings.TrimPrefix(zeroWidthSuffix, "**/*")
+				zeroWidthSuffix = "*" + zeroWidthSuffix
+			}
+			zeroWidthPattern := prefix + zeroWidthSuffix
 			if doublestar.MatchUnvalidated(zeroWidthPattern, targetPath) {
 				return true
 			}
 			
-			// Special case: if suffix is "/**/*" or similar, the target itself might match
-			// Git treats patterns like "0**/**/*" as matching "0" itself
-			if strings.HasPrefix(suffix, "/**/*") {
+			// Special case: if suffix is exactly "/**/*" (no additional content),
+			// the target itself might match. Git treats patterns like "0**/**/*" as matching "0" itself.
+			// But patterns like "0**/**/*0" require additional content and should NOT match just "0".
+			if suffix == "/**/*" {
 				// Try matching the target as if it's the final component
 				// For "0**/**/*" matching "0", we check if "0**" matches "0"
 				prefixPattern := prefix + "**"
@@ -645,13 +653,13 @@ func matchBytesRecursive(pattern, target []byte, patternPos, targetPos int) bool
 
 	// End of target reached but pattern remains
 	if targetPos >= len(target) {
-		// Only match if remaining pattern is all '*'
+		// Only match if remaining pattern is all '*' (unescaped wildcards)
 		for idx := patternPos; idx < len(pattern); idx++ {
-			// Skip escaped characters
+			// Handle escaped characters
 			if pattern[idx] == '\\' && idx+1 < len(pattern) {
-				idx++ // Skip the escaped character
-
-				continue
+				// Escaped characters are literals that must be matched
+				// Since target is exhausted, we cannot match any literal
+				return false
 			}
 
 			if pattern[idx] != '*' {
