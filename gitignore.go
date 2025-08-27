@@ -342,6 +342,18 @@ func matchesDoubleSlashPattern(pat pattern, targetPath string, isDir bool) bool 
 		if doublestarPos > 0 {
 			literalPrefix := original[:doublestarPos]
 			
+			// Check if there's additional content after **/**
+			doubleslashstarPos := strings.Index(original, "**/**")
+			if doubleslashstarPos != -1 {
+				afterDoubleSlashStar := original[doubleslashstarPos+5:] // 5 = len("**/**")
+				
+				// If there's additional content after **/**, this is a more complex pattern
+				// like "0**/**0" - the target must contain both prefix and suffix
+				if afterDoubleSlashStar != "" {
+					return false // Don't match directory directly for patterns with suffixes
+				}
+			}
+			
 			// Only match if it's a pure literal prefix, a directory, and exact match
 			if !strings.ContainsAny(literalPrefix, "*?[") && isDir && targetPath == literalPrefix {
 				return true
@@ -1020,6 +1032,10 @@ func parsePattern(line string) *pattern {
 		isRooted = true
 		line = strings.TrimPrefix(line, "/")
 	}
+	
+	// Check if pattern has escaped trailing slash BEFORE processing escapes
+	// This ensures that escaped trailing slashes (0\/) don't get treated as directory-only
+	hasEscapedTrailingSlash := strings.HasSuffix(line, "\\/")
 
 	// Process escape sequences
 	line = processEscapeSequences(line)
@@ -1041,7 +1057,7 @@ func parsePattern(line string) *pattern {
 	//   "abc/"   -> dirOnly=true, pattern "abc"
 	//   "abc//"  -> dirOnly=false, pattern "abc/**"   (contents-only)
 	//   "*0**//" -> dirOnly=false, pattern "*0**/**"  (contents-only)
-	if strings.HasSuffix(line, "/") {
+	if strings.HasSuffix(line, "/") && !hasEscapedTrailingSlash {
 		// Count consecutive trailing slashes
 		i := len(line) - 1
 		for i >= 0 && line[i] == '/' {
@@ -1068,6 +1084,10 @@ func parsePattern(line string) *pattern {
 			pat.dirOnly = true
 			line = strings.TrimSuffix(line, "/")
 		}
+	} else if hasEscapedTrailingSlash {
+		// For escaped trailing slash, don't remove the slash and don't set dirOnly
+		// The escaped slash becomes a literal slash character after escape processing
+		// The pattern will look for literal "pattern/" in the path
 	}
 
 	// Set rooted flag from earlier detection
