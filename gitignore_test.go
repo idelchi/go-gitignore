@@ -25,17 +25,19 @@ import (
 	gitignore "github.com/idelchi/go-gitignore"
 )
 
-// TestGitIgnore is the main test function that loads and executes all YAML-based tests.
+// TestGitIgnored is the main test function that loads and executes all YAML-based tests.
 //
 //nolint:gocognit	// Long and complex setup is warranted.
-func TestGitIgnore(t *testing.T) {
+func TestGitIgnored(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)
 
-	files, err := YamlFiles("./tests", filter)
+	dir := "./tests/**/*.{yml,yaml}"
+
+	files, err := Files(dir, filter)
 	if err != nil {
-		t.Fatalf("scan test dir: %v", err)
+		t.Fatalf("scan test dir %q: %v", dir, err)
 	}
 
 	if len(files) == 0 {
@@ -89,7 +91,7 @@ func TestGitIgnore(t *testing.T) {
 								// Create detailed error message with hierarchical context
 								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
 
-								errorMsg += fmt.Sprintf("Pattern: %v\n", g.Patterns())
+								errorMsg += fmt.Sprintf("File: %s\n", f)
 
 								// Include descriptions from YAML for better context
 								if spec.Description != "" {
@@ -100,10 +102,13 @@ func TestGitIgnore(t *testing.T) {
 									errorMsg += fmt.Sprintf("Case: %s\n", tc.Description)
 								}
 
-								// Provide specific details about the failure
 								errorMsg += fmt.Sprintf(
-									"Expected Ignored(%q, isDir=%v) = %v, got %v",
-									tc.Path, tc.Dir, tc.Ignored, got,
+									"Ignored() check failed:\n  path: %v\n  dir: %v\n  patterns: %v\n  expected: %v\n  got: %v\n",
+									tc.Path,
+									tc.Dir,
+									strings.Split(spec.Gitignore, "\n"),
+									boolToIgnored(tc.Ignored),
+									boolToIgnored(got),
 								)
 
 								t.Error(errorMsg)

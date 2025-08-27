@@ -22,9 +22,11 @@ func TestGitCheckIgnore(t *testing.T) {
 
 	filter := ParseFilter(*testFilter)
 
-	files, err := YamlFiles("./tests", filter)
+	dir := "./tests/**/*.{yml,yaml}"
+
+	files, err := Files(dir, filter)
 	if err != nil {
-		t.Fatalf("scan test dir: %v", err)
+		t.Fatalf("scan test dir %q: %v", dir, err)
 	}
 
 	if len(files) == 0 {

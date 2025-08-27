@@ -86,7 +86,7 @@ tasks:
     cmds:
       - cmd: go clean -testcache
       - task: go:quality
-      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=60s
+      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity
 
   all:
     desc: run all available tasks

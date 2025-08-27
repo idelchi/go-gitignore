@@ -173,11 +173,21 @@
       ignored: false
       details: "!x.txt"
 
-- name: double-slash POSIX special never ignored
+- name: outside working dir
+  description: Gitignore doesn't match absolute paths
   gitignore: |
     *
   cases:
     - path: "//share"
+      description: Gitignore doesn't match absolute paths
+      ignored: false
+      details: ""
+
+- name: double-slash POSIX
+  gitignore: |
+    *
+  cases:
+    - path: "/share"
       ignored: false
       details: ""
 

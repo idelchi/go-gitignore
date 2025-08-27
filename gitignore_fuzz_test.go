@@ -63,9 +63,12 @@ func FuzzGitIgnoreParity(f *testing.F) {
 
 		if got != want {
 			t.Fatalf(
-				"parity mismatch with Git\n"+
-					"ignored=%v (ours) vs %v (git)\n\n.gitignore:\n%s\n\npath=%q isDir=%v",
-				got, want, gi, p, isDir,
+				"Ignored() check failed:\n  path: %v\n  dir: %v\n  patterns: %v\n  expected: %v\n  got: %v\n",
+				p,
+				isDir,
+				strings.Split(spec.Gitignore, "\n"),
+				boolToIgnored(want),
+				boolToIgnored(got),
 			)
 		}
 	})

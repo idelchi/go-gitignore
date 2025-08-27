@@ -1,3 +1,5 @@
+//go:build !windows
+
 package gitignore_test
 
 import (
@@ -15,9 +17,11 @@ func TestGitCheckIgnoreDetails(t *testing.T) {
 
 	filter := ParseFilter(*testFilter)
 
-	files, err := YamlFiles("./tests/details", filter)
+	dir := "./tests/details/**/*.{yml,yaml}"
+
+	files, err := Files(dir, filter)
 	if err != nil {
-		t.Fatalf("scan test dir: %v", err)
+		t.Fatalf("scan test dir %q: %v", dir, err)
 	}
 
 	if len(files) == 0 {

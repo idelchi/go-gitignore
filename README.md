@@ -38,6 +38,10 @@ func main() {
 }
 ```
 
+## Limitations
+
+Expects relative paths for both gitignore patterns and input paths. Absolute paths are treated as non-ignored.
+
 ## Contributing
 
 Contributors are encouraged to add more test cases to prevent over-fitting in the algorithm.
