@@ -80,7 +80,9 @@ func New(lines ...string) *GitIgnore {
 }
 
 // NewWithRoot creates a GitIgnore instance with a specified root directory.
-func NewWithRoot(root string, lines ...string) *GitIgnore {
+//
+//nolint:unused		// Method is unused for now.
+func newWithRoot(root string, lines ...string) *GitIgnore {
 	gitIgnore := New(lines...)
 
 	gitIgnore.root = root
