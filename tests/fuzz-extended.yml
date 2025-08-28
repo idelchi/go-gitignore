@@ -1,13 +1,7 @@
 - name: fuzzy test cases
   description: Character class range reversal quirk [1-0]? should ignore directory 10 (range reversed acts like literal?)
   gitignore: |
-    !*.log
-    /build/
-    # comment
-    build/
     [1-0]?
-    /build/
-    data/**
   cases:
     - path: "10"
       dir: true
@@ -17,13 +11,6 @@
 - name: fuzzy test cases
   description: Pattern a**/00 with complex gitignore rules
   gitignore: |
-    **/*.tmp
-    !data/**/
-    !data/**/
-    !*.log
-    build/
-    a**/00
-    build/
     a**/00
   cases:
     - path: "a/b/file.txt"
@@ -57,11 +44,6 @@
 - name: fuzzy test cases
   description: Pattern a**/0 should match a1/x/0
   gitignore: |
-    **/*.tmp
-    !data/**/
-    !data/**/
-    !*.log
-    build/
     a**/0
   cases:
     - path: "a1/x/0"
@@ -71,10 +53,6 @@
 - name: fuzzy test cases
   description: Pattern a** should match a0 directory
   gitignore: |
-    **/*.tmp
-    !data/**/
-    !data/**/
-    */cache/
     a**
   cases:
     - path: "a0"
@@ -119,13 +97,7 @@
 - name: fuzzy test cases
   description: Pattern 0***// should match 0 directory
   gitignore: |
-    build/
     0***/
-    !data/**/
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
   cases:
     - path: "0"
       dir: true
@@ -135,13 +107,7 @@
 - name: fuzzy test cases
   description: Pattern 0***// should match 0 directory
   gitignore: |
-    build/
     0***//
-    !data/**/
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
   cases:
     - path: "0"
       dir: true
@@ -151,10 +117,6 @@
 - name: fuzzy test cases
   description: Pattern *?/0 should not match 0/x/0
   gitignore: |
-    !data/**/
-    data/**
-    !*.log
-    build/
     *?/0
   cases:
     - path: "0/x/0"
@@ -175,15 +137,7 @@
 - name: fuzzy test cases
   description: Pattern 0**/**/* should match 0
   gitignore: |
-    build/
     0**/**/*
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
   cases:
     - path: "0"
       dir: false
@@ -220,10 +174,6 @@
 - name: fuzzy test cases
   description: Pattern ?\* should not match 0
   gitignore: |
-    data/**
-    build/
-    !data/**/
-    */cache/
     ?\*
   cases:
     - path: "0"
@@ -234,16 +184,6 @@
 - name: fuzzy test cases
   description: Pattern 0**/**/*0 should not match path 0
   gitignore: |
-    build/
-    0**/**/*0
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    build/
     0**/**/*0
   cases:
     - path: "0"
@@ -254,15 +194,7 @@
 - name: fuzzy test cases
   description: Pattern 0**/**/ should match directory 0
   gitignore: |
-    build/
     0**/**/
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
   cases:
     - path: "0"
       dir: true
@@ -272,15 +204,7 @@
 - name: fuzzy test cases
   description: Pattern 0**/**// should ignore directory 0
   gitignore: |
-    build/
     0**/**//
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
   cases:
     - path: "0"
       dir: true
@@ -290,9 +214,6 @@
 - name: fuzzy test cases
   description: Pattern \/B should not match file B
   gitignore: |
-    build/
-    !*.log
-    name\ \
     \/B
   cases:
     - path: "B"
@@ -303,17 +224,7 @@
 - name: fuzzy test cases
   description: Pattern 0**/**0// should not match directory 0
   gitignore: |
-    build/
     0**/**0//
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    build/
-    0**/**0//
-    !*.log
-    !*.log
   cases:
     - path: "0"
       dir: true
@@ -323,11 +234,6 @@
 - name: fuzzy test cases
   description: Pattern 0\/ should not match directory 0
   gitignore: |
-    build/
-    0\/
-    build/
-    !*.log
-    */cache/
     0\/
   cases:
     - path: "0"
@@ -338,12 +244,7 @@
 - name: fuzzy test cases
   description: Pattern [0-?] should not ignore file -
   gitignore: |
-    !*.log
-    build/
     [0-?]
-    # comment
-    data/**
-    /build/
   cases:
     - path: "-"
       dir: false
@@ -353,12 +254,7 @@
 - name: fuzzy test cases
   description: Pattern [/0]? should match directory 00
   gitignore: |
-    !*.log
-    !*.log
-    build/
     [/0]?
-    /build/
-    data/**
   cases:
     - path: "00"
       dir: true
@@ -368,16 +264,6 @@
 - name: fuzzy test cases
   description: Pattern 0**/**//x should match path 0/x/0
   gitignore: |
-    build/
-    0**/**//x
-    !data/**/
-    !data/**/
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    */cache/
     0**/**//x
   cases:
     - path: "0/x/0"
@@ -388,11 +274,6 @@
 - name: fuzzy test cases
   description: Pattern **//0 should not match directory 0
   gitignore: |
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     **//0
   cases:
     - path: "0"
@@ -403,11 +284,6 @@
 - name: fuzzy test cases
   description: Pattern **//0 should not match file 0/0 (fuzz discovered)
   gitignore: |
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     **//0
   cases:
     - path: "0/0"
@@ -418,12 +294,7 @@
 - name: fuzzy test cases
   description: Pattern [?-0] should not match directory 0 (fuzz discovered parity case)
   gitignore: |
-    !*.log
-    data/**
-    # comment
-    build/
     [?-0]
-    /build/
   cases:
     - path: "0"
       dir: true
@@ -433,14 +304,6 @@
 - name: fuzzy test cases
   description: Pattern **/0//0 should not match file 0/0 (fuzz discovered parity case)
   gitignore: |
-    !data/**/
-    !data/**/
-    !*.log
-    build/
-    **/0//0
-    !*.log
-    !*.log
-    build/
     **/0//0
   cases:
     - path: "0/0"
@@ -451,14 +314,6 @@
 - name: fuzzy test cases
   description: Pattern *0**//0 should not match file 0/0 (fuzz discovered parity case)
   gitignore: |
-    !data/**/
-    build/
-    *0**//0
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     *0**//0
   cases:
     - path: "0/0"
@@ -469,16 +324,6 @@
 - name: fuzzy test cases
   description: Pattern 00/**//0 should not match file 00/0 (fuzz discovered parity case)
   gitignore: |
-    build/
-    00/**//0
-    build/
-    00/**//0
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     00/**//0
   cases:
     - path: "00/0"
@@ -489,13 +334,7 @@
 - name: fuzzy test cases
   description: Pattern [1-0]? should not match directory -0 (fuzz discovered parity case)
   gitignore: |
-    !*.log
-    /build/
-    # comment
-    build/
     [1-0]?
-    /build/
-    data/**
   cases:
     - path: "-0"
       dir: true
@@ -505,13 +344,6 @@
 - name: fuzzy test cases
   description: Pattern 0**//0 should match path 0/0
   gitignore: |
-    build/
-    0**//0
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     0**//0
   cases:
     - path: "0/0"
@@ -522,13 +354,6 @@
 - name: fuzzy test cases
   description: Pattern 0**//0 should not match path 00/0
   gitignore: |
-    build/
-    0**//0
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     0**//0
   cases:
     - path: "00/0"
@@ -539,17 +364,19 @@
 - name: fuzzy test cases
   description: Pattern 0/**//0 should not match path 0/x/0
   gitignore: |
-    build/
-    0/**//0
-    !*.log
-    !data/**/
-    !data/**/
-    !*.log
-    !*.log
-    build/
     0/**//0
   cases:
     - path: "0/x/0"
       dir: false
       description: Should NOT match 0/**//0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: 000000?0//0 vs path 00000000/0 expected not ignored"
+  gitignore: |
+    000000?0//0
+  cases:
+    - path: "00000000/0"
+      dir: false
+      description: Should not be ignored per git
       ignored: false

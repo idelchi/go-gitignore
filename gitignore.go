@@ -610,14 +610,21 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 		glob = strings.ReplaceAll(glob, "***", "**")
 	}
 
-	// Handle special Git syntax: patterns with **//suffix (like "0**/**//x")
-	// The // after ** indicates "contents-only" matching, and suffix specifies what to match
-	// This must be handled before the general ** handling below
-	if strings.Contains(glob, "**/") && strings.Contains(glob, "//") && !strings.HasSuffix(glob, "//") {
-		return matchDoubleSlashWithSuffix(glob, targetPath)
-	}
+    // Double-slash handling (Git quirk):
+    // - Trailing "//" is handled separately via pat.doubleSlash.
+    // - Mid-pattern "//" only participates in contents-only forms combined with '**'.
+    //   Forms like "literal**//suffix" or "**/**//suffix" are handled explicitly.
+    //   Any pattern containing "//" without any "**" should never match.
+    if hasDoubleSlashOutsideCharClass(glob) && !strings.HasSuffix(glob, "//") {
+        if strings.Contains(glob, "**") {
+            return matchDoubleSlashWithSuffix(glob, targetPath)
+        }
 
-	// Git handles patterns like "a**/0" by trying both single-level and multi-level matching
+        // No '**' with '//' => treat as non-matching per Git behavior
+        return false
+    }
+
+    // Git handles patterns like "a**/0" by trying both single-level and multi-level matching
 	// This is a special case where ** is not preceded by / and not followed by /
 	if strings.Contains(glob, "**") {
 
@@ -799,6 +806,30 @@ func splitPatternRespectingCharacterClasses(pattern string) []string {
 	}
 
 	return parts
+}
+
+// hasDoubleSlashOutsideCharClass reports whether the pattern contains "//"
+// occurring outside of character classes, which participates in Git's
+// special double-slash semantics.
+func hasDoubleSlashOutsideCharClass(pattern string) bool {
+    inCharClass := false
+
+    for i := 0; i < len(pattern)-1; i++ {
+        c := pattern[i]
+
+        // Track entering character class '[' when not escaped
+        if c == '[' && (i == 0 || pattern[i-1] != '\\') {
+            inCharClass = true
+        } else if c == ']' && inCharClass && (i == 0 || pattern[i-1] != '\\') {
+            inCharClass = false
+        }
+
+        if !inCharClass && c == '/' && pattern[i+1] == '/' {
+            return true
+        }
+    }
+
+    return false
 }
 
 // matchPathAwareByteBasedPattern performs byte-based pattern matching that respects path boundaries.
