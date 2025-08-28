@@ -1,0 +1,28 @@
+{
+    "name": "devenv:compose",
+    "containerUser": "user",
+    "remoteUser": "user",
+    "workspaceFolder": "/home/user/ws",
+    "dockerComposeFile": "../../../../GitLab/raspberry-pi/.ai/compose.code.yaml",
+    "service": "code",
+    "overrideCommand": true,
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "docker.docker",
+                "esbenp.prettier-vscode",
+                "github.copilot",
+                "github.copilot-chat",
+                "github.vscode-github-actions",
+                "golang.go",
+                "mikestead.dotenv",
+                "ms-azuretools.vscode-docker",
+                "rooveterinaryinc.roo-cline",
+                "tamasfe.even-better-toml"
+            ],
+            // settings.json are automatically copied from the user profile to the container
+            "settings": {}
+        }
+    },
+    "postStartCommand": "sed -i 's|D:\\\\Projects\\\\GitLab\\\\raspberry-pi\\\\pi-config\\\\git\\\\.gitconfig|/home/user/.gitextensions/.gitconfig|' ~/.gitconfig"
+}

@@ -467,6 +467,17 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	base := pattern[:doubleSlashPos]
 	suffix := pattern[doubleSlashPos+2:] // skip //
 
+	// Guard: if base collapses to empty or just doublestar semantics, Git seems to not treat it as
+	// matching the base path component itself (fuzz found **//0 incorrectly matching 0/0).
+	// So if base is empty, "/", or a pure sequence of **/ segments, require at least one
+	// concrete path component before allowing suffix matching.
+	trimmedBase := strings.Trim(base, "/")
+	if trimmedBase == "" || trimmedBase == doubleStar {
+		// Do not allow a pattern like **//suffix to match a flat path where suffix appears deeper.
+		// Enforce that there must be at least two path components in target and one non-empty base prefix.
+		return false
+	}
+
 	// If there's no suffix after //, treat it as a normal pattern
 	if suffix == "" {
 		return doublestar.MatchUnvalidated(pattern, targetPath)
