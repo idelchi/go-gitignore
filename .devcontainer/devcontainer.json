@@ -23,6 +23,5 @@
             // settings.json are automatically copied from the user profile to the container
             "settings": {}
         }
-    },
-    "postStartCommand": "sed -i 's|D:\\\\Projects\\\\GitLab\\\\raspberry-pi\\\\pi-config\\\\git\\\\.gitconfig|/home/user/.gitextensions/.gitconfig|' ~/.gitconfig"
+    }
 }
