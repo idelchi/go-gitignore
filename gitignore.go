@@ -1161,7 +1161,7 @@ func parsePattern(line string) *pattern {
 		line = line[1:]
 	}
 
-	// Trim trailing spaces unless escaped
+	// Trim trailing spaces unless escaped.
 	line = trimTrailingUnescapedSpaces(line)
 
 	// Check if pattern is rooted (starts with /) BEFORE processing escapes

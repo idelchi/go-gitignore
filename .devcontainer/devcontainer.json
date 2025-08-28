@@ -20,8 +20,193 @@
                 "rooveterinaryinc.roo-cline",
                 "tamasfe.even-better-toml"
             ],
-            // settings.json are automatically copied from the user profile to the container
-            "settings": {}
+            "settings": {
+                /* ****** GENERAL ****** */
+                "files.trimTrailingWhitespace": true,
+                "files.insertFinalNewline": true,
+                "editor.formatOnSave": true,
+                "files.eol": "\n",
+                "explorer.confirmPasteNative": false,
+                "security.workspace.trust.untrustedFiles": "open",
+                "window.zoomLevel": 1,
+                /* ****** ****** ****** */
+                /* ****** CONSOLE ****** */
+                "terminal.integrated.profiles.windows": {
+                    "zsh": {
+                        "path": "zsh.exe"
+                    },
+                    "JavaScript Debug Terminal": null
+                },
+                "terminal.integrated.defaultProfile.windows": "zsh",
+                "terminal.integrated.defaultProfile.linux": "zsh",
+                "terminal.integrated.env.windows": {
+                    "PWD": "${workspaceFolder}",
+                    "PYTHONPATH": "${workspaceFolder}",
+                    "DEVENV": ".devenv"
+                },
+                "terminal.integrated.env.linux": {
+                    "PWD": "${workspaceFolder}",
+                    "PYTHONPATH": "${workspaceFolder}",
+                    "DEVENV": ".devenv"
+                },
+                "terminal.integrated.enableMultiLinePasteWarning": "never",
+                "remote.defaultExtensionsIfInstalledLocally": [
+                    "GitHub.copilot",
+                    "GitHub.copilot-chat",
+                    "GitHub.vscode-pull-request-github"
+                ],
+                /* ****** ****** ****** */
+                /* ****** GitHub ****** */
+                "[github-actions-workflow]": {
+                    "editor.autoIndent": "advanced"
+                },
+                /* ****** ****** ****** */
+                /* ****** Devcontainers ****** */
+                "dev.containers.executeInWSL": false,
+                "dev.containers.defaultExtensions": [],
+                /* ****** ****** ****** */
+                /* ****** COPILOT ****** */
+                // [extension] github.copilot
+                "editor.inlineSuggest.enabled": true,
+                "github.copilot.enable": {
+                    "*": true,
+                    "plaintext": true,
+                    "markdown": true
+                },
+                "chat.agent.maxRequests": 9999,
+                "github.copilot.chat.agent.autoFix": true,
+                "chat.tools.autoApprove": true,
+                "chat.extensionTools.enabled": true,
+                "github.copilot.chat.codeGeneration.useInstructionFiles": true,
+                /* ****** ****** ****** */
+                /* ****** JSON ****** */
+                "[json][jsonc]": {
+                    // [extension] esbenp.prettier-vscode
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                },
+                /* ****** ****** ****** */
+                /* ****** YAML ****** */
+                "[yaml]": {
+                    "editor.insertSpaces": true,
+                    "editor.tabSize": 2,
+                    "editor.autoIndent": "advanced",
+                    "editor.defaultFormatter": "esbenp.prettier-vscode"
+                },
+                /* ****** PRETTIER ****** */
+                // [extension] esbenp.prettier-vscode
+                "prettier.configPath": ".devenv/settings/.prettierrc.yml",
+                /* ****** ****** ****** */
+                /* ****** DOCKER ****** */
+                "[dockercompose]": {
+                    "editor.insertSpaces": true
+                },
+                /* ****** ****** ****** */
+                /* ****** SHELL ****** */
+                // [extension] timonwong.shellcheck
+                "shellcheck.enable": true,
+                "shellcheck.run": "onSave",
+                "shellcheck.useWorkspaceRootAsCwd": true,
+                "shellcheck.customArgs": [
+                    "-x",
+                    "--shell=bash",
+                    "--enable=all",
+                    "--severity=style"
+                ],
+                "[shellscript]": {
+                    "editor.insertSpaces": true,
+                    "editor.tabSize": 2,
+                    "editor.autoIndent": "advanced"
+                },
+                /* ****** ****** ****** */
+                /* ****** PYTHON ****** */
+                // [extension] ms-python.python
+                "python.defaultInterpreterPath": "python",
+                "python.languageServer": "Pylance",
+                "python.analysis.autoImportCompletions": true,
+                "autoDocstring.docstringFormat": "google",
+                "[python]": {
+                    "editor.defaultFormatter": "charliermarsh.ruff",
+                    "editor.formatOnSave": true,
+                    "editor.codeActionsOnSave": {
+                        "source.organizeImports": "explicit",
+                        "source.fixAll": "explicit"
+                    }
+                },
+                // [extension] charliermarsh.ruff
+                "ruff.configuration": "D:/Projects/GitHub/devenv/dev/settings/pyproject.toml",
+                "ruff.configurationPreference": "filesystemFirst",
+                /* ****** ****** ****** */
+                /* ****** GO ****** */
+                // [extension] golang.go
+                "go.lintOnSave": "workspace",
+                "go.lintTool": "golangci-lint",
+                "go.lintFlags": [
+                    "--config=${workspaceFolder}/.golangci.yml",
+                    "--path-mode=abs"
+                ],
+                "go.formatTool": "custom",
+                "go.alternateTools": {
+                    "customFormatter": "golangci-lint"
+                },
+                "go.formatFlags": ["fmt", "--stdin"],
+                "go.useLanguageServer": true,
+                "gopls": {
+                    "formatting.gofumpt": true,
+                    "ui.semanticTokens": true
+                },
+                /* ****** ****** ****** */
+                /* ****** TOML ****** */
+                // [extension] bungcip.better-toml
+                "evenBetterToml.formatter.indentEntries": false,
+                "evenBetterToml.formatter.indentTables": false,
+                /* ****** ****** ****** */
+                /* ****** TODOs ****** */
+                // [extension] gruntfuggly.todo-tree
+                "todo-tree.filtering.includeHiddenFiles": true,
+                "todo-tree.highlights.defaultHighlight": {
+                    "type": "text"
+                },
+                /* ****** ****** ****** */
+                /* WORKSTATION SPECIFIC */
+                "remote.SSH.defaultExtensions": [
+                    "esbenp.prettier-vscode",
+                    "github.copilot",
+                    "github.copilot-chat",
+                    "ms-azuretools.vscode-docker"
+                ],
+                "remote.SSH.remotePlatform": {
+                    "pi5-64-media": "linux",
+                    "pi5-64-apps": "linux",
+                    "pi0-64-gitlab": "linux",
+                    "g5": "linux"
+                },
+                "remote.SSH.serverPickPortsFromRange": {
+                    "pi5-64-media": "40510-40510",
+                    "pi5-64-apps": "40510-40510",
+                    "pi0-64-gitlab": "40510-40510",
+                    "g5": "40510-40510"
+                },
+                "remote.SSH.enableDynamicForwarding": false,
+                "remote.autoForwardPorts": false,
+                "remote.restoreForwardedPorts": false,
+                "remote.otherPortsAttributes": {
+                    "onAutoForward": "ignore"
+                },
+                "docker.extension.enableComposeLanguageServer": false,
+                "github.copilot.nextEditSuggestions.enabled": true,
+                "roo-cline.allowedCommands": [
+                    "git log",
+                    "git diff",
+                    "git show",
+                    "*"
+                ],
+                "roo-cline.deniedCommands": []
+                /* ****** ****** ****** */
+                // Note that environment variables might not work in config path
+                // TODO: https://code.visualstudio.com/docs/editor/intellisense
+                // Export a list of extensions:
+                // code --list-extensions | xargs -L 1 echo code --install-extension
+            }
         }
     }
 }
