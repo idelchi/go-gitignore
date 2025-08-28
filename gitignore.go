@@ -926,22 +926,16 @@ func matchCharacterClass(pattern, target []byte, patternPos, targetPos int) bool
 		if idx+2 < len(classContent) && classContent[idx+1] == '-' {
 			start := classContent[idx]
 			end := classContent[idx+2]
-			// Normal ascending range
-			if start <= end {
+			if start <= end { // ascending range
 				if targetByte >= start && targetByte <= end {
 					matched = true
 					break
 				}
-			} else {
-				// Reversed range: treat as literals start and '-'.
-				// NOTE(parity): fuzz + oracle indicate the *end* literal should NOT participate.
-				// Example: pattern "[?-0]" must not match '0'; pattern "[1-0]?" should still match "10".
-				// We therefore exclude the right endpoint from literal set for reversed ranges.
-				if targetByte == start || targetByte == '-' { // intentionally NOT including 'end'
+			} else { // reversed: treat as a singleton containing only the left endpoint
+				if targetByte == start {
 					matched = true
 					break
 				}
-				// debug print removed
 			}
 			idx += 3
 		} else {
