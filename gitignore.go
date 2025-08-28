@@ -474,6 +474,12 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 		return false
 	}
 
+	// Guard: reject bases of the form "literal/**" (but NOT "literal**/**")
+	// Git does not support literal/**//suffix patterns, but does support literal**/**//suffix
+	if strings.Contains(base, "/**") && !strings.Contains(base, "**/**") {
+		return false
+	}
+
 	// If there's no suffix after //, treat whole thing literally via glob engine
 	if suffix == "" {
 		return doublestar.MatchUnvalidated(pattern, targetPath)
@@ -508,7 +514,7 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	prefixMatch := make([]bool, len(pathParts)+1)
 	for i := 0; i <= len(pathParts); i++ {
 		prefix := strings.Join(pathParts[:i], "/")
-		prefixMatch[i] = doublestar.MatchUnvalidated(base, prefix)
+		prefixMatch[i] = matchDoubleSlashBase(base, prefix)
 	}
 
 	for idx, comp := range pathParts { // candidate positions for suffix
@@ -534,8 +540,28 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 			}
 		}
 		// Prevent suffix matching exactly at minimal depth when it would end the path.
+		// Exception: allow it for specific pattern forms like "literal**//suffix"
 		if idx == minDepth && idx == len(pathParts)-1 {
-			continue
+			// Only allow the exception for patterns where the base is exactly "literal**"
+			// (no path separators, no wildcards in the literal part)
+			if len(baseComps) == 1 && strings.HasSuffix(baseComps[0], "**") {
+				// Extract the literal part before **
+				literal := strings.TrimSuffix(baseComps[0], "**")
+				// Check if it's a pure literal (no wildcards)
+				if literal != "" && !strings.ContainsAny(literal, "*?[/") {
+					// For patterns like "0**//0", allow suffix matching at minDepth
+					// when the base matches the prefix
+					if prefixMatch[idx] {
+						// This is a legitimate match for literal** patterns
+					} else {
+						continue
+					}
+				} else {
+					continue
+				}
+			} else {
+				continue
+			}
 		}
 		// Ensure position is not above the required depth.
 		if idx < minDepth { // defensive guard
@@ -545,6 +571,25 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	}
 
 	return false
+}
+
+// matchDoubleSlashBase handles base pattern matching for **//suffix patterns
+// This implements Git's specific semantics where literal**//suffix only matches
+// paths that start with the literal followed by a path separator
+func matchDoubleSlashBase(base, prefix string) bool {
+	// Check if this is a simple "literal**" base pattern
+	if strings.HasSuffix(base, "**") {
+		literal := strings.TrimSuffix(base, "**")
+		if literal != "" && !strings.ContainsAny(literal, "*?[/") {
+			// For patterns like "0**//0", the base "0**" should only match
+			// prefixes that are exactly the literal (like "0")
+			// It should NOT match prefixes like "00" even though doublestar would
+			return prefix == literal
+		}
+	}
+	
+	// For other base patterns, fall back to doublestar behavior
+	return doublestar.MatchUnvalidated(base, prefix)
 }
 
 // matchGlobPattern performs Git-compatible glob pattern matching using doublestar.

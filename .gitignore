@@ -13,3 +13,5 @@
 .task/
 testdata/
 cmd/
+guides/
+/prompt
