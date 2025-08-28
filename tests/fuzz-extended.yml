@@ -1,4 +1,20 @@
 - name: fuzzy test cases
+  description: Character class range reversal quirk [1-0]? should ignore directory 10 (range reversed acts like literal?)
+  gitignore: |
+    !*.log
+    /build/
+    # comment
+    build/
+    [1-0]?
+    /build/
+    data/**
+  cases:
+    - path: "10"
+      dir: true
+      description: Directory '10' should be ignored by [1-0]? per git quirk
+      ignored: true
+
+- name: fuzzy test cases
   description: Pattern a**/00 with complex gitignore rules
   gitignore: |
     **/*.tmp
