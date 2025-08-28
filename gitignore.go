@@ -481,6 +481,14 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	// Split target path into components
 	pathParts := strings.Split(targetPath, "/")
 	
+	// If there's only one path component, patterns like "**//suffix" should NOT match
+	// because // implies slash semantics - there should be actual path structure
+	if len(pathParts) == 1 {
+		// For patterns like "**//0", don't match single components like "0"
+		// The // syntax implies there should be slash structure
+		return false
+	}
+	
 	// Try matching base against each prefix of the path
 	for i := 0; i <= len(pathParts); i++ {
 		var prefix string
@@ -494,8 +502,10 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 		baseMatches := doublestar.MatchUnvalidated(base, prefix)
 		
 		if baseMatches {
-			// Check if ANY path component (not just remaining) contains the suffix
-			// The // syntax means "contents-only" - the suffix can appear anywhere in the path structure
+			// For patterns like "**//suffix", the suffix should match path components
+			// but only if there's actually path structure (not just a single component)
+			// The // indicates "contents-only" with slash semantics
+			
 			
 			
 			for _, component := range pathParts {

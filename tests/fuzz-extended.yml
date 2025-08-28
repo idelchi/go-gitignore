@@ -368,3 +368,18 @@
       dir: false
       description: Should match 0**/**//x pattern
       ignored: true
+
+- name: fuzzy test cases
+  description: Pattern **//0 should not match directory 0
+  gitignore: |
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+    build/
+    **//0
+  cases:
+    - path: "0"
+      dir: true
+      description: Should NOT match **//0 pattern
+      ignored: false
