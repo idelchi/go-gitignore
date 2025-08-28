@@ -414,3 +414,74 @@
       dir: false
       description: Should NOT match **//0 pattern (fuzz parity)
       ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [?-0] should not match directory 0 (fuzz discovered parity case)
+  gitignore: |
+    !*.log
+    data/**
+    # comment
+    build/
+    [?-0]
+    /build/
+  cases:
+    - path: "0"
+      dir: true
+      description: Directory '0' should NOT be ignored by [?-0]
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern **/0//0 should not match file 0/0 (fuzz discovered parity case)
+  gitignore: |
+    !data/**/
+    !data/**/
+    !*.log
+    build/
+    **/0//0
+    !*.log
+    !*.log
+    build/
+    **/0//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: File '0/0' should NOT be ignored by **/0//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern *0**//0 should not match file 0/0 (fuzz discovered parity case)
+  gitignore: |
+    !data/**/
+    build/
+    *0**//0
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+    build/
+    *0**//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: File '0/0' should NOT be ignored by *0**//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 00/**//0 should not match file 00/0 (fuzz discovered parity case)
+  gitignore: |
+    build/
+    00/**//0
+    build/
+    00/**//0
+    !*.log
+    !data/**/
+    !data/**/
+    !*.log
+    !*.log
+    build/
+    00/**//0
+  cases:
+    - path: "00/0"
+      dir: false
+      description: File '00/0' should NOT be ignored by 00/**//0
+      ignored: false

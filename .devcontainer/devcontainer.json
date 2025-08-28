@@ -133,7 +133,7 @@
                     }
                 },
                 // [extension] charliermarsh.ruff
-                "ruff.configuration": "D:/Projects/GitHub/devenv/dev/settings/pyproject.toml",
+                "ruff.configuration": ".devenv/settings/pyproject.toml",
                 "ruff.configurationPreference": "filesystemFirst",
                 /* ****** ****** ****** */
                 /* ****** GO ****** */
@@ -166,32 +166,6 @@
                 "todo-tree.highlights.defaultHighlight": {
                     "type": "text"
                 },
-                /* ****** ****** ****** */
-                /* WORKSTATION SPECIFIC */
-                "remote.SSH.defaultExtensions": [
-                    "esbenp.prettier-vscode",
-                    "github.copilot",
-                    "github.copilot-chat",
-                    "ms-azuretools.vscode-docker"
-                ],
-                "remote.SSH.remotePlatform": {
-                    "pi5-64-media": "linux",
-                    "pi5-64-apps": "linux",
-                    "pi0-64-gitlab": "linux",
-                    "g5": "linux"
-                },
-                "remote.SSH.serverPickPortsFromRange": {
-                    "pi5-64-media": "40510-40510",
-                    "pi5-64-apps": "40510-40510",
-                    "pi0-64-gitlab": "40510-40510",
-                    "g5": "40510-40510"
-                },
-                "remote.SSH.enableDynamicForwarding": false,
-                "remote.autoForwardPorts": false,
-                "remote.restoreForwardedPorts": false,
-                "remote.otherPortsAttributes": {
-                    "onAutoForward": "ignore"
-                },
                 "docker.extension.enableComposeLanguageServer": false,
                 "github.copilot.nextEditSuggestions.enabled": true,
                 "roo-cline.allowedCommands": [
@@ -201,11 +175,6 @@
                     "*"
                 ],
                 "roo-cline.deniedCommands": []
-                /* ****** ****** ****** */
-                // Note that environment variables might not work in config path
-                // TODO: https://code.visualstudio.com/docs/editor/intellisense
-                // Export a list of extensions:
-                // code --list-extensions | xargs -L 1 echo code --install-extension
             }
         }
     }

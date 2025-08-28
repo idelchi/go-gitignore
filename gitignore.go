@@ -457,7 +457,7 @@ func matchesSimplePattern(pat pattern, targetPath string) bool {
 // matchDoubleSlashWithSuffix handles patterns with // followed by additional content (like "0**/**//x")
 // In Git, // indicates contents-only matching, and the suffix specifies what content to match
 func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
-	// Find the // position
+	// Locate the "//" separator introducing a contents-only suffix.
 	doubleSlashPos := strings.Index(pattern, "//")
 	if doubleSlashPos == -1 {
 		return false
@@ -467,64 +467,81 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	base := pattern[:doubleSlashPos]
 	suffix := pattern[doubleSlashPos+2:] // skip //
 
-	// Guard: if base collapses to empty or just doublestar semantics, Git seems to not treat it as
-	// matching the base path component itself (fuzz found **//0 incorrectly matching 0/0).
-	// So if base is empty, "/", or a pure sequence of **/ segments, require at least one
-	// concrete path component before allowing suffix matching.
+	// Guard: reject purely empty or wildcard-only bases that don't provide a stable anchor.
 	trimmedBase := strings.Trim(base, "/")
 	if trimmedBase == "" || trimmedBase == doubleStar {
-		// Do not allow a pattern like **//suffix to match a flat path where suffix appears deeper.
-		// Enforce that there must be at least two path components in target and one non-empty base prefix.
+		// Require at least one non-empty concrete component.
 		return false
 	}
 
-	// If there's no suffix after //, treat it as a normal pattern
+	// If there's no suffix after //, treat whole thing literally via glob engine
 	if suffix == "" {
 		return doublestar.MatchUnvalidated(pattern, targetPath)
 	}
 
-	// For patterns like "0**/**//x", we need to:
-	// 1. Check if the base pattern (without //suffix) can match some prefix of the path
-	// 2. Check if the remaining path components contain the suffix pattern
+	// Rule: allow suffix matches only below the minimal depth implied by the base.
+	// Minimal depth = count of base path components excluding "**" placeholders.
 
-	// Try to match the base pattern against prefixes of the target path
-	// Split target path into components
+	baseClean := strings.Trim(base, "/")
+	baseComps := []string{}
+	if baseClean != "" {
+		baseComps = strings.Split(baseClean, "/")
+	}
+
+	minDepth := 0
+	for _, c := range baseComps {
+		if c == "" {
+			continue
+		}
+		if c == doubleStar { // "**" adds no minimal depth
+			continue
+		}
+		minDepth++
+	}
+
 	pathParts := strings.Split(targetPath, "/")
-
-	// If there's only one path component, patterns like "**//suffix" should NOT match
-	// because // implies slash semantics - there should be actual path structure
-	if len(pathParts) == 1 {
-		// For patterns like "**//0", don't match single components like "0"
-		// The // syntax implies there should be slash structure
+	if len(pathParts) == 1 { // need structure
 		return false
 	}
 
-	// Try matching base against each prefix of the path
+	// Precompute all prefixes base can match to avoid repeated work.
+	prefixMatch := make([]bool, len(pathParts)+1)
 	for i := 0; i <= len(pathParts); i++ {
-		var prefix string
-		if i == 0 {
-			prefix = ""
-		} else {
-			prefix = strings.Join(pathParts[:i], "/")
+		prefix := strings.Join(pathParts[:i], "/")
+		prefixMatch[i] = doublestar.MatchUnvalidated(base, prefix)
+	}
+
+	for idx, comp := range pathParts { // candidate positions for suffix
+		if !doublestar.MatchUnvalidated(suffix, comp) {
+			continue
 		}
-
-		// Check if base pattern matches this prefix
-		baseMatches := doublestar.MatchUnvalidated(base, prefix)
-
-		if baseMatches {
-			// For patterns like "**//suffix", the suffix should match path components
-			// but only if there's actually path structure (not just a single component)
-			// The // indicates "contents-only" with slash semantics
-
-			for _, component := range pathParts {
-				// Try to match suffix against each path component
-				suffixMatches := doublestar.MatchUnvalidated(suffix, component)
-
-				if suffixMatches {
-					return true
+		// Require base match on the prefix before the candidate. Allow a relaxed
+		// prefix check when the base ends with a recursive tail ("**/**").
+		if !prefixMatch[idx] {
+			if strings.HasSuffix(base, "**/**") && idx > 0 {
+				// identify first component of base
+				first := baseComps
+				if len(first) > 0 {
+					firstPat := first[0]
+					if !doublestar.MatchUnvalidated(firstPat, pathParts[0]) {
+						continue
+					}
+				} else {
+					continue
 				}
+			} else {
+				continue
 			}
 		}
+		// Prevent suffix matching exactly at minimal depth when it would end the path.
+		if idx == minDepth && idx == len(pathParts)-1 {
+			continue
+		}
+		// Ensure position is not above the required depth.
+		if idx < minDepth { // defensive guard
+			continue
+		}
+		return true
 	}
 
 	return false
@@ -909,18 +926,22 @@ func matchCharacterClass(pattern, target []byte, patternPos, targetPos int) bool
 		if idx+2 < len(classContent) && classContent[idx+1] == '-' {
 			start := classContent[idx]
 			end := classContent[idx+2]
-			// Git quirk: reversed ranges like [1-0] act like a literal sequence "1-0" (no range)
+			// Normal ascending range
 			if start <= end {
 				if targetByte >= start && targetByte <= end {
 					matched = true
 					break
 				}
 			} else {
-				// Treat as literals start '-' end
-				if targetByte == start || targetByte == '-' || targetByte == end {
+				// Reversed range: treat as literals start and '-'.
+				// NOTE(parity): fuzz + oracle indicate the *end* literal should NOT participate.
+				// Example: pattern "[?-0]" must not match '0'; pattern "[1-0]?" should still match "10".
+				// We therefore exclude the right endpoint from literal set for reversed ranges.
+				if targetByte == start || targetByte == '-' { // intentionally NOT including 'end'
 					matched = true
 					break
 				}
+				// debug print removed
 			}
 			idx += 3
 		} else {
