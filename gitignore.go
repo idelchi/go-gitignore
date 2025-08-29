@@ -415,6 +415,12 @@ func extractPatternBase(pattern string) string {
 
 // matchesPattern determines if a pattern matches the given path.
 func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
+	// Debug output
+	if strings.Contains(pat.pattern, "0**/**//0") {
+		fmt.Printf("DEBUG matchesPattern: pat.pattern=%q, targetPath=%q, isDir=%v\n", pat.pattern, targetPath, isDir)
+		fmt.Printf("  doubleSlash=%v\n", pat.doubleSlash)
+	}
+	
 	// Directory-only patterns match directories ONLY (not files)
 	if pat.dirOnly && !isDir {
 		return false
@@ -422,16 +428,27 @@ func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 
 	// Special handling for double slash patterns (originally ended with //)
 	if pat.doubleSlash {
-		return matchesDoubleSlashPattern(pat, targetPath, isDir)
+		result := matchesDoubleSlashPattern(pat, targetPath, isDir)
+		if strings.Contains(pat.pattern, "0**/**//0") {
+			fmt.Printf("  doubleSlash pattern result: %v\n", result)
+		}
+		return result
 	}
 
 	// Check for Git quirks first
 	if detectGitPatternQuirk(pat, targetPath) {
+		if strings.Contains(pat.pattern, "0**/**//0") {
+			fmt.Printf("  Git quirk detected, returning false\n")
+		}
 		return false
 	}
 
 	// Use the simple, unified matching
-	return matchesSimplePattern(pat, targetPath)
+	result := matchesSimplePattern(pat, targetPath)
+	if strings.Contains(pat.pattern, "0**/**//0") {
+		fmt.Printf("  simple pattern result: %v\n", result)
+	}
+	return result
 }
 
 // matchesSimplePattern handles core glob pattern matching after Git quirks are processed.
@@ -459,7 +476,7 @@ func matchesSimplePattern(pat pattern, targetPath string) bool {
 // In Git, // indicates contents-only matching, and the suffix specifies what content to match
 func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	// Debug: Pattern matching with double slash
-	if false { // Set to true to enable debug output
+	if true { // Set to true to enable debug output
 		fmt.Printf("DEBUG matchDoubleSlashWithSuffix: pattern=%q, targetPath=%q\n", pattern, targetPath)
 	}
 	
@@ -483,7 +500,7 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	// Additional guard: bases starting with wildcards like "*0**" don't work with // semantics
 	// Git seems to reject these patterns entirely
 	if strings.HasPrefix(trimmedBase, "*") {
-		if true { // Debug output
+		if false { // Debug output
 			fmt.Printf("  Rejected: base starts with wildcard\n")
 		}
 		return false
@@ -549,56 +566,78 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	}
 
 	for idx, comp := range pathParts { // candidate positions for suffix
-		if false { // Debug output
+		if true { // Debug output
 			fmt.Printf("  Checking idx=%d, comp=%q against suffix=%q\n", idx, comp, suffix)
 		}
 		if !doublestar.MatchUnvalidated(suffix, comp) {
-			if false { // Debug output
+			if true { // Debug output
 				fmt.Printf("    Component doesn't match suffix\n")
 			}
 			continue
 		}
-		if false { // Debug output
+		if true { // Debug output
 			fmt.Printf("    Component matches suffix!\n")
 		}
 		// Require base match on the prefix before the candidate. Allow a relaxed
 		// prefix check when the base ends with a recursive tail ("**/**").
 		if !prefixMatch[idx] {
-			if false { // Debug output
+			if true { // Debug output
 				fmt.Printf("    prefixMatch[%d] is false\n", idx)
 			}
 			if strings.HasSuffix(base, "**/**") && idx > 0 {
-				if false { // Debug output
+				if true { // Debug output
 					fmt.Printf("    Base has **/** suffix, checking first component\n")
 				}
 				// identify first component of base
 				first := baseComps
 				if len(first) > 0 {
 					firstPat := first[0]
-					if false { // Debug output
+					if true { // Debug output
 						fmt.Printf("    firstPat=%q, pathParts[0]=%q\n", firstPat, pathParts[0])
 					}
-					if !doublestar.MatchUnvalidated(firstPat, pathParts[0]) {
-						if false { // Debug output
+					
+					// Use strict matching for double-slash patterns like matchDoubleSlashBase
+					matches := false
+					if strings.HasSuffix(firstPat, "**") && !strings.ContainsAny(firstPat[:len(firstPat)-2], "*?[/") {
+						// For literal** patterns, only match exactly the literal
+						literal := strings.TrimSuffix(firstPat, "**")
+						matches = (pathParts[0] == literal)
+						if true {
+							fmt.Printf("    Strict literal** match: literal=%q, matches=%v\n", literal, matches)
+						}
+					} else {
+						// For other patterns, use regular doublestar matching
+						matches = doublestar.MatchUnvalidated(firstPat, pathParts[0])
+						if true {
+							fmt.Printf("    Regular doublestar match: matches=%v\n", matches)
+						}
+					}
+					
+					if !matches {
+						if true { // Debug output
 							fmt.Printf("    First component doesn't match\n")
 						}
 						continue
 					}
-					if false { // Debug output
+					if true { // Debug output
 						fmt.Printf("    First component matches\n")
 					}
 				} else {
-					if false { // Debug output
+					if true { // Debug output
 						fmt.Printf("    No base components\n")
 					}
 					continue
 				}
 			} else {
-				if false { // Debug output
+				if true { // Debug output
 					fmt.Printf("    No **/** suffix or idx=0\n")
 				}
 				continue
 			}
+		}
+		// rest of the logic continues here
+		if true { // Debug output
+			fmt.Printf("    Passed prefix check, continuing to depth checks\n")
 		}
 		// Prevent suffix matching exactly at minimal depth when it would end the path.
 		// Exception: allow it for specific pattern forms like "literal**//suffix" or "literal**/**//suffix"
@@ -670,19 +709,51 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 // This implements Git's specific semantics where literal**//suffix only matches
 // paths that start with the literal followed by a path separator
 func matchDoubleSlashBase(base, prefix string) bool {
+	// Debug output
+	if true {
+		fmt.Printf("  matchDoubleSlashBase: base=%q, prefix=%q\n", base, prefix)
+	}
+	
 	// Check if this is a simple "literal**" base pattern
-	if strings.HasSuffix(base, "**") {
+	if strings.HasSuffix(base, "**") && !strings.Contains(base, "/") {
 		literal := strings.TrimSuffix(base, "**")
 		if literal != "" && !strings.ContainsAny(literal, "*?[/") {
 			// For patterns like "0**//0", the base "0**" should only match
 			// prefixes that are exactly the literal (like "0")
 			// It should NOT match prefixes like "00" even though doublestar would
-			return prefix == literal
+			result := prefix == literal
+			if true {
+				fmt.Printf("    literal** pattern: literal=%q, result=%v\n", literal, result)
+			}
+			return result
+		}
+	}
+	
+	// Check for patterns like "literal**/**"
+	if strings.HasSuffix(base, "**/**") {
+		// Extract the literal prefix before the first **
+		firstDoublestar := strings.Index(base, "**")
+		if firstDoublestar > 0 {
+			literal := base[:firstDoublestar]
+			if !strings.ContainsAny(literal, "*?[/") {
+				// For patterns like "0**/**", we need to be strict:
+				// The prefix "00" should NOT match because the literal part is "0"
+				// Only prefixes starting with exactly "0/" should match
+				result := prefix == literal || strings.HasPrefix(prefix, literal+"/")
+				if true {
+					fmt.Printf("    literal**/** pattern: literal=%q, result=%v\n", literal, result)
+				}
+				return result
+			}
 		}
 	}
 
 	// For other base patterns, fall back to doublestar behavior
-	return doublestar.MatchUnvalidated(base, prefix)
+	result := doublestar.MatchUnvalidated(base, prefix)
+	if true {
+		fmt.Printf("    fallback to doublestar: result=%v\n", result)
+	}
+	return result
 }
 
 // matchGlobPattern performs Git-compatible glob pattern matching using doublestar.
@@ -771,8 +842,15 @@ func matchGlobPattern(p pattern, targetPath string) bool {
 			// For pattern "a**/0", this becomes "a0" (remove ** and leading slash from suffix)
 			// For complex patterns like "0**/**/*0", we need to collapse the suffix pattern
 			zeroWidthSuffix := strings.TrimPrefix(suffix, "/")
-			// Handle nested doublestar patterns in suffix by collapsing /**/* to *
-			if strings.HasPrefix(zeroWidthSuffix, "**/*") {
+			// Handle nested doublestar patterns in suffix
+			if strings.HasPrefix(zeroWidthSuffix, "**/") {
+				// For patterns like "0**/**/0", when we remove the first **,
+				// we get suffix "/**/0" which becomes "**/0" after trim
+				// We need to recursively handle this by trying the pattern with the nested **
+				zeroWidthSuffix = strings.TrimPrefix(zeroWidthSuffix, "**/")
+				// The result "0" + "0" = "00" for pattern "0**/**/0" matching "00"
+			} else if strings.HasPrefix(zeroWidthSuffix, "**/*") {
+				// Handle /**/* patterns by collapsing to *
 				zeroWidthSuffix = strings.TrimPrefix(zeroWidthSuffix, "**/*")
 				zeroWidthSuffix = "*" + zeroWidthSuffix
 			}

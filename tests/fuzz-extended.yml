@@ -400,3 +400,23 @@
       dir: true
       description: Should NOT match *0**//x pattern
       ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/0 should match file 00
+  gitignore: |
+    0**/**/0
+  cases:
+    - path: "00"
+      dir: false
+      description: Should match 0**/**/0 pattern (zero-width matches)
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**//0 should not match file 00/0
+  gitignore: |
+    0**/**//0
+  cases:
+    - path: "00/0"
+      dir: false
+      description: Should NOT match 0**/**//0 pattern
+      ignored: false
