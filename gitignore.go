@@ -473,12 +473,21 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	base := pattern[:doubleSlashPos]
 	suffix := pattern[doubleSlashPos+2:] // skip //
 	
-	if false { // Debug output
+	if true { // Debug output
 		fmt.Printf("  base=%q, suffix=%q\n", base, suffix)
 	}
 
 	// Guard: reject purely empty or wildcard-only bases that don't provide a stable anchor.
 	trimmedBase := strings.Trim(base, "/")
+	
+	// Additional guard: bases starting with wildcards like "*0**" don't work with // semantics
+	// Git seems to reject these patterns entirely
+	if strings.HasPrefix(trimmedBase, "*") {
+		if true { // Debug output
+			fmt.Printf("  Rejected: base starts with wildcard\n")
+		}
+		return false
+	}
 	if trimmedBase == "" || trimmedBase == doubleStar {
 		// Require at least one non-empty concrete component.
 		return false
