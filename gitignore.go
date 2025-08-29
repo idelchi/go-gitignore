@@ -416,7 +416,7 @@ func extractPatternBase(pattern string) string {
 // matchesPattern determines if a pattern matches the given path.
 func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 	// Debug output
-	if strings.Contains(pat.pattern, "0**/**//0") {
+	if false && strings.Contains(pat.pattern, "0**/**//0") {
 		fmt.Printf("DEBUG matchesPattern: pat.pattern=%q, targetPath=%q, isDir=%v\n", pat.pattern, targetPath, isDir)
 		fmt.Printf("  doubleSlash=%v\n", pat.doubleSlash)
 	}
@@ -429,7 +429,7 @@ func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 	// Special handling for double slash patterns (originally ended with //)
 	if pat.doubleSlash {
 		result := matchesDoubleSlashPattern(pat, targetPath, isDir)
-		if strings.Contains(pat.pattern, "0**/**//0") {
+		if false && strings.Contains(pat.pattern, "0**/**//0") {
 			fmt.Printf("  doubleSlash pattern result: %v\n", result)
 		}
 		return result
@@ -437,7 +437,7 @@ func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 
 	// Check for Git quirks first
 	if detectGitPatternQuirk(pat, targetPath) {
-		if strings.Contains(pat.pattern, "0**/**//0") {
+		if false && strings.Contains(pat.pattern, "0**/**//0") {
 			fmt.Printf("  Git quirk detected, returning false\n")
 		}
 		return false
@@ -445,7 +445,7 @@ func matchesPattern(pat pattern, targetPath string, isDir bool) bool {
 
 	// Use the simple, unified matching
 	result := matchesSimplePattern(pat, targetPath)
-	if strings.Contains(pat.pattern, "0**/**//0") {
+	if false && strings.Contains(pat.pattern, "0**/**//0") {
 		fmt.Printf("  simple pattern result: %v\n", result)
 	}
 	return result
@@ -476,7 +476,7 @@ func matchesSimplePattern(pat pattern, targetPath string) bool {
 // In Git, // indicates contents-only matching, and the suffix specifies what content to match
 func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	// Debug: Pattern matching with double slash
-	if true { // Set to true to enable debug output
+	if false { // Set to true to enable debug output
 		fmt.Printf("DEBUG matchDoubleSlashWithSuffix: pattern=%q, targetPath=%q\n", pattern, targetPath)
 	}
 	
@@ -490,7 +490,7 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	base := pattern[:doubleSlashPos]
 	suffix := pattern[doubleSlashPos+2:] // skip //
 	
-	if true { // Debug output
+	if false { // Debug output
 		fmt.Printf("  base=%q, suffix=%q\n", base, suffix)
 	}
 
@@ -566,33 +566,33 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 	}
 
 	for idx, comp := range pathParts { // candidate positions for suffix
-		if true { // Debug output
+		if false { // Debug output
 			fmt.Printf("  Checking idx=%d, comp=%q against suffix=%q\n", idx, comp, suffix)
 		}
 		if !doublestar.MatchUnvalidated(suffix, comp) {
-			if true { // Debug output
+			if false { // Debug output
 				fmt.Printf("    Component doesn't match suffix\n")
 			}
 			continue
 		}
-		if true { // Debug output
+		if false { // Debug output
 			fmt.Printf("    Component matches suffix!\n")
 		}
 		// Require base match on the prefix before the candidate. Allow a relaxed
 		// prefix check when the base ends with a recursive tail ("**/**").
 		if !prefixMatch[idx] {
-			if true { // Debug output
+			if false { // Debug output
 				fmt.Printf("    prefixMatch[%d] is false\n", idx)
 			}
 			if strings.HasSuffix(base, "**/**") && idx > 0 {
-				if true { // Debug output
+				if false { // Debug output
 					fmt.Printf("    Base has **/** suffix, checking first component\n")
 				}
 				// identify first component of base
 				first := baseComps
 				if len(first) > 0 {
 					firstPat := first[0]
-					if true { // Debug output
+					if false { // Debug output
 						fmt.Printf("    firstPat=%q, pathParts[0]=%q\n", firstPat, pathParts[0])
 					}
 					
@@ -602,41 +602,41 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 						// For literal** patterns, only match exactly the literal
 						literal := strings.TrimSuffix(firstPat, "**")
 						matches = (pathParts[0] == literal)
-						if true {
+						if false {
 							fmt.Printf("    Strict literal** match: literal=%q, matches=%v\n", literal, matches)
 						}
 					} else {
 						// For other patterns, use regular doublestar matching
 						matches = doublestar.MatchUnvalidated(firstPat, pathParts[0])
-						if true {
+						if false {
 							fmt.Printf("    Regular doublestar match: matches=%v\n", matches)
 						}
 					}
 					
 					if !matches {
-						if true { // Debug output
+						if false { // Debug output
 							fmt.Printf("    First component doesn't match\n")
 						}
 						continue
 					}
-					if true { // Debug output
+					if false { // Debug output
 						fmt.Printf("    First component matches\n")
 					}
 				} else {
-					if true { // Debug output
+					if false { // Debug output
 						fmt.Printf("    No base components\n")
 					}
 					continue
 				}
 			} else {
-				if true { // Debug output
+				if false { // Debug output
 					fmt.Printf("    No **/** suffix or idx=0\n")
 				}
 				continue
 			}
 		}
 		// rest of the logic continues here
-		if true { // Debug output
+		if false { // Debug output
 			fmt.Printf("    Passed prefix check, continuing to depth checks\n")
 		}
 		// Prevent suffix matching exactly at minimal depth when it would end the path.
@@ -710,7 +710,7 @@ func matchDoubleSlashWithSuffix(pattern, targetPath string) bool {
 // paths that start with the literal followed by a path separator
 func matchDoubleSlashBase(base, prefix string) bool {
 	// Debug output
-	if true {
+	if false {
 		fmt.Printf("  matchDoubleSlashBase: base=%q, prefix=%q\n", base, prefix)
 	}
 	
@@ -722,7 +722,7 @@ func matchDoubleSlashBase(base, prefix string) bool {
 			// prefixes that are exactly the literal (like "0")
 			// It should NOT match prefixes like "00" even though doublestar would
 			result := prefix == literal
-			if true {
+			if false {
 				fmt.Printf("    literal** pattern: literal=%q, result=%v\n", literal, result)
 			}
 			return result
@@ -740,7 +740,7 @@ func matchDoubleSlashBase(base, prefix string) bool {
 				// The prefix "00" should NOT match because the literal part is "0"
 				// Only prefixes starting with exactly "0/" should match
 				result := prefix == literal || strings.HasPrefix(prefix, literal+"/")
-				if true {
+				if false {
 					fmt.Printf("    literal**/** pattern: literal=%q, result=%v\n", literal, result)
 				}
 				return result
@@ -750,7 +750,7 @@ func matchDoubleSlashBase(base, prefix string) bool {
 
 	// For other base patterns, fall back to doublestar behavior
 	result := doublestar.MatchUnvalidated(base, prefix)
-	if true {
+	if false {
 		fmt.Printf("    fallback to doublestar: result=%v\n", result)
 	}
 	return result
