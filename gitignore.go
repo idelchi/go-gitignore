@@ -6,30 +6,31 @@ import (
 	"strings"
 )
 
-// Wildmatch flags from Git.
+// Wildmatch engine flags (internal). These mirror Git's wildmatch flags but are
+// kept unexported; users should call Wildmatch which exposes a simpler API.
 const (
-	WM_CASEFOLD = 1 << iota
-	WM_PATHNAME
+	wmCaseFold = 1 << iota // currently unused (case sensitivity follows Git default)
+	wmPathname             // enable directory (slash) sensitive matching
 )
 
 // patternFlag is a bitmask describing special handling for a pattern line.
 type patternFlag uint16
 
-// Pattern flags from Git's dir.h plus local extension.
+// Internal pattern flags (adapted from Git's dir.h) plus local DOUBLESTAR_DIR extension.
 const (
-	PATTERN_FLAG_NEGATIVE patternFlag = 1 << iota
-	PATTERN_FLAG_MUSTBEDIR
-	PATTERN_FLAG_NODIR
-	PATTERN_FLAG_ENDSWITH
-	PATTERN_FLAG_DOUBLESTAR_DIR // custom: <literal>**// pattern semantics
+	flagNegative patternFlag = 1 << iota // pattern begins with '!'
+	flagDirOnly                          // pattern matches directories only (had trailing / or implied by **// with no suffix)
+	flagNoDir                            // pattern has no '/'; match only basename
+	flagEndsWith                         // optimized leading '*literal' pattern
+	flagDoubleStarDir                    // custom: canonical <literal>**// directory tree style pattern
 )
 
 // Internal wildmatch return values.
 const (
-	WM_MATCH             = 0
-	WM_NOMATCH           = 1
-	WM_ABORT_ALL         = -1
-	WM_ABORT_TO_STARSTAR = -2
+	wmMatch             = 0
+	wmNoMatch           = 1
+	wmAbortAll          = -1
+	wmAbortToStarstar   = -2
 )
 
 type pattern struct {
@@ -39,7 +40,7 @@ type pattern struct {
 	nowildcardlen int        // prefix length up to first wildcard
 	base          string     // base directory (for DOUBLESTAR_DIR optimization)
 	baselen       int        // length of base
-	flags         patternFlag// bit flags (PATTERN_FLAG_*)
+	flags         patternFlag// bit flags (flag*)
 	suffix        string     // suffix after **// (DOUBLESTAR_DIR)
 }
 
@@ -94,7 +95,7 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	// earlier rule that is still in effect)
 	for _, p := range g.patterns {
 		if matchesPattern(p, pathname, isDir) {
-			if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
+			if p.flags&flagNegative != 0 {
 				// Negation cannot rescue if any parent directory remains excluded
 				if !parentExcluded && pathname != "." {
 					ignored = false
@@ -125,7 +126,7 @@ func (g *GitIgnore) parentExcluded(pathname string) bool {
 		parentPath := strings.Join(parts[:i], "/")
 		for _, p := range g.patterns {
 			if matchesPattern(p, parentPath, true) {
-				if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
+				if p.flags&flagNegative != 0 {
 					delete(parents, parentPath)
 				} else {
 					parents[parentPath] = true
@@ -184,12 +185,12 @@ func matchDoubleStarDir(p pattern, pathname string, isDir bool) bool {
 	if rem == "" {
 		return false
 	}
-	if wildmatch(suffix, rem, WM_PATHNAME) == WM_MATCH {
+	if wildmatch(suffix, rem, wmPathname) == wmMatch {
 		return true
 	}
 	for i := 0; i < len(rem); i++ {
 		if rem[i] == '/' && i+1 < len(rem) {
-			if wildmatch(suffix, rem[i+1:], WM_PATHNAME) == WM_MATCH {
+			if wildmatch(suffix, rem[i+1:], wmPathname) == wmMatch {
 				return true
 			}
 		}
@@ -201,10 +202,10 @@ func matchDoubleStarDir(p pattern, pathname string, isDir bool) bool {
 func matchRooted(p pattern, pathname string, isDir bool) bool {
 	pattern := p.pattern
 	trimmed := pattern[1:]
-	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 && strings.HasSuffix(trimmed, "/") {
+	if p.flags&flagDirOnly != 0 && strings.HasSuffix(trimmed, "/") {
 		trimmed = strings.TrimSuffix(trimmed, "/")
 	}
-	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 {
+	if p.flags&flagDirOnly != 0 {
 		if isDir && pathname == trimmed {
 			return true
 		}
@@ -229,7 +230,7 @@ func parsePattern(line string) *pattern {
 	case strings.HasPrefix(line, "\\#"), strings.HasPrefix(line, "\\!"):
 		line = line[1:]
 	case strings.HasPrefix(line, "!"):
-		p.flags |= PATTERN_FLAG_NEGATIVE
+		p.flags |= flagNegative
 		line = line[1:]
 	}
 	line = trimTrailingSpaces(line)
@@ -242,12 +243,12 @@ func parsePattern(line string) *pattern {
 	// directory-only suffix slashes
 	if strings.HasSuffix(line, "/") {
 		for strings.HasSuffix(line, "/") { line = line[:len(line)-1] }
-		p.flags |= PATTERN_FLAG_MUSTBEDIR
+	p.flags |= flagDirOnly
 	}
-	if !strings.Contains(line, "/") { p.flags |= PATTERN_FLAG_NODIR }
+	if !strings.Contains(line, "/") { p.flags |= flagNoDir }
 	p.nowildcardlen = simpleLength(line)
 	if p.nowildcardlen > len(line) { p.nowildcardlen = len(line) }
-	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) { p.flags |= PATTERN_FLAG_ENDSWITH }
+	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) { p.flags |= flagEndsWith }
 	p.pattern = line
 	p.patternlen = len(line)
 	return p
@@ -267,8 +268,8 @@ func compileDoubleStarDir(p *pattern, line string) bool {
 		suffix := line[pos+4:]
 		rooted := strings.HasPrefix(prefix, "/")
 		if rooted { prefix = prefix[1:] }
-		p.flags |= PATTERN_FLAG_DOUBLESTAR_DIR
-		if suffix == "" { p.flags |= PATTERN_FLAG_MUSTBEDIR }
+	p.flags |= flagDoubleStarDir
+	if suffix == "" { p.flags |= flagDirOnly }
 		if rooted { p.pattern = "/" + prefix + "**//" } else { p.pattern = prefix + "**//" }
 		p.base, p.baselen, p.suffix, p.patternlen = prefix, len(prefix), suffix, len(p.pattern)
 		return true
@@ -355,16 +356,16 @@ func disallowWildcardLeadingSingleComponent(pattern, pathname string) bool {
 
 func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	// Inert pattern (contains double slash but not recognized special **// form)
-	if p.baselen == -1 && p.flags&PATTERN_FLAG_DOUBLESTAR_DIR == 0 {
+	if p.baselen == -1 && p.flags&flagDoubleStarDir == 0 {
 		return false
 	}
 
 	// Directory-only patterns
-	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 && !isDir {
+	if p.flags&flagDirOnly != 0 && !isDir {
 		return false
 	}
 
-	if p.flags&PATTERN_FLAG_DOUBLESTAR_DIR != 0 {
+	if p.flags&flagDoubleStarDir != 0 {
 		return matchDoubleStarDir(p, pathname, isDir)
 	}
 
@@ -382,7 +383,7 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	}
 
 	// NODIR means match basename only
-	if p.flags&PATTERN_FLAG_NODIR != 0 {
+	if p.flags&flagNoDir != 0 {
 		return matchBasename(basename, pattern, p.nowildcardlen, p.patternlen, p.flags)
 	}
 
@@ -398,16 +399,14 @@ func matchBasename(basename, pattern string, nowildcardlen, patternlen int, pfla
 	if nowildcardlen == patternlen {
 		return basename == pattern
 	}
-	if pflags&PATTERN_FLAG_ENDSWITH != 0 && len(pattern) > 1 && pattern[0] == '*' {
+	if pflags&flagEndsWith != 0 && len(pattern) > 1 && pattern[0] == '*' {
 		return strings.HasSuffix(basename, pattern[1:])
 	}
-	return wildmatch(pattern, basename, 0) == WM_MATCH
+	return wildmatch(pattern, basename, 0) == wmMatch
 }
 
 // matchPathname matches full path with WM_PATHNAME wildmatch
-func matchPathname(pathname, pattern string) bool {
-	return wildmatch(pattern, pathname, WM_PATHNAME) == WM_MATCH
-}
+func matchPathname(pathname, pattern string) bool { return wildmatch(pattern, pathname, wmPathname) == wmMatch }
 
 // isLiteralPrefix returns true if the string has no glob meta characters.
 func isLiteralPrefix(s string) bool {
@@ -420,9 +419,7 @@ func isLiteralPrefix(s string) bool {
 }
 
 // wildmatch implements Git's wildmatch algorithm
-func wildmatch(pattern, text string, wmFlags int) int {
-	return dowild([]byte(pattern), []byte(text), 0, 0, wmFlags)
-}
+func wildmatch(pattern, text string, wmFlags int) int { return dowild([]byte(pattern), []byte(text), 0, 0, wmFlags) }
 
 func dowild(p, t []byte, pi, ti, flags int) int {
 	var pCh byte
@@ -432,7 +429,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 
 		// Check if we've run out of text
 		if ti >= len(t) && pCh != '*' {
-			return WM_ABORT_ALL
+			return wmAbortAll
 		}
 
 		switch pCh {
@@ -440,10 +437,10 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 			// Escape - match next character literally
 			pi++
 			if pi >= len(p) {
-				return WM_ABORT_ALL
+				return wmAbortAll
 			}
 			if ti >= len(t) || t[ti] != p[pi] {
-				return WM_NOMATCH
+				return wmNoMatch
 			}
 			pi++
 			ti++
@@ -451,10 +448,10 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 		case '?':
 			// Match any single byte except /
 			if ti >= len(t) {
-				return WM_NOMATCH
+				return wmNoMatch
 			}
-			if flags&WM_PATHNAME != 0 && t[ti] == '/' {
-				return WM_NOMATCH
+			if flags&wmPathname != 0 && t[ti] == '/' {
+				return wmNoMatch
 			}
 			pi++
 			ti++
@@ -477,7 +474,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				// Git special ** rule plus extension: treat **/ as special even if preceded by non-slash to accommodate
 				// a**/ forms required by tests
 				isSpecial := false
-				if flags&WM_PATHNAME != 0 {
+				if flags&wmPathname != 0 {
 					if pi < len(p) && p[pi] == '/' { // **/ form
 						isSpecial = true
 					} else {
@@ -493,44 +490,23 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 					// Reset to handle as regular wildcards
 					pi = prevP + 1
 
-					// Try to match with each * matching various amounts
-					// This is complex, but essentially we need to try all combinations
-					// For simplicity, treat consecutive * as matching any non-slash sequence
-					for pi < len(p) && p[pi] == '*' {
-						pi++
-					}
-
-					// Now match any sequence until we find the next part of pattern
-					if pi >= len(p) {
-						// Pattern ends with non-special **
-						if flags&WM_PATHNAME != 0 {
-							// Can't match slashes
-							for i := ti; i < len(t); i++ {
-								if t[i] == '/' {
-									return WM_NOMATCH
-								}
-							}
-						}
-						return WM_MATCH
-					}
-
 					// Try matching rest of pattern at each position
 					for ; ti <= len(t); ti++ {
 						result := dowild(p, t, pi, ti, flags)
-						if result == WM_MATCH {
-							return WM_MATCH
+						if result == wmMatch {
+							return wmMatch
 						}
-						if flags&WM_PATHNAME != 0 && ti < len(t) && t[ti] == '/' {
-							return WM_NOMATCH
+						if flags&wmPathname != 0 && ti < len(t) && t[ti] == '/' {
+							return wmNoMatch
 						}
 					}
-					return WM_NOMATCH
+					return wmNoMatch
 				}
 
 				// Special ** handling
 				// Pattern ends with ** -> matches remainder (including empty)
 				if pi >= len(p) {
-					return WM_MATCH
+					return wmMatch
 				}
 
 				consumeSlash := false
@@ -542,42 +518,42 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				// Try to match the rest of pattern; for recursive search, advance over directory boundaries only
 				if consumeSlash {
 					// '**/' form: allow matching at current level or any deeper level
-					if res := dowild(p, t, pi, ti, flags); res == WM_MATCH {
-						return WM_MATCH
+					if res := dowild(p, t, pi, ti, flags); res == wmMatch {
+						return wmMatch
 					}
 					for scan := ti; scan < len(t); scan++ {
 						if t[scan] == '/' {
-							if res := dowild(p, t, pi, scan+1, flags); res == WM_MATCH {
-								return WM_MATCH
+							if res := dowild(p, t, pi, scan+1, flags); res == wmMatch {
+								return wmMatch
 							}
 						}
 					}
-					return WM_NOMATCH
+					return wmNoMatch
 				}
 
 				// Bare '**' (not followed by slash) - standard recursive: advance one char at a time
 				for scan := ti; scan <= len(t); scan++ {
-					if res := dowild(p, t, pi, scan, flags); res == WM_MATCH {
-						return WM_MATCH
+					if res := dowild(p, t, pi, scan, flags); res == wmMatch {
+						return wmMatch
 					}
 				}
-				return WM_NOMATCH
+				return wmNoMatch
 			}
 
 			// Single *: match anything except '/'. If pattern is of the form '*<lit>**/*' we ensure at
 			// least one char before that literal so '*0**/*' does not match '0'.
-			matchSlash := flags&WM_PATHNAME == 0
+			matchSlash := flags&wmPathname == 0
 
 			if pi >= len(p) {
 				// Trailing *
 				if !matchSlash {
 					for i := ti; i < len(t); i++ {
 						if t[i] == '/' {
-							return WM_NOMATCH
+							return wmNoMatch
 						}
 					}
 				}
-				return WM_MATCH
+				return wmMatch
 			}
 
 			// Special case: * followed by / in pathname mode
@@ -587,7 +563,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 					ti++
 				}
 				if ti >= len(t) {
-					return WM_NOMATCH
+					return wmNoMatch
 				}
 				// Continue matching after the /
 				continue
@@ -628,24 +604,24 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 			}
 			for ti = start; ti <= len(t); ti++ {
 				result := dowild(p, t, pi, ti, flags)
-				if result == WM_MATCH {
-					return WM_MATCH
+				if result == wmMatch {
+					return wmMatch
 				}
 				if !matchSlash && ti < len(t) && t[ti] == '/' {
-					return WM_NOMATCH
+					return wmNoMatch
 				}
 			}
-			return WM_NOMATCH
+			return wmNoMatch
 
 		case '[':
 			// Character class
 			if ti >= len(t) {
-				return WM_NOMATCH
+				return wmNoMatch
 			}
 
 			pi++
 			if pi >= len(p) {
-				return WM_ABORT_ALL
+				return wmAbortAll
 			}
 
 			// Check for negation
@@ -674,7 +650,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				if pCh == '\\' {
 					pi++
 					if pi >= len(p) {
-						return WM_ABORT_ALL
+						return wmAbortAll
 					}
 					pCh = p[pi]
 					if t[ti] == pCh {
@@ -688,7 +664,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 					if endCh == '\\' {
 						pi++
 						if pi >= len(p) {
-							return WM_ABORT_ALL
+							return wmAbortAll
 						}
 						endCh = p[pi]
 					}
@@ -707,18 +683,18 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 			}
 
 			if pi >= len(p) || p[pi] != ']' {
-				return WM_ABORT_ALL
+				return wmAbortAll
 			}
 			pi++ // Skip closing ]
 
 			// Check match result
 			if matched == negated {
-				return WM_NOMATCH
+				return wmNoMatch
 			}
-			if flags&WM_PATHNAME != 0 && t[ti] == '/' {
+			if flags&wmPathname != 0 && t[ti] == '/' {
 				// Only block / if not explicitly matched in the class
 				if !matched || t[ti] != '/' {
-					return WM_NOMATCH
+					return wmNoMatch
 				}
 			}
 			ti++
@@ -726,7 +702,7 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 		default:
 			// Literal character match
 			if ti >= len(t) || t[ti] != pCh {
-				return WM_NOMATCH
+				return wmNoMatch
 			}
 			pi++
 			ti++
@@ -735,9 +711,9 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 
 	// Pattern exhausted - check if text is too
 	if ti < len(t) {
-		return WM_NOMATCH
+		return wmNoMatch
 	}
-	return WM_MATCH
+	return wmMatch
 }
 
 // hasBareDoubleSlash returns true if the pattern contains a raw "//" sequence
