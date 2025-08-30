@@ -402,6 +402,26 @@
       ignored: false
 
 - name: fuzzy test cases
+  description: Pattern 0**//x/0 should match file 0/x/0 (fuzz discovered)
+  gitignore: |
+    0**//x/0
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: File '0/x/0' should be ignored by 0**//x/0
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**//**/x should cause 0/x/0 to be ignored via contents-only semantics
+  gitignore: |
+    0**//**/x
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: File '0/x/0' should be ignored by 0**//**/x (x directory ignored => parent exclusion)
+      ignored: true
+
+- name: fuzzy test cases
   description: Pattern 0**/**/0 should match file 00
   gitignore: |
     0**/**/0
