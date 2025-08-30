@@ -480,3 +480,23 @@
       dir: true
       description: Git reports not ignored
       ignored: false
+
+- name: fuzzy test cases
+  description: Bare **// should be inert and not ignore unrelated directory '0' (fuzz repro)
+  gitignore: |
+    **//
+  cases:
+    - path: "0"
+      dir: true
+      description: Directory '0' should not be ignored; bare **// inert
+      ignored: false
+
+- name: fuzzy test cases
+  description: Rooted directory-only wildcard '/*/' should ignore single root entry directory '0'
+  gitignore: |
+    /*/
+  cases:
+    - path: "0"
+      dir: true
+      description: Rooted dir-only wildcard should match root directory name
+      ignored: true

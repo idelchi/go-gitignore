@@ -1,0 +1,15 @@
+[fuzz] fuzz: elapsed: 0s, gathering baseline coverage: 0/240 completed
+[fuzz] failure while testing seed corpus entry: FuzzGitIgnoreParity/f94666d7bae875cf
+[fuzz] fuzz: elapsed: 0s, gathering baseline coverage: 2/240 completed
+[fuzz] --- FAIL: FuzzGitIgnoreParity (0.14s)
+[fuzz]     --- FAIL: FuzzGitIgnoreParity (0.02s)
+[fuzz]         gitignore_fuzz_test.go:65: Ignored() check failed:
+[fuzz]               path: 0
+[fuzz]               dir: true
+[fuzz]               patterns: [!*.log !data/**/ name\ \  /*/ !*.log \!literalBang name\ \  /*/  /*/  /*/  /*/ */cache/ /*/]
+[fuzz]               expected: ignored
+[fuzz]               got: not ignored
+[fuzz]     
+[fuzz] FAIL
+[fuzz] exit status 1
+[fuzz] FAIL	github.com/idelchi/go-gitignore	0.148s

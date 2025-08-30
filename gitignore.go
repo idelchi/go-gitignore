@@ -1,4 +1,4 @@
-// Package gitignore provides pattern matching compatible with Git's .gitignore semantics.
+// Package gitignore implements Git .gitignore style pattern matching.
 package gitignore
 
 import (
@@ -6,50 +6,47 @@ import (
 	"strings"
 )
 
-// Wildmatch engine flags (internal). These mirror Git's wildmatch flags but are
-// kept unexported; users should call Wildmatch which exposes a simpler API.
+// Wildmatch engine flags (internal). Callers use Wildmatch.
 const (
 	wmCaseFold = 1 << iota // currently unused (case sensitivity follows Git default)
 	wmPathname             // enable directory (slash) sensitive matching
 )
 
-// patternFlag is a bitmask describing special handling for a pattern line.
+// patternFlag marks parsed pattern properties (negative, dir-only, etc).
 type patternFlag uint16
 
-// Internal pattern flags (adapted from Git's dir.h) plus local DOUBLESTAR_DIR extension.
+// Internal pattern flags (subset of Git's) plus a local **// form flag.
 const (
-	flagNegative patternFlag = 1 << iota // pattern begins with '!'
-	flagDirOnly                          // pattern matches directories only (had trailing / or implied by **// with no suffix)
-	flagNoDir                            // pattern has no '/'; match only basename
-	flagEndsWith                         // optimized leading '*literal' pattern
-	flagDoubleStarDir                    // custom: canonical <literal>**// directory tree style pattern
+	flagNegative      patternFlag = 1 << iota // pattern begins with '!'
+	flagDirOnly                               // pattern matches directories only (had trailing / or implied by **// with no suffix)
+	flagNoDir                                 // pattern has no '/'; match only basename
+	flagEndsWith                              // optimized leading '*literal' pattern
+	flagDoubleStarDir                         // custom: canonical <literal>**// directory tree style pattern
 )
 
-// Internal wildmatch return values.
+// Internal wildmatch return codes.
 const (
-	wmMatch             = 0
-	wmNoMatch           = 1
-	wmAbortAll          = -1
-	wmAbortToStarstar   = -2
+	wmMatch           = 0
+	wmNoMatch         = 1
+	wmAbortAll        = -1
+	wmAbortToStarstar = -2
 )
 
 type pattern struct {
-	original      string     // original pattern text (for debugging / reporting)
-	pattern       string     // normalized pattern used for matching
-	patternlen    int        // length of pattern
-	nowildcardlen int        // prefix length up to first wildcard
-	base          string     // base directory (for DOUBLESTAR_DIR optimization)
-	baselen       int        // length of base
-	flags         patternFlag// bit flags (flag*)
-	suffix        string     // suffix after **// (DOUBLESTAR_DIR)
+	original      string      // original pattern text (for debugging / reporting)
+	pattern       string      // normalized pattern used for matching
+	patternlen    int         // length of pattern
+	nowildcardlen int         // prefix length up to first wildcard
+	base          string      // base directory (for DOUBLESTAR_DIR optimization)
+	baselen       int         // length of base
+	flags         patternFlag // bit flags (flag*)
+	suffix        string      // suffix after **// (DOUBLESTAR_DIR)
 }
 
-type GitIgnore struct {
-	patterns []pattern
-}
+// GitIgnore holds compiled patterns. Use New to build one.
+type GitIgnore struct{ patterns []pattern }
 
-// New constructs a GitIgnore matcher from the provided lines (raw .gitignore lines).
-// Empty lines and comments are ignored; invalid or inert patterns are skipped.
+// New compiles .gitignore style lines. Ignores comments, empty, inert lines.
 func New(lines ...string) *GitIgnore {
 	patterns := make([]pattern, 0, len(lines))
 
@@ -62,18 +59,16 @@ func New(lines ...string) *GitIgnore {
 	return &GitIgnore{patterns: patterns}
 }
 
+// Patterns returns original patterns in order.
 func (g *GitIgnore) Patterns() []string {
-	result := make([]string, len(g.patterns))
+	out := make([]string, len(g.patterns))
 	for i, p := range g.patterns {
-		result[i] = p.original
+		out[i] = p.original
 	}
-	return result
+	return out
 }
 
-// Ignored reports whether the given path (relative, never absolute) should be
-// ignored. The caller must indicate if the path refers to a directory.
-// Logic matches Git semantics including parent directory exclusion and
-// negation ordering.
+// Ignored reports if a relative path is ignored. Caller specifies if it is a directory.
 func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	if len(g.patterns) == 0 || pathname == "" {
 		return false
@@ -113,8 +108,7 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	return ignored
 }
 
-// parentExcluded reports whether any ancestor directory of pathname is ignored
-// by a non-negated pattern, implementing Git's parent exclusion semantics.
+// parentExcluded reports if any ancestor dir is ignored by a non-negated rule.
 func (g *GitIgnore) parentExcluded(pathname string) bool {
 	if pathname == "." {
 		return false
@@ -140,7 +134,7 @@ func (g *GitIgnore) parentExcluded(pathname string) bool {
 	return excluded
 }
 
-// matchDoubleStarDir handles patterns canonicalised to <prefix>**//<suffix?> semantics.
+// matchDoubleStarDir matches canonical <prefix>**//[suffix] patterns.
 func matchDoubleStarDir(p pattern, pathname string, isDir bool) bool {
 	pat := p.pattern
 	marker := strings.Index(pat, "**//")
@@ -198,7 +192,7 @@ func matchDoubleStarDir(p pattern, pathname string, isDir bool) bool {
 	return false
 }
 
-// matchRooted applies rooted pattern semantics (pattern begins with '/').
+// matchRooted handles patterns beginning with '/'.
 func matchRooted(p pattern, pathname string, isDir bool) bool {
 	pattern := p.pattern
 	trimmed := pattern[1:]
@@ -206,10 +200,9 @@ func matchRooted(p pattern, pathname string, isDir bool) bool {
 		trimmed = strings.TrimSuffix(trimmed, "/")
 	}
 	if p.flags&flagDirOnly != 0 {
-		if isDir && pathname == trimmed {
-			return true
-		}
-		return false
+		if !isDir { return false }
+		// Allow globs in rooted dir-only pattern: run wildmatch with pathname semantics.
+		return wildmatch(trimmed, pathname, wmPathname) == wmMatch
 	}
 	if strings.HasSuffix(trimmed, "/**") {
 		prefix := strings.TrimSuffix(trimmed, "/**")
@@ -220,12 +213,13 @@ func matchRooted(p pattern, pathname string, isDir bool) bool {
 	return matchPathname(pathname, trimmed)
 }
 
-// parsePattern converts a single .gitignore line into a compiled pattern or
-// returns nil if the line is empty / comment / becomes empty after trimming.
+// parsePattern compiles one pattern line or returns nil.
 func parsePattern(line string) *pattern {
 	orig := line
-	if line == "" || (strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "\\#")) { return nil }
-	p := &pattern{ original: orig }
+	if line == "" || (strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "\\#")) {
+		return nil
+	}
+	p := &pattern{original: orig}
 	switch {
 	case strings.HasPrefix(line, "\\#"), strings.HasPrefix(line, "\\!"):
 		line = line[1:]
@@ -234,47 +228,78 @@ func parsePattern(line string) *pattern {
 		line = line[1:]
 	}
 	line = trimTrailingSpaces(line)
-	if line == "" { return nil }
-	if handled := compileDoubleStarDir(p, line); handled { return p }
+	if line == "" {
+		return nil
+	}
+	if handled := compileDoubleStarDir(p, line); handled {
+		return p
+	}
 	if hasBareDoubleSlash(line) { // inert pattern
 		p.pattern, p.patternlen, p.baselen = line, len(line), -1
 		return p
 	}
 	// directory-only suffix slashes
 	if strings.HasSuffix(line, "/") {
-		for strings.HasSuffix(line, "/") { line = line[:len(line)-1] }
-	p.flags |= flagDirOnly
+		for strings.HasSuffix(line, "/") {
+			line = line[:len(line)-1]
+		}
+		p.flags |= flagDirOnly
 	}
-	if !strings.Contains(line, "/") { p.flags |= flagNoDir }
+	if !strings.Contains(line, "/") {
+		p.flags |= flagNoDir
+	}
 	p.nowildcardlen = simpleLength(line)
-	if p.nowildcardlen > len(line) { p.nowildcardlen = len(line) }
-	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) { p.flags |= flagEndsWith }
+	if p.nowildcardlen > len(line) {
+		p.nowildcardlen = len(line)
+	}
+	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) {
+		p.flags |= flagEndsWith
+	}
 	p.pattern = line
 	p.patternlen = len(line)
 	return p
 }
 
-// compileDoubleStarDir detects <literal>(**/)* **//<suffix?> forms and populates pattern accordingly.
-// Returns true if the pattern was consumed (either canonicalized OR marked inert), false otherwise.
+// compileDoubleStarDir canonicalises <literal>(**/)* **//<suffix?> forms.
 func compileDoubleStarDir(p *pattern, line string) bool {
 	pos := strings.Index(line, "**//")
-	if pos < 0 { return false }
+	if pos < 0 {
+		return false
+	}
 	starRunStart := pos
-	for starRunStart > 0 && line[starRunStart-1] == '*' { starRunStart-- }
+	for starRunStart > 0 && line[starRunStart-1] == '*' {
+		starRunStart--
+	}
 	chainStart := starRunStart
-	for chainStart >= 3 && line[chainStart-3:chainStart] == "**/" { chainStart -= 3 }
+	for chainStart >= 3 && line[chainStart-3:chainStart] == "**/" {
+		chainStart -= 3
+	}
 	prefix := line[:chainStart]
-	if prefix != "" && isLiteralPrefix(prefix) {
+	// Bare **// (empty literal prefix) should be inert; Git treats ill-formed
+	// directory-recursive markers without a literal base as non-matching.
+	if prefix == "" {
+		p.pattern, p.patternlen, p.baselen = line, len(line), -1
+		return true
+	}
+	if isLiteralPrefix(prefix) {
 		suffix := line[pos+4:]
 		rooted := strings.HasPrefix(prefix, "/")
-		if rooted { prefix = prefix[1:] }
-	p.flags |= flagDoubleStarDir
-	if suffix == "" { p.flags |= flagDirOnly }
-		if rooted { p.pattern = "/" + prefix + "**//" } else { p.pattern = prefix + "**//" }
+		if rooted {
+			prefix = prefix[1:]
+		}
+		p.flags |= flagDoubleStarDir
+		if suffix == "" {
+			p.flags |= flagDirOnly
+		}
+		if rooted {
+			p.pattern = "/" + prefix + "**//"
+		} else {
+			p.pattern = prefix + "**//"
+		}
 		p.base, p.baselen, p.suffix, p.patternlen = prefix, len(prefix), suffix, len(p.pattern)
 		return true
 	}
-	if prefix != "" && !isLiteralPrefix(prefix) { // wildcard in prefix -> inert
+	if !isLiteralPrefix(prefix) { // wildcard in prefix -> inert
 		p.pattern, p.patternlen, p.baselen = line, len(line), -1
 		return true
 	}
@@ -285,6 +310,7 @@ func compileDoubleStarDir(p *pattern, line string) bool {
 // collapsing). Kept as comment for clarity.
 // func collapseSlashes(s string) string { ... }
 
+// trimTrailingSpaces removes unescaped trailing spaces.
 func trimTrailingSpaces(s string) string {
 	for len(s) > 0 && s[len(s)-1] == ' ' {
 		// Count preceding backslashes
@@ -301,6 +327,7 @@ func trimTrailingSpaces(s string) string {
 	return s
 }
 
+// simpleLength returns length of literal prefix before first glob meta.
 func simpleLength(s string) int {
 	for i := 0; i < len(s); i++ {
 		if isGlobSpecial(s[i]) {
@@ -316,9 +343,7 @@ func isGlobSpecial(c byte) bool {
 
 func noWildcard(s string) bool { return simpleLength(s) == len(s) }
 
-// disallowWildcardLeadingSingleComponent replicates a guard preventing wildcard-leading
-// slash-containing patterns from matching single-component paths unless they begin with "**/".
-// This mirrors Git behaviour needed for fuzzy tests without altering wildmatch core logic.
+// disallowWildcardLeadingSingleComponent enforces Git's single-component guard.
 func disallowWildcardLeadingSingleComponent(pattern, pathname string) bool {
 	if strings.Contains(pathname, "/") || len(pattern) == 0 || pattern[0] == '/' {
 		return false
@@ -354,6 +379,7 @@ func disallowWildcardLeadingSingleComponent(pattern, pathname string) bool {
 	return false
 }
 
+// matchesPattern tests one compiled pattern.
 func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	// Inert pattern (contains double slash but not recognized special **// form)
 	if p.baselen == -1 && p.flags&flagDoubleStarDir == 0 {
@@ -391,7 +417,7 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	return matchPathname(pathname, pattern)
 }
 
-// matchBasename matches a single path component (no slash semantics except literals)
+// matchBasename matches a single path component.
 func matchBasename(basename, pattern string, nowildcardlen, patternlen int, pflags patternFlag) bool {
 	if patternlen == 0 {
 		return basename == ""
@@ -405,10 +431,12 @@ func matchBasename(basename, pattern string, nowildcardlen, patternlen int, pfla
 	return wildmatch(pattern, basename, 0) == wmMatch
 }
 
-// matchPathname matches full path with WM_PATHNAME wildmatch
-func matchPathname(pathname, pattern string) bool { return wildmatch(pattern, pathname, wmPathname) == wmMatch }
+// matchPathname matches a relative path (slash aware).
+func matchPathname(pathname, pattern string) bool {
+	return wildmatch(pattern, pathname, wmPathname) == wmMatch
+}
 
-// isLiteralPrefix returns true if the string has no glob meta characters.
+// isLiteralPrefix reports absence of glob meta.
 func isLiteralPrefix(s string) bool {
 	for i := 0; i < len(s); i++ {
 		if isGlobSpecial(s[i]) || s[i] == '?' || s[i] == '*' || s[i] == '[' || s[i] == ']' {
@@ -418,8 +446,19 @@ func isLiteralPrefix(s string) bool {
 	return true
 }
 
-// wildmatch implements Git's wildmatch algorithm
-func wildmatch(pattern, text string, wmFlags int) int { return dowild([]byte(pattern), []byte(text), 0, 0, wmFlags) }
+// Wildmatch reports whether text matches pattern. If pathname, '/' is special.
+func Wildmatch(pattern, text string, pathname bool) bool {
+	f := 0
+	if pathname {
+		f = wmPathname
+	}
+	return wildmatch(pattern, text, f) == wmMatch
+}
+
+// wildmatch returns the raw engine status code.
+func wildmatch(pattern, text string, wmFlags int) int {
+	return dowild([]byte(pattern), []byte(text), 0, 0, wmFlags)
+}
 
 func dowild(p, t []byte, pi, ti, flags int) int {
 	var pCh byte
