@@ -420,3 +420,43 @@
       dir: false
       description: Should NOT match 0**/**//0 pattern
       ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: base with single-star before recursive tail (0*0**//0) should not ignore 00/0/0/"
+  gitignore: |
+    0*0**//0
+  cases:
+    - path: "00/0/0"
+      dir: true
+      description: Git reports not ignored for 0*0**//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: bracket class with leading ']' should ignore 0"
+  gitignore: |
+    []01?]
+  cases:
+    - path: "0"
+      dir: false
+      description: Git reports ignored for []01?]
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern */** should not match single file
+  gitignore: |
+    */**
+  cases:
+    - path: "0"
+      dir: false
+      description: Git reports not ignored for */** vs single file
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: pattern 0**0//0 vs path 000/0/0 (dir)"
+  gitignore: |
+    0**0//0
+  cases:
+    - path: "000/0/0"
+      dir: true
+      description: Git reports not ignored
+      ignored: false
