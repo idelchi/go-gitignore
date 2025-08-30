@@ -44,6 +44,8 @@ type GitIgnore struct {
 	patterns []pattern
 }
 
+// New constructs a GitIgnore matcher from the provided lines (raw .gitignore lines).
+// Empty lines and comments are ignored; invalid or inert patterns are skipped.
 func New(lines ...string) *GitIgnore {
 	patterns := make([]pattern, 0, len(lines))
 
@@ -64,6 +66,10 @@ func (g *GitIgnore) Patterns() []string {
 	return result
 }
 
+// Ignored reports whether the given path (relative, never absolute) should be
+// ignored. The caller must indicate if the path refers to a directory.
+// Logic matches Git semantics including parent directory exclusion and
+// negation ordering.
 func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	if len(g.patterns) == 0 || pathname == "" {
 		return false
@@ -78,32 +84,8 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	cleanPath := path.Clean(pathname)
 	pathname = cleanPath
 
-	// Track ignore status
 	ignored := false
-
-	// Check for parent directory exclusion (but not for ".")
-	excludedParents := make(map[string]bool)
-	if pathname != "." {
-		parts := strings.Split(pathname, "/")
-
-		// Build parent paths and check exclusion
-		for i := 1; i < len(parts); i++ {
-			parentPath := strings.Join(parts[:i], "/")
-
-			for _, p := range g.patterns {
-				if matchesPattern(p, parentPath, true) {
-					if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
-						delete(excludedParents, parentPath)
-					} else {
-						excludedParents[parentPath] = true
-					}
-				}
-			}
-		}
-	}
-
-	// Check if any parent is excluded
-	parentExcluded := len(excludedParents) > 0
+	parentExcluded := g.parentExcluded(pathname)
 
 	// Apply patterns in order; later patterns override earlier (negations can rescue unless parent dir excluded by
 	// earlier rule that is still in effect)
@@ -127,6 +109,115 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	return ignored
 }
 
+// parentExcluded reports whether any ancestor directory of pathname is ignored
+// by a non-negated pattern, implementing Git's parent exclusion semantics.
+func (g *GitIgnore) parentExcluded(pathname string) bool {
+	if pathname == "." {
+		return false
+	}
+	parts := strings.Split(pathname, "/")
+	excluded := false
+	parents := make(map[string]bool)
+	for i := 1; i < len(parts); i++ {
+		parentPath := strings.Join(parts[:i], "/")
+		for _, p := range g.patterns {
+			if matchesPattern(p, parentPath, true) {
+				if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
+					delete(parents, parentPath)
+				} else {
+					parents[parentPath] = true
+				}
+			}
+		}
+	}
+	if len(parents) > 0 {
+		excluded = true
+	}
+	return excluded
+}
+
+// matchDoubleStarDir handles patterns canonicalised to <prefix>**//<suffix?> semantics.
+func matchDoubleStarDir(p pattern, pathname string, isDir bool) bool {
+	pat := p.pattern
+	marker := strings.Index(pat, "**//")
+	if marker == -1 {
+		return false
+	}
+	prefix := pat[:marker]
+	suffix := p.suffix
+	rooted := false
+	if strings.HasPrefix(prefix, "/") {
+		rooted = true
+		prefix = prefix[1:]
+	}
+	if prefix == "" {
+		return false
+	}
+	if rooted {
+		if !strings.HasPrefix(pathname, prefix) {
+			return false
+		}
+		if len(pathname) > len(prefix) && pathname[len(prefix)] != '/' {
+			return false
+		}
+	} else if pathname != prefix && !strings.HasPrefix(pathname, prefix+"/") {
+		return false
+	}
+	if suffix == "" {
+		if pathname == prefix {
+			return isDir
+		}
+		return strings.HasPrefix(pathname, prefix+"/")
+	}
+	for len(suffix) > 0 && suffix[0] == '/' {
+		suffix = suffix[1:]
+	}
+	rem := ""
+	if pathname == prefix {
+		rem = ""
+	} else if strings.HasPrefix(pathname, prefix+"/") {
+		rem = pathname[len(prefix)+1:]
+	}
+	if rem == "" {
+		return false
+	}
+	if wildmatch(suffix, rem, WM_PATHNAME) == WM_MATCH {
+		return true
+	}
+	for i := 0; i < len(rem); i++ {
+		if rem[i] == '/' && i+1 < len(rem) {
+			if wildmatch(suffix, rem[i+1:], WM_PATHNAME) == WM_MATCH {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// matchRooted applies rooted pattern semantics (pattern begins with '/').
+func matchRooted(p pattern, pathname string, isDir bool) bool {
+	pattern := p.pattern
+	trimmed := pattern[1:]
+	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 && strings.HasSuffix(trimmed, "/") {
+		trimmed = strings.TrimSuffix(trimmed, "/")
+	}
+	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 {
+		if isDir && pathname == trimmed {
+			return true
+		}
+		return false
+	}
+	if strings.HasSuffix(trimmed, "/**") {
+		prefix := strings.TrimSuffix(trimmed, "/**")
+		if pathname == prefix && isDir {
+			return false
+		}
+	}
+	return matchPathname(pathname, trimmed, len(trimmed), p.flags)
+}
+
+// parsePattern converts a single .gitignore line into a compiled pattern or
+// returns nil if the line is empty / comment / becomes empty after trimming.
 func parsePattern(line string) *pattern {
 	original := line
 
@@ -248,39 +339,9 @@ func parsePattern(line string) *pattern {
 	return p
 }
 
-func collapseSlashes(s string) string {
-	if len(s) == 0 {
-		return s
-	}
-
-	var result strings.Builder
-	result.Grow(len(s))
-
-	i := 0
-	for i < len(s) {
-		if s[i] == '\\' && i+1 < len(s) {
-			// Preserve escape sequences
-			result.WriteByte(s[i])
-			i++
-			if i < len(s) {
-				result.WriteByte(s[i])
-				i++
-			}
-		} else if s[i] == '/' {
-			// Write one slash and skip consecutive ones
-			result.WriteByte('/')
-			i++
-			for i < len(s) && s[i] == '/' {
-				i++
-			}
-		} else {
-			result.WriteByte(s[i])
-			i++
-		}
-	}
-
-	return result.String()
-}
+// collapseSlashes retained for historical reference (tests rely on not
+// collapsing). Kept as comment for clarity.
+// func collapseSlashes(s string) string { ... }
 
 func trimTrailingSpaces(s string) string {
 	for len(s) > 0 && s[len(s)-1] == ' ' {
@@ -362,69 +423,8 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 		return false
 	}
 
-	// Special DOUBLESTAR_DIR pattern handling
 	if p.flags&PATTERN_FLAG_DOUBLESTAR_DIR != 0 {
-		pat := p.pattern
-		marker := strings.Index(pat, "**//")
-		if marker == -1 {
-			return false
-		}
-		prefix := pat[:marker]
-		suffix := p.suffix
-		rooted := false
-		if strings.HasPrefix(prefix, "/") {
-			rooted = true
-			prefix = prefix[1:]
-		}
-		if prefix == "" {
-			return false
-		}
-		if rooted {
-			if !strings.HasPrefix(pathname, prefix) {
-				return false
-			}
-			if len(pathname) > len(prefix) && pathname[len(prefix)] != '/' {
-				return false
-			}
-		} else {
-			if pathname != prefix && !strings.HasPrefix(pathname, prefix+"/") {
-				return false
-			}
-		}
-		// No suffix: directory itself (if dir) and everything under it
-		if suffix == "" {
-			if pathname == prefix {
-				return isDir
-			}
-			return strings.HasPrefix(pathname, prefix+"/")
-		}
-		// Normalise suffix
-		for len(suffix) > 0 && suffix[0] == '/' {
-			suffix = suffix[1:]
-		}
-		// Compute remainder after prefix/
-		rem := ""
-		if pathname == prefix {
-			rem = ""
-		} else if strings.HasPrefix(pathname, prefix+"/") {
-			rem = pathname[len(prefix)+1:]
-		}
-		if rem == "" {
-			return false
-		}
-		// Direct match of remainder
-		if wildmatch(suffix, rem, WM_PATHNAME) == WM_MATCH {
-			return true
-		}
-		// Allow ** to absorb leading components: test each boundary
-		for i := 0; i < len(rem); i++ {
-			if rem[i] == '/' && i+1 < len(rem) {
-				if wildmatch(suffix, rem[i+1:], WM_PATHNAME) == WM_MATCH {
-					return true
-				}
-			}
-		}
-		return false
+		return matchDoubleStarDir(p, pathname, isDir)
 	}
 
 	basename := path.Base(pathname)
@@ -436,30 +436,8 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 		return false
 	}
 
-	// Handle rooted patterns
 	if len(pattern) > 0 && pattern[0] == '/' {
-		// Root anchored: match only from beginning of pathname (no leading './')
-		trimmed := pattern[1:]
-		if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 && strings.HasSuffix(trimmed, "/") {
-			trimmed = strings.TrimSuffix(trimmed, "/")
-		}
-		if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 {
-			// Directory-only root pattern: exact directory path at root (can include slashes).
-			if isDir && pathname == trimmed {
-				return true
-			}
-			return false
-		}
-
-		// Pattern ending with '/**' should not match the directory entry itself (contents-only).
-		if strings.HasSuffix(trimmed, "/**") {
-			prefix := strings.TrimSuffix(trimmed, "/**")
-			if pathname == prefix && isDir {
-				return false
-			}
-		}
-
-		return matchPathname(pathname, trimmed, len(trimmed), p.flags)
+		return matchRooted(p, pathname, isDir)
 	}
 
 	// NODIR means match basename only
@@ -487,8 +465,6 @@ func matchBasename(basename, pattern string, nowildcardlen, patternlen, flags in
 
 // matchPathname matches full path with WM_PATHNAME wildmatch
 func matchPathname(pathname, pattern string, patternlen, flags int) bool {
-	// Heuristic handling for literal-prefix patterns followed by only **/ chains (optionally ending with ** or */*
-	// constructs) required by test corpus.
 	return wildmatch(pattern, pathname, WM_PATHNAME) == WM_MATCH
 }
 
@@ -504,10 +480,7 @@ func isLiteralPrefix(s string) bool {
 
 // wildmatch implements Git's wildmatch algorithm
 func wildmatch(pattern, text string, flags int) int {
-	// Convert to byte slices for byte-based matching
-	p := []byte(pattern)
-	t := []byte(text)
-	return dowild(p, t, 0, 0, flags)
+	return dowild([]byte(pattern), []byte(text), 0, 0, flags)
 }
 
 func dowild(p, t []byte, pi, ti, flags int) int {
