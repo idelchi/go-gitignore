@@ -1,3 +1,4 @@
+// Package gitignore provides pattern matching compatible with Git's .gitignore semantics.
 package gitignore
 
 import (
@@ -5,13 +6,13 @@ import (
 	"strings"
 )
 
-// Wildmatch flags from Git
+// Wildmatch flags from Git.
 const (
 	WM_CASEFOLD = 1 << iota
 	WM_PATHNAME
 )
 
-// Pattern flags from Git's dir.h
+// Pattern flags from Git's dir.h.
 const (
 	PATTERN_FLAG_NEGATIVE = 1 << iota
 	PATTERN_FLAG_MUSTBEDIR
@@ -20,7 +21,7 @@ const (
 	PATTERN_FLAG_DOUBLESTAR_DIR // custom: <literal>**// pattern semantics
 )
 
-// Internal wildmatch return values
+// Internal wildmatch return values.
 const (
 	WM_MATCH             = 0
 	WM_NOMATCH           = 1
@@ -36,7 +37,7 @@ type pattern struct {
 	base          string
 	baselen       int
 	flags         int
-	suffix       string
+	suffix        string
 }
 
 type GitIgnore struct {
@@ -104,7 +105,8 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	// Check if any parent is excluded
 	parentExcluded := len(excludedParents) > 0
 
-	// Apply patterns in order; later patterns override earlier (negations can rescue unless parent dir excluded by earlier rule that is still in effect)
+	// Apply patterns in order; later patterns override earlier (negations can rescue unless parent dir excluded by
+	// earlier rule that is still in effect)
 	for _, p := range g.patterns {
 		if matchesPattern(p, pathname, isDir) {
 			if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
@@ -171,11 +173,20 @@ func parsePattern(line string) *pattern {
 		if prefix != "" && isLiteralPrefix(prefix) {
 			suffix := line[pos+4:]
 			rooted := false
-			if strings.HasPrefix(prefix, "/") { rooted = true; prefix = prefix[1:] }
+			if strings.HasPrefix(prefix, "/") {
+				rooted = true
+				prefix = prefix[1:]
+			}
 			p.flags |= PATTERN_FLAG_DOUBLESTAR_DIR
-			if suffix == "" { p.flags |= PATTERN_FLAG_MUSTBEDIR }
+			if suffix == "" {
+				p.flags |= PATTERN_FLAG_MUSTBEDIR
+			}
 			// Canonical stored pattern: (optional leading /) + prefix + "**//"
-			if rooted { p.pattern = "/" + prefix + "**//" } else { p.pattern = prefix + "**//" }
+			if rooted {
+				p.pattern = "/" + prefix + "**//"
+			} else {
+				p.pattern = prefix + "**//"
+			}
 			p.base = prefix
 			p.baselen = len(prefix)
 			p.suffix = suffix
@@ -300,8 +311,44 @@ func isGlobSpecial(c byte) bool {
 	return c == '*' || c == '?' || c == '[' || c == '\\'
 }
 
-func noWildcard(s string) bool {
-	return simpleLength(s) == len(s)
+func noWildcard(s string) bool { return simpleLength(s) == len(s) }
+
+// disallowWildcardLeadingSingleComponent replicates a guard preventing wildcard-leading
+// slash-containing patterns from matching single-component paths unless they begin with "**/".
+// This mirrors Git behaviour needed for fuzzy tests without altering wildmatch core logic.
+func disallowWildcardLeadingSingleComponent(pattern, pathname string) bool {
+	if strings.Contains(pathname, "/") || len(pattern) == 0 || pattern[0] == '/' {
+		return false
+	}
+	inClass := false
+	hasSlashOutside := false
+	for i := 0; i < len(pattern); i++ {
+		c := pattern[i]
+		if c == '\\' && i+1 < len(pattern) {
+			i++
+			continue
+		}
+		if c == '[' {
+			inClass = true
+			continue
+		}
+		if c == ']' {
+			inClass = false
+			continue
+		}
+		if c == '/' && !inClass {
+			hasSlashOutside = true
+			break
+		}
+	}
+	if hasSlashOutside {
+		if pattern[0] == '*' || pattern[0] == '?' || pattern[0] == '[' {
+			if !strings.HasPrefix(pattern, "**/") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func matchesPattern(p pattern, pathname string, isDir bool) bool {
@@ -319,35 +366,62 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	if p.flags&PATTERN_FLAG_DOUBLESTAR_DIR != 0 {
 		pat := p.pattern
 		marker := strings.Index(pat, "**//")
-		if marker == -1 { return false }
+		if marker == -1 {
+			return false
+		}
 		prefix := pat[:marker]
 		suffix := p.suffix
 		rooted := false
-		if strings.HasPrefix(prefix, "/") { rooted = true; prefix = prefix[1:] }
-		if prefix == "" { return false }
+		if strings.HasPrefix(prefix, "/") {
+			rooted = true
+			prefix = prefix[1:]
+		}
+		if prefix == "" {
+			return false
+		}
 		if rooted {
-			if !strings.HasPrefix(pathname, prefix) { return false }
-			if len(pathname) > len(prefix) && pathname[len(prefix)] != '/' { return false }
+			if !strings.HasPrefix(pathname, prefix) {
+				return false
+			}
+			if len(pathname) > len(prefix) && pathname[len(prefix)] != '/' {
+				return false
+			}
 		} else {
-			if pathname != prefix && !strings.HasPrefix(pathname, prefix+"/") { return false }
+			if pathname != prefix && !strings.HasPrefix(pathname, prefix+"/") {
+				return false
+			}
 		}
 		// No suffix: directory itself (if dir) and everything under it
 		if suffix == "" {
-			if pathname == prefix { return isDir }
+			if pathname == prefix {
+				return isDir
+			}
 			return strings.HasPrefix(pathname, prefix+"/")
 		}
 		// Normalise suffix
-		for len(suffix) > 0 && suffix[0] == '/' { suffix = suffix[1:] }
+		for len(suffix) > 0 && suffix[0] == '/' {
+			suffix = suffix[1:]
+		}
 		// Compute remainder after prefix/
 		rem := ""
-		if pathname == prefix { rem = "" } else if strings.HasPrefix(pathname, prefix+"/") { rem = pathname[len(prefix)+1:] }
-		if rem == "" { return false }
+		if pathname == prefix {
+			rem = ""
+		} else if strings.HasPrefix(pathname, prefix+"/") {
+			rem = pathname[len(prefix)+1:]
+		}
+		if rem == "" {
+			return false
+		}
 		// Direct match of remainder
-		if wildmatch(suffix, rem, WM_PATHNAME) == WM_MATCH { return true }
+		if wildmatch(suffix, rem, WM_PATHNAME) == WM_MATCH {
+			return true
+		}
 		// Allow ** to absorb leading components: test each boundary
 		for i := 0; i < len(rem); i++ {
 			if rem[i] == '/' && i+1 < len(rem) {
-				if wildmatch(suffix, rem[i+1:], WM_PATHNAME) == WM_MATCH { return true }
+				if wildmatch(suffix, rem[i+1:], WM_PATHNAME) == WM_MATCH {
+					return true
+				}
 			}
 		}
 		return false
@@ -358,23 +432,8 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 
 	// (Removed experimental single-component slash pattern restriction.)
 
-	// Do not let wildcard-leading slash patterns (e.g. *0**/**, ?**/*, **0*****/*****) match single-component entries.
-	// Only consider slashes that occur outside character classes.
-	if !strings.Contains(pathname, "/") && len(pattern) > 0 && pattern[0] != '/' {
-		inClass := false
-		hasSlashOutside := false
-		for i := 0; i < len(pattern); i++ {
-			c := pattern[i]
-			if c == '\\' && i+1 < len(pattern) { i++; continue }
-			if c == '[' { inClass = true; continue }
-			if c == ']' { inClass = false; continue }
-			if c == '/' && !inClass { hasSlashOutside = true; break }
-		}
-		if hasSlashOutside {
-			if pattern[0] == '*' || pattern[0] == '?' || pattern[0] == '[' {
-				if !strings.HasPrefix(pattern, "**/") { return false }
-			}
-		}
+	if disallowWildcardLeadingSingleComponent(pattern, pathname) {
+		return false
 	}
 
 	// Handle rooted patterns
@@ -385,15 +444,19 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 			trimmed = strings.TrimSuffix(trimmed, "/")
 		}
 		if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 {
-			// Directory-only root pattern: match the exact directory path at root (can include slashes)
-			if isDir && pathname == trimmed { return true }
+			// Directory-only root pattern: exact directory path at root (can include slashes).
+			if isDir && pathname == trimmed {
+				return true
+			}
 			return false
 		}
 
-		// Pattern ending with '/**' should not match the directory entry itself (contents-only)
+		// Pattern ending with '/**' should not match the directory entry itself (contents-only).
 		if strings.HasSuffix(trimmed, "/**") {
 			prefix := strings.TrimSuffix(trimmed, "/**")
-			if pathname == prefix && isDir { return false }
+			if pathname == prefix && isDir {
+				return false
+			}
 		}
 
 		return matchPathname(pathname, trimmed, len(trimmed), p.flags)
@@ -406,13 +469,16 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 
 	// Pattern contains slash - match against full path
 	return matchPathname(pathname, pattern, p.patternlen, p.flags)
-
 }
 
 // matchBasename matches a single path component (no slash semantics except literals)
-func matchBasename(basename, pattern string, nowildcardlen, patternlen int, flags int) bool {
-	if patternlen == 0 { return basename == "" }
-	if nowildcardlen == patternlen { return basename == pattern }
+func matchBasename(basename, pattern string, nowildcardlen, patternlen, flags int) bool {
+	if patternlen == 0 {
+		return basename == ""
+	}
+	if nowildcardlen == patternlen {
+		return basename == pattern
+	}
 	if flags&PATTERN_FLAG_ENDSWITH != 0 && len(pattern) > 1 && pattern[0] == '*' {
 		return strings.HasSuffix(basename, pattern[1:])
 	}
@@ -420,8 +486,9 @@ func matchBasename(basename, pattern string, nowildcardlen, patternlen int, flag
 }
 
 // matchPathname matches full path with WM_PATHNAME wildmatch
-func matchPathname(pathname, pattern string, patternlen int, flags int) bool {
-	// Heuristic handling for literal-prefix patterns followed by only **/ chains (optionally ending with ** or */* constructs) required by test corpus.
+func matchPathname(pathname, pattern string, patternlen, flags int) bool {
+	// Heuristic handling for literal-prefix patterns followed by only **/ chains (optionally ending with ** or */*
+	// constructs) required by test corpus.
 	return wildmatch(pattern, pathname, WM_PATHNAME) == WM_MATCH
 }
 
@@ -493,7 +560,8 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 					starCount++
 				}
 
-				// Git special ** rule plus extension: treat **/ as special even if preceded by non-slash to accommodate a**/ forms required by tests
+				// Git special ** rule plus extension: treat **/ as special even if preceded by non-slash to accommodate
+				// a**/ forms required by tests
 				isSpecial := false
 				if flags&WM_PATHNAME != 0 {
 					if pi < len(p) && p[pi] == '/' { // **/ form
@@ -552,15 +620,22 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				}
 
 				consumeSlash := false
-				if p[pi] == '/' { consumeSlash = true; pi++ }
+				if p[pi] == '/' {
+					consumeSlash = true
+					pi++
+				}
 
 				// Try to match the rest of pattern; for recursive search, advance over directory boundaries only
 				if consumeSlash {
 					// '**/' form: allow matching at current level or any deeper level
-					if res := dowild(p, t, pi, ti, flags); res == WM_MATCH { return WM_MATCH }
+					if res := dowild(p, t, pi, ti, flags); res == WM_MATCH {
+						return WM_MATCH
+					}
 					for scan := ti; scan < len(t); scan++ {
 						if t[scan] == '/' {
-							if res := dowild(p, t, pi, scan+1, flags); res == WM_MATCH { return WM_MATCH }
+							if res := dowild(p, t, pi, scan+1, flags); res == WM_MATCH {
+								return WM_MATCH
+							}
 						}
 					}
 					return WM_NOMATCH
@@ -568,12 +643,15 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 
 				// Bare '**' (not followed by slash) - standard recursive: advance one char at a time
 				for scan := ti; scan <= len(t); scan++ {
-					if res := dowild(p, t, pi, scan, flags); res == WM_MATCH { return WM_MATCH }
+					if res := dowild(p, t, pi, scan, flags); res == WM_MATCH {
+						return WM_MATCH
+					}
 				}
 				return WM_NOMATCH
 			}
 
-			// Single * - match anything except / (if WM_PATHNAME). However, if pattern is of the form '*<lit>**/*' we must ensure at least one char before that literal so that '*0**/*' does not match '0'.
+			// Single *: match anything except '/'. If pattern is of the form '*<lit>**/*' we ensure at
+			// least one char before that literal so '*0**/*' does not match '0'.
 			matchSlash := flags&WM_PATHNAME == 0
 
 			if pi >= len(p) {
@@ -601,7 +679,8 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				continue
 			}
 
-			// Lookahead heuristic: if pattern requires additional segments via **/ after a literal, avoid empty match for '*'
+			// Lookahead heuristic: if pattern requires additional segments via **/ after a literal, avoid empty match
+			// for '*'
 			needNonEmpty := false
 			if pi < len(p) && p[pi] != '*' {
 				look := p[pi:]
@@ -609,15 +688,24 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 				litLen := 0
 				for litLen < len(look) {
 					c := look[litLen]
-					if c == '*' || c == '?' || c == '[' || c == '/' { break }
+					if c == '*' || c == '?' || c == '[' || c == '/' {
+						break
+					}
 					litLen++
 				}
 				if litLen > 0 && strings.HasPrefix(string(look[litLen:]), "**/") {
 					// Check if remainder after **/ can match empty (all '*')
 					rest := look[litLen+3:]
 					emptyOK := true
-					for i := 0; i < len(rest); i++ { if rest[i] != '*' { emptyOK = false; break } }
-					if emptyOK { needNonEmpty = true }
+					for i := 0; i < len(rest); i++ {
+						if rest[i] != '*' {
+							emptyOK = false
+							break
+						}
+					}
+					if emptyOK {
+						needNonEmpty = true
+					}
 				}
 			}
 			start := ti
