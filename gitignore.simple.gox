@@ -17,7 +17,6 @@ const (
 	PATTERN_FLAG_MUSTBEDIR
 	PATTERN_FLAG_NODIR
 	PATTERN_FLAG_ENDSWITH
-	PATTERN_FLAG_DOUBLESTAR_DIR // custom: <literal>**// pattern semantics
 )
 
 // Internal wildmatch return values
@@ -107,8 +106,8 @@ func (g *GitIgnore) Ignored(pathname string, isDir bool) bool {
 	for _, p := range g.patterns {
 		if matchesPattern(p, pathname, isDir) {
 			if p.flags&PATTERN_FLAG_NEGATIVE != 0 {
-				// Negation can't rescue root directory (".") per tests
-				if !parentExcluded && pathname != "." {
+				// Negation only works if parent not excluded
+				if !parentExcluded {
 					ignored = false
 				}
 			} else {
@@ -151,55 +150,8 @@ func parsePattern(line string) *pattern {
 		return nil
 	}
 
-	// NOTE: We purposefully DO NOT collapse multiple slashes here.
-	// The test corpus distinguishes between single and double slashes (e.g. '**//' vs '**/').
-	// Git itself collapses, but the extended fuzz tests assert different semantics.
-
-	// Special handling for <literal>**// patterns (no glob chars in the literal prefix)
-	// Examples: foo**//, abc**//, a**//
-	// Semantics required by tests:
-	//   - Matches the directory whose name is the literal prefix
-	//   - Matches anything underneath that directory
-	//   - Does NOT match the file with that name
-	//   - Does NOT perform partial (prefix) matches (cache**// != cached)
-	//   - If any wildcard appears in the prefix, the pattern should never match
-	// All other patterns containing "//" should never match anything (treated as inert)
-	if strings.HasSuffix(line, "**//") {
-		prefix := strings.TrimSuffix(line, "**//")
-		if prefix != "" && isLiteralPrefix(prefix) { // valid special pattern
-			rooted := false
-			if strings.HasPrefix(prefix, "/") {
-				rooted = true
-				prefix = strings.TrimPrefix(prefix, "/")
-			}
-			p.flags |= PATTERN_FLAG_DOUBLESTAR_DIR | PATTERN_FLAG_MUSTBEDIR
-			if rooted {
-				// Represent rooted by storing pattern with leading slash; base trimmed
-				p.pattern = "/" + prefix + "**//"
-			} else {
-				p.pattern = prefix + "**//"
-			}
-			p.base = prefix
-			p.baselen = len(prefix)
-			p.patternlen = len(p.pattern)
-			return p
-		}
-		// Wildcard in prefix -> mark inert (tests expect no match for patterns like *ab**//)
-		if prefix != "" && !isLiteralPrefix(prefix) {
-			p.pattern = line
-			p.patternlen = len(line)
-			p.baselen = -1
-			return p
-		}
-	}
-
-	// Inert double slash detection (outside character classes and not part of **// special)
-	if hasBareDoubleSlash(line) {
-		p.pattern = line
-		p.patternlen = len(line)
-		p.baselen = -1 // sentinel for inert
-		return p
-	}
+	// Collapse consecutive slashes (including //)
+	line = collapseSlashes(line)
 
 	// If pattern ends with slash, it's directory-only
 	hadTrailingSlash := false
@@ -308,42 +260,8 @@ func noWildcard(s string) bool {
 }
 
 func matchesPattern(p pattern, pathname string, isDir bool) bool {
-	// Inert pattern (contains double slash but not recognized special **// form)
-	if p.baselen == -1 && p.flags&PATTERN_FLAG_DOUBLESTAR_DIR == 0 {
-		return false
-	}
-
 	// Directory-only patterns
 	if p.flags&PATTERN_FLAG_MUSTBEDIR != 0 && !isDir {
-		return false
-	}
-
-	// Special DOUBLESTAR_DIR pattern handling
-	if p.flags&PATTERN_FLAG_DOUBLESTAR_DIR != 0 {
-		// Rooted variant indicated by stored pattern starting with '/'
-		if strings.HasPrefix(p.pattern, "/") {
-			// Only match from root (no leading directories in pathname)
-			if strings.Contains(pathname, "/") { // has subdirs -> only matches inside if prefix matches first segment
-				first, rest, _ := strings.Cut(pathname, "/")
-				if first != p.base {
-					return false
-				}
-				// If directory exactly root dir
-				if rest == "" {
-					return isDir
-				}
-				return true // inside rooted dir
-			}
-			// Single segment path
-			return pathname == p.base && isDir
-		}
-		// Non-rooted: Matches directory with exact name prefix and anything beneath
-		if pathname == p.base && isDir {
-			return true
-		}
-		if strings.HasPrefix(pathname, p.base+"/") { // anything inside
-			return true
-		}
 		return false
 	}
 
@@ -399,16 +317,6 @@ func matchPathname(pathname, pattern string, patternlen, flags int) bool {
 
 	// Use wildmatch with pathname flag
 	return wildmatch(pattern, pathname, WM_PATHNAME) == WM_MATCH
-}
-
-// isLiteralPrefix returns true if the string has no glob meta characters.
-func isLiteralPrefix(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if isGlobSpecial(s[i]) || s[i] == '?' || s[i] == '*' || s[i] == '[' || s[i] == ']' {
-			return false
-		}
-	}
-	return true
 }
 
 // wildmatch implements Git's wildmatch algorithm
@@ -685,33 +593,4 @@ func dowild(p, t []byte, pi, ti, flags int) int {
 		return WM_NOMATCH
 	}
 	return WM_MATCH
-}
-
-// hasBareDoubleSlash returns true if the pattern contains a raw "//" sequence
-// that is not part of a character class and not the terminal "**//" handled
-// specially. We scan while tracking whether we're inside a character class.
-func hasBareDoubleSlash(s string) bool {
-	inClass := false
-	for i := 0; i < len(s); i++ {
-		c := s[i]
-		if c == '\\' { // escape next char
-			i++
-			continue
-		}
-		if c == '[' {
-			inClass = true
-			continue
-		}
-		if c == ']' {
-			inClass = false
-			continue
-		}
-		if !inClass && c == '/' && i+1 < len(s) && s[i+1] == '/' {
-			// Allow if at end with preceding ** already handled? We only treat as bare if NOT ending with **//
-			if !(i >= 2 && strings.HasSuffix(s, "**//") && i == len(s)-2) {
-				return true
-			}
-		}
-	}
-	return false
 }

@@ -108,6 +108,10 @@ tasks:
   update:
     - task: git:update
 
-  fuzz: task docker -- go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=600s
-  check: task docker -- go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
-  ignore: task docker -- go test -run GitIgnored$ .
+  fuzz: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=600s
+  check: go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
+  ignore: go test -run GitIgnored$ .
+
+  docker:fuzz: task docker -- go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=600s
+  docker:check: task docker -- go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
+  docker:ignore: task docker -- go test -run GitIgnored$ .

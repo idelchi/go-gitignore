@@ -1,0 +1,364 @@
+--- FAIL: TestGitIgnored (0.00s)
+    --- FAIL: TestGitIgnored/fuzz (0.02s)
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#39 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#39/aa/x/0 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> aa/x/0
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: aa/x/0
+                      dir: false
+                      patterns: [aa**/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#39/aa/x/0/ (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> aa/x/0/
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: aa/x/0
+                      dir: true
+                      patterns: [aa**/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#18 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#18/0/ (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 0/
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0***/** ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#18/00 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 00
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0***/** ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#05 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#05/00 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 00
+                    File: tests\fuzz.yml
+                    Case: Should not match the expression **/0
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [**/0 ]
+                      expected: not ignored
+                      got: ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#10 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#10/0 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 0
+                    File: tests\fuzz.yml
+                    Case: Should match the expression 0**/*
+                    Ignored() check failed:
+                      path: 0
+                      dir: false
+                      patterns: [0**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#19 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#19/0/ (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 0/
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0****/*** ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#19/00 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 00
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0****/*** ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#20 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#20/0/ (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 0/
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0*****/***** ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#20/00 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 00
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0*****/***** ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#17 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#17/00 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 00
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0**/** ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#17/0/ (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> 0/
+                    File: tests\fuzz.yml
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0**/** ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#04 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz/fuzzy_test_cases#04/a0/1 (0.00s)
+                gitignore_test.go:114: fuzz -> fuzzy test cases -> a0/1
+                    File: tests\fuzz.yml
+                    Case: Should match the expression a**/0
+                    Ignored() check failed:
+                      path: a0/1
+                      dir: false
+                      patterns: [a**/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+    --- FAIL: TestGitIgnored/fuzz-extended (0.01s)
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#36 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#36/00 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 00
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**/0 should match file 00
+                    Case: Should match 0**/**/0 pattern (zero-width matches)
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0**/**/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#35 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#35/0/x/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/x/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**//**/x should cause 0/x/0 to be ignored via contents-only semantics
+                    Case: File '0/x/0' should be ignored by 0**//**/x (x directory ignored => parent exclusion)
+                    Ignored() check failed:
+                      path: 0/x/0
+                      dir: false
+                      patterns: [0**//**/x ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#20 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#20/0/x/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/x/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**//x should match path 0/x/0
+                    Case: Should match 0**/**//x pattern
+                    Ignored() check failed:
+                      path: 0/x/0
+                      dir: false
+                      patterns: [0**/**//x ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#34 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#34/0/x/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/x/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**//x/0 should match file 0/x/0 (fuzz discovered)
+                    Case: File '0/x/0' should be ignored by 0**//x/0
+                    Ignored() check failed:
+                      path: 0/x/0
+                      dir: false
+                      patterns: [0**//x/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#14 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#14/0/ (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**// should ignore directory 0
+                    Case: Should ignore 0**/**// pattern
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0**/**// ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#28 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#28/0/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**//0 should match path 0/0
+                    Case: Should match 0**//0 pattern
+                    Ignored() check failed:
+                      path: 0/0
+                      dir: false
+                      patterns: [0**//0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#06 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#06/0/ (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0***// should match 0 directory
+                    Case: Should match 0***// pattern
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0***// ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#32 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#32/0/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**//0 should match file 0/0
+                    Case: Should match 0**/**//0 pattern
+                    Ignored() check failed:
+                      path: 0/0
+                      dir: false
+                      patterns: [0**/**//0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#02 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#02/a1/x/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> a1/x/0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern a**/0 should match a1/x/0
+                    Case: Should match a**/0 pattern
+                    Ignored() check failed:
+                      path: a1/x/0
+                      dir: false
+                      patterns: [a**/0 ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#09 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#09/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**/* should match 0
+                    Case: Should match 0**/**/* pattern
+                    Ignored() check failed:
+                      path: 0
+                      dir: false
+                      patterns: [0**/**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#13 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#13/0/ (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0/
+                    File: tests\fuzz-extended.yml
+                    Group: Pattern 0**/**/ should match directory 0
+                    Case: Should match 0**/**/ pattern
+                    Ignored() check failed:
+                      path: 0
+                      dir: true
+                      patterns: [0**/**/ ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#10 (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#10/01 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 01
+                    File: tests\fuzz-extended.yml
+                    Group: Testing what 0**/**/* matches
+                    Case: Should 0**/**/* match file 01?
+                    Ignored() check failed:
+                      path: 01
+                      dir: false
+                      patterns: [0**/**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#10/00 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 00
+                    File: tests\fuzz-extended.yml
+                    Group: Testing what 0**/**/* matches
+                    Case: Should 0**/**/* match file 00?
+                    Ignored() check failed:
+                      path: 00
+                      dir: false
+                      patterns: [0**/**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#10/0 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0
+                    File: tests\fuzz-extended.yml
+                    Group: Testing what 0**/**/* matches
+                    Case: Should 0**/**/* match file 0?
+                    Ignored() check failed:
+                      path: 0
+                      dir: false
+                      patterns: [0**/**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz-extended/fuzzy_test_cases#10/0abc (0.00s)
+                gitignore_test.go:114: fuzz-extended -> fuzzy test cases -> 0abc
+                    File: tests\fuzz-extended.yml
+                    Group: Testing what 0**/**/* matches
+                    Case: Should 0**/**/* match file 0abc?
+                    Ignored() check failed:
+                      path: 0abc
+                      dir: false
+                      patterns: [0**/**/* ]
+                      expected: ignored
+                      got: not ignored
+                    
+        --- FAIL: TestGitIgnored/fuzz-extended/test_a**/00_pattern_specifically (0.00s)
+            --- FAIL: TestGitIgnored/fuzz-extended/test_a**/00_pattern_specifically/a00 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> test a**/00 pattern specifically -> a00
+                    File: tests\fuzz-extended.yml
+                    Group: Understanding a**/00 pattern behavior
+                    Case: Should match literal a00
+                    Ignored() check failed:
+                      path: a00
+                      dir: false
+                      patterns: [a**/00 ]
+                      expected: ignored
+                      got: not ignored
+                    
+            --- FAIL: TestGitIgnored/fuzz-extended/test_a**/00_pattern_specifically/a/b/00 (0.00s)
+                gitignore_test.go:114: fuzz-extended -> test a**/00 pattern specifically -> a/b/00
+                    File: tests\fuzz-extended.yml
+                    Group: Understanding a**/00 pattern behavior
+                    Case: Should match a/b/00 (multi level)
+                    Ignored() check failed:
+                      path: a/b/00
+                      dir: false
+                      patterns: [a**/00 ]
+                      expected: ignored
+                      got: not ignored
+                    
+FAIL
+FAIL	github.com/idelchi/go-gitignore	0.313s
+FAIL
