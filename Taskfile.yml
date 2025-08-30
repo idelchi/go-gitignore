@@ -38,8 +38,8 @@ tasks:
         - `task docker` to launch the container and enter its shell
         - `task docker -- task <task> -f` to run a task/command inside the container
     cmds:
-      - docker rm -f devenv > /dev/null 2>&1 || true
-      - docker compose -f {{.DEVENV}}/compose.yaml build --build-arg CACHEBUST=$(date +%s) devenv
+      # - docker rm -f devenv > /dev/null 2>&1 || true
+      # - docker compose -f {{.DEVENV}}/compose.yaml build --build-arg CACHEBUST=$(date +%s) devenv
       - docker compose -f {{.DEVENV}}/compose.yaml run --rm --remove-orphans devenv {{.CLI_ARGS}}
     interactive: true
 
@@ -108,6 +108,6 @@ tasks:
   update:
     - task: git:update
 
-  fuzz: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=300s
-  check: go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
-  ignore: go test -run GitIgnored$ .
+  fuzz: task docker -- go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=600s
+  check: task docker -- go test -run ^TestGitCheckIgnore$ . -f fuzz-extended
+  ignore: task docker -- go test -run GitIgnored$ .
