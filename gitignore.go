@@ -12,9 +12,12 @@ const (
 	WM_PATHNAME
 )
 
-// Pattern flags from Git's dir.h.
+// patternFlag is a bitmask describing special handling for a pattern line.
+type patternFlag uint16
+
+// Pattern flags from Git's dir.h plus local extension.
 const (
-	PATTERN_FLAG_NEGATIVE = 1 << iota
+	PATTERN_FLAG_NEGATIVE patternFlag = 1 << iota
 	PATTERN_FLAG_MUSTBEDIR
 	PATTERN_FLAG_NODIR
 	PATTERN_FLAG_ENDSWITH
@@ -30,14 +33,14 @@ const (
 )
 
 type pattern struct {
-	original      string
-	pattern       string
-	patternlen    int
-	nowildcardlen int
-	base          string
-	baselen       int
-	flags         int
-	suffix        string
+	original      string     // original pattern text (for debugging / reporting)
+	pattern       string     // normalized pattern used for matching
+	patternlen    int        // length of pattern
+	nowildcardlen int        // prefix length up to first wildcard
+	base          string     // base directory (for DOUBLESTAR_DIR optimization)
+	baselen       int        // length of base
+	flags         patternFlag// bit flags (PATTERN_FLAG_*)
+	suffix        string     // suffix after **// (DOUBLESTAR_DIR)
 }
 
 type GitIgnore struct {
@@ -213,130 +216,68 @@ func matchRooted(p pattern, pathname string, isDir bool) bool {
 			return false
 		}
 	}
-	return matchPathname(pathname, trimmed, len(trimmed), p.flags)
+	return matchPathname(pathname, trimmed)
 }
 
 // parsePattern converts a single .gitignore line into a compiled pattern or
 // returns nil if the line is empty / comment / becomes empty after trimming.
 func parsePattern(line string) *pattern {
-	original := line
-
-	// Skip empty lines and comments (unless escaped)
-	if line == "" || (strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "\\#")) {
-		return nil
-	}
-
-	p := &pattern{
-		original: original,
-	}
-
-	// Handle escaped # and !
-	if strings.HasPrefix(line, "\\#") || strings.HasPrefix(line, "\\!") {
+	orig := line
+	if line == "" || (strings.HasPrefix(line, "#") && !strings.HasPrefix(line, "\\#")) { return nil }
+	p := &pattern{ original: orig }
+	switch {
+	case strings.HasPrefix(line, "\\#"), strings.HasPrefix(line, "\\!"):
 		line = line[1:]
-	} else if strings.HasPrefix(line, "!") {
+	case strings.HasPrefix(line, "!"):
 		p.flags |= PATTERN_FLAG_NEGATIVE
 		line = line[1:]
 	}
-
-	// Trim trailing spaces unless escaped
 	line = trimTrailingSpaces(line)
-	if line == "" {
-		return nil
-	}
-
-	// NOTE: We purposefully DO NOT collapse multiple slashes here.
-	// The test corpus distinguishes between single and double slashes (e.g. '**//' vs '**/').
-	// Git itself collapses, but the extended fuzz tests assert different semantics.
-
-	// Detect patterns of the form <literal>(**/)* **// <suffix?> and normalise to <literal>**// + suffix
-	if pos := strings.Index(line, "**//"); pos >= 0 {
-		// Back up to include any additional preceding '*' that are part of the same contiguous star run
-		starRunStart := pos
-		for starRunStart-1 >= 0 && line[starRunStart-1] == '*' {
-			starRunStart--
-		}
-		// Determine start of repeated "**/" chain (e.g. 0**/**/**//) which should collapse to a single **// marker
-		chainStart := starRunStart
-		for chainStart-3 >= 0 && line[chainStart-3:chainStart] == "**/" {
-			chainStart -= 3
-		}
-		prefix := line[:chainStart]
-		if prefix != "" && isLiteralPrefix(prefix) {
-			suffix := line[pos+4:]
-			rooted := false
-			if strings.HasPrefix(prefix, "/") {
-				rooted = true
-				prefix = prefix[1:]
-			}
-			p.flags |= PATTERN_FLAG_DOUBLESTAR_DIR
-			if suffix == "" {
-				p.flags |= PATTERN_FLAG_MUSTBEDIR
-			}
-			// Canonical stored pattern: (optional leading /) + prefix + "**//"
-			if rooted {
-				p.pattern = "/" + prefix + "**//"
-			} else {
-				p.pattern = prefix + "**//"
-			}
-			p.base = prefix
-			p.baselen = len(prefix)
-			p.suffix = suffix
-			p.patternlen = len(p.pattern)
-			return p
-		}
-		// wildcard in prefix makes it inert
-		if prefix != "" && !isLiteralPrefix(prefix) {
-			p.pattern = line
-			p.patternlen = len(line)
-			p.baselen = -1
-			return p
-		}
-	}
-	// Any other raw double slash -> inert
-	if hasBareDoubleSlash(line) {
-		p.pattern = line
-		p.patternlen = len(line)
-		p.baselen = -1
+	if line == "" { return nil }
+	if handled := compileDoubleStarDir(p, line); handled { return p }
+	if hasBareDoubleSlash(line) { // inert pattern
+		p.pattern, p.patternlen, p.baselen = line, len(line), -1
 		return p
 	}
-
-	// If pattern ends with slash, it's directory-only
-	hadTrailingSlash := false
-	for len(line) > 0 && line[len(line)-1] == '/' {
-		hadTrailingSlash = true
-		line = line[:len(line)-1]
-	}
-	if hadTrailingSlash {
+	// directory-only suffix slashes
+	if strings.HasSuffix(line, "/") {
+		for strings.HasSuffix(line, "/") { line = line[:len(line)-1] }
 		p.flags |= PATTERN_FLAG_MUSTBEDIR
 	}
-
-	// Check if pattern contains no directory separator
-	hasSlash := false
-	for i := 0; i < len(line); i++ {
-		if line[i] == '/' {
-			hasSlash = true
-			break
-		}
-	}
-	if !hasSlash {
-		p.flags |= PATTERN_FLAG_NODIR
-	}
-
-	// Find non-wildcard prefix length
+	if !strings.Contains(line, "/") { p.flags |= PATTERN_FLAG_NODIR }
 	p.nowildcardlen = simpleLength(line)
-	if p.nowildcardlen > len(line) {
-		p.nowildcardlen = len(line)
-	}
-
-	// Check for ENDSWITH optimization
-	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) {
-		p.flags |= PATTERN_FLAG_ENDSWITH
-	}
-
+	if p.nowildcardlen > len(line) { p.nowildcardlen = len(line) }
+	if strings.HasPrefix(line, "*") && noWildcard(line[1:]) { p.flags |= PATTERN_FLAG_ENDSWITH }
 	p.pattern = line
 	p.patternlen = len(line)
-
 	return p
+}
+
+// compileDoubleStarDir detects <literal>(**/)* **//<suffix?> forms and populates pattern accordingly.
+// Returns true if the pattern was consumed (either canonicalized OR marked inert), false otherwise.
+func compileDoubleStarDir(p *pattern, line string) bool {
+	pos := strings.Index(line, "**//")
+	if pos < 0 { return false }
+	starRunStart := pos
+	for starRunStart > 0 && line[starRunStart-1] == '*' { starRunStart-- }
+	chainStart := starRunStart
+	for chainStart >= 3 && line[chainStart-3:chainStart] == "**/" { chainStart -= 3 }
+	prefix := line[:chainStart]
+	if prefix != "" && isLiteralPrefix(prefix) {
+		suffix := line[pos+4:]
+		rooted := strings.HasPrefix(prefix, "/")
+		if rooted { prefix = prefix[1:] }
+		p.flags |= PATTERN_FLAG_DOUBLESTAR_DIR
+		if suffix == "" { p.flags |= PATTERN_FLAG_MUSTBEDIR }
+		if rooted { p.pattern = "/" + prefix + "**//" } else { p.pattern = prefix + "**//" }
+		p.base, p.baselen, p.suffix, p.patternlen = prefix, len(prefix), suffix, len(p.pattern)
+		return true
+	}
+	if prefix != "" && !isLiteralPrefix(prefix) { // wildcard in prefix -> inert
+		p.pattern, p.patternlen, p.baselen = line, len(line), -1
+		return true
+	}
+	return false
 }
 
 // collapseSlashes retained for historical reference (tests rely on not
@@ -446,25 +387,25 @@ func matchesPattern(p pattern, pathname string, isDir bool) bool {
 	}
 
 	// Pattern contains slash - match against full path
-	return matchPathname(pathname, pattern, p.patternlen, p.flags)
+	return matchPathname(pathname, pattern)
 }
 
 // matchBasename matches a single path component (no slash semantics except literals)
-func matchBasename(basename, pattern string, nowildcardlen, patternlen, flags int) bool {
+func matchBasename(basename, pattern string, nowildcardlen, patternlen int, pflags patternFlag) bool {
 	if patternlen == 0 {
 		return basename == ""
 	}
 	if nowildcardlen == patternlen {
 		return basename == pattern
 	}
-	if flags&PATTERN_FLAG_ENDSWITH != 0 && len(pattern) > 1 && pattern[0] == '*' {
+	if pflags&PATTERN_FLAG_ENDSWITH != 0 && len(pattern) > 1 && pattern[0] == '*' {
 		return strings.HasSuffix(basename, pattern[1:])
 	}
 	return wildmatch(pattern, basename, 0) == WM_MATCH
 }
 
 // matchPathname matches full path with WM_PATHNAME wildmatch
-func matchPathname(pathname, pattern string, patternlen, flags int) bool {
+func matchPathname(pathname, pattern string) bool {
 	return wildmatch(pattern, pathname, WM_PATHNAME) == WM_MATCH
 }
 
@@ -479,8 +420,8 @@ func isLiteralPrefix(s string) bool {
 }
 
 // wildmatch implements Git's wildmatch algorithm
-func wildmatch(pattern, text string, flags int) int {
-	return dowild([]byte(pattern), []byte(text), 0, 0, flags)
+func wildmatch(pattern, text string, wmFlags int) int {
+	return dowild([]byte(pattern), []byte(text), 0, 0, wmFlags)
 }
 
 func dowild(p, t []byte, pi, ti, flags int) int {
