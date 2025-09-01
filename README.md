@@ -6,9 +6,10 @@
 [![Build Status](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)](https://github.com/idelchi/go-gitignore/actions/workflows/github-actions.yml/badge.svg)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Git-compatible `.gitignore` pattern matching for Go.
+`.gitignore` pattern matching for Go.
 
-Tested against [a large number of cases](./tests) validated with `git check-ignore` to ensure behavior matches Git exactly.
+Translated from the original `c` code, and validated against [a large number of cases](./tests), including fuzzy testing,
+all cross-checked with `git check-ignore` to ensure behavior matches Git.
 
 ## Installation
 
@@ -38,10 +39,8 @@ func main() {
 }
 ```
 
+Use `.Match(...)` to retrieve both ignore status and the pattern that matched.
+
 ## Limitations
 
-Expects relative paths for both gitignore patterns and input paths. Absolute paths are treated as non-ignored.
-
-## Contributing
-
-Contributors are encouraged to add more test cases to prevent over-fitting in the algorithm.
+- Expects relative input paths. Absolute paths are treated as non-ignored, regardless of if they resolve to the current workspace.

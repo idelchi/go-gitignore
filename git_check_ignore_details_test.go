@@ -9,9 +9,7 @@ import (
 )
 
 // TestGitCheckIgnoreDetails validates YAML test specifications against actual Git check-ignore behavior,
-// focusing only on the output of git check-ignore -v
-//
-//nolint:gocognit	// Long and complex setup is warranted.
+// focusing only on the output of git check-ignore -v.
 func TestGitCheckIgnoreDetails(t *testing.T) {
 	t.Parallel()
 

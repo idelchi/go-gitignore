@@ -1,20 +1,3 @@
-// Package gitignore_test provides testing for the gitignore package.
-//
-// This package contains YAML-driven tests that verify Git-compatible
-// gitignore pattern matching behavior across a range of edge cases and scenarios.
-// It additionally validates the YAML tests against Git's actual check-ignore command.
-//
-// Test Structure:
-//   - YAML test files in tests/ directory define test cases
-//   - Each YAML file contains multiple test groups
-//   - Each test group contains multiple test cases
-//   - Command-line filtering allows running specific test files
-//
-// Usage:
-//
-//	go test                           # Run all tests
-//	go test -f basic,directories      # Run specific test files
-//	go test -v                        # Verbose output with hierarchical errors
 package gitignore_test
 
 import (
@@ -26,12 +9,12 @@ import (
 )
 
 // TestGitIgnored is the main test function that loads and executes all YAML-based tests.
-func TestGitIgnored(t *testing.T) {
+func TestGitDetails(t *testing.T) {
 	t.Parallel()
 
 	filter := ParseFilter(*testFilter)
 
-	dir := "./tests/**/*.{yml,yaml}"
+	dir := "./tests/details/**/*.{yml,yaml}"
 
 	files, err := Files(dir, filter)
 	if err != nil {
@@ -73,6 +56,10 @@ func TestGitIgnored(t *testing.T) {
 
 					// Process each individual test case
 					for _, tc := range spec.Cases {
+						if tc.Details == nil {
+							t.Skip("no details expected, skipping")
+						}
+
 						// Format test name to clearly indicate directories
 						testName := tc.Path
 						if tc.Dir {
@@ -84,8 +71,8 @@ func TestGitIgnored(t *testing.T) {
 							t.Parallel()
 
 							// Test the actual gitignore logic
-							got := g.Ignored(tc.Path, tc.Dir)
-							if got != tc.Ignored {
+							got := g.Match(tc.Path, tc.Dir)
+							if got.Pattern != *tc.Details {
 								// Create detailed error message with hierarchical context
 								errorMsg := fmt.Sprintf("%s -> %s -> %s\n", base, spec.Name, testName)
 
@@ -105,8 +92,8 @@ func TestGitIgnored(t *testing.T) {
 									tc.Path,
 									tc.Dir,
 									strings.Split(spec.Gitignore, "\n"),
-									boolToIgnored(tc.Ignored),
-									boolToIgnored(got),
+									*tc.Details,
+									got.Pattern,
 								)
 
 								t.Error(errorMsg)

@@ -17,18 +17,24 @@ linters:
     - err113
     # Most errors don't need additional wrapping
     - wrapcheck
+    # The package is mostly a direct port from c
+    - cyclop
+    - funlen
+    - gocognit
+    - gocyclo
+    - maintidx
+    - nestif
+    - varnamelen
 
   settings:
     wsl_v5:
       allow-first-in-block: false
       allow-whole-block: false
-      # branch-max-lines: 4
-      # case-max-lines: 2
       default: all
 
     cyclop:
       max-complexity: 30
-      package-average: 10
+      package-average: 15
 
     errcheck:
       check-type-assertions: true

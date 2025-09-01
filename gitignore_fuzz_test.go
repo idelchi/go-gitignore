@@ -10,6 +10,57 @@ import (
 	gitignore "github.com/idelchi/go-gitignore"
 )
 
+// vocab is a small set of interesting .gitignore lines to sample from.
+//
+//nolint:gochecknoglobals	// global for central editing
+var vocab = []string{
+	"",          // blank
+	"# comment", // ignored by parser
+	"*.log",
+	"!*.log",
+	"build/",
+	"/build/",
+	"/*",
+	"*",
+	"**/",
+	"**/*.tmp",
+	"*/cache/",
+	"**/node_modules/**",
+	"!**/node_modules/**/",
+	"a/**/b/",
+	"[abc]/*.go",
+	"[!abc]/*.go",
+	"\\#literal",     // escaped comment
+	"\\!literalBang", // escaped negation
+	"name\\ \\ ",     // trailing space kept
+	"data/**",
+	"!data/**/",
+	"!data/**/*.txt",
+
+	// --- Whitespace cases ---
+	"   *.tmp",            // leading spaces
+	"\t*.bak",             // leading tab
+	"dir\\ with\\ space/", // escaped embedded space
+	"file\\ name.txt",     // escaped embedded space
+	"unescaped space/",    // unescaped space
+	"trailingspace\\ ",    // escaped trailing space
+
+	// --- Extra globstar forms ---
+	"/**/*.tmp",
+	"**/*",
+	"**/.cache/**",
+	"a/**",
+	"**/a",
+	"a/**/**/b",
+
+	// --- Dotfiles ---
+	".*",
+	"!/.env",
+	"**/.env",
+	".dockerignore",
+	"**/.gitkeep",
+}
+
 // FuzzGitIgnoreParity fuzzes random .gitignore contents + paths,
 // uses `git check-ignore` as the oracle, and asserts our matcher agrees.
 //
@@ -26,6 +77,21 @@ func FuzzGitIgnoreParity(f *testing.F) {
 	seed("a/**/b/\n!a/**/b/c.txt\n", "a/x/y/b/c.txt", false)
 	seed("*.log\n", "app.log", false)
 	seed("git/\n", "git/foo", true)
+
+	// Globstar variants
+	seed("/**/*.tmp\n", "a/b/c.tmp", false)
+	seed("a/**\n!a/keep\n", "a/keep", false)
+	seed("**/.cache/**\n!**/.cache/keep/**\n", "x/.cache/keep/file", false)
+
+	// Negation depth games
+	seed("dir/**\n!dir/**/keep/\ndir/**/keep/**\n!dir/**/keep/foo.txt\n", "dir/a/keep/foo.txt", false)
+	seed("dir/**\n!dir/**/keep/\n", "dir/x/keep/subdir/", true)
+	seed("src/**\n!src/**/cfg/\nsrc/**/cfg/**\n!src/**/cfg/ok.yaml\n", "src/a/b/cfg/ok.yaml", false)
+
+	// Dotfiles
+	seed(".*\n!/.gitignore\n", ".env", false)
+	seed("**/.env\n", "a/b/.env", false)
+	seed(".dockerignore\n", ".dockerignore", false)
 
 	f.Fuzz(func(t *testing.T, rawGitignore, rawPath string, isDir bool) {
 		gi := sanitizeGitignore(rawGitignore)
@@ -84,60 +150,58 @@ func sanitizeGitignore(s string) string {
 
 	const maxLines = 32
 
-	vocab := []string{
-		"",          // blank
-		"# comment", // will be ignored by parser (expected)
-		"*.log",
-		"!*.log",
-		"build/",
-		"/build/",
-		"/*",
-		"*",
-		"**/",
-		"**/*.tmp",
-		"*/cache/",
-		"**/node_modules/**",
-		"!**/node_modules/**/",
-		"a/**/b/",
-		"[abc]/*.go",
-		"[!abc]/*.go",
-		"\\#literal",     // escaped comment
-		"\\!literalBang", // escaped negation
-		"name\\ \\ ",     // trailing space kept
-		"data/**",
-		"!data/**/",
-		"!data/**/*.txt",
-	}
-
 	var lines []string
 
 	b := []byte(s)
-	if len(b) == 0 { //nolint:nestif	// Function is complex by design.
-		lines = append(lines, vocab[0])
-	} else {
-		for i := 0; i < len(b) && len(lines) < maxLines; i++ {
-			lines = append(lines, vocab[int(b[i])%len(vocab)])
-			// Occasionally emit a literal-ish line built from raw input (trimmed).
-			if b[i]&0x7 == 0 && len(lines) < maxLines {
-				lit := compactToPrintable(s)
-				if lit != "" {
-					// Keep it short to avoid runaway patterns.
-					if len(lit) > 40 {
-						lit = lit[:40]
-					}
 
-					lines = append(lines, lit)
-				}
-			}
+	decorateWhitespace := func(line string, sel byte) string {
+		switch sel % 5 {
+		case 1:
+			return "   " + line
+		case 2:
+			return "\t" + line
+		case 3:
+			return line + "\\ " // escaped trailing space
+		case 4:
+			return line + "  " // unescaped trailing space
+		default:
+			return line
 		}
 	}
 
-	// Limit total size to keep git/doublestar happy.
+	for i := 0; i < len(b) && len(lines) < maxLines; i++ {
+		base := vocab[int(b[i])%len(vocab)]
+
+		lines = append(lines, decorateWhitespace(base, b[i]>>3))
+
+		// Occasionally emit literal-ish line
+		if b[i]&0x7 == 0 && len(lines) < maxLines {
+			lit := compactToPrintable(s)
+			if lit != "" {
+				if len(lit) > 40 {
+					lit = lit[:40]
+				}
+
+				lines = append(lines, lit)
+			}
+		}
+
+		// Occasionally inject a negation chain (3–4 lines)
+		if b[i]&0x1f == 0x1f && len(lines)+4 <= maxLines {
+			lines = append(lines,
+				"X/**",
+				"!X/**/keep/",
+				"X/**/keep/**",
+				"!X/**/keep/file.txt",
+			)
+		}
+	}
+
 	joined := strings.Join(lines, "\n")
 	if len(joined) > 4096 {
 		joined = joined[:4096]
 	}
-	// Normalize Windows newlines just in case.
+
 	return strings.ReplaceAll(joined, "\r\n", "\n")
 }
 

@@ -164,6 +164,16 @@
       ignored: true
       details: "*"
 
+- name: bang-dot cannot rescue root
+  gitignore: |
+    **
+    !.
+  cases:
+    - path: "."
+      dir: true
+      ignored: true
+      details: "**"
+
 - name: dot-slash normalization rescue
   gitignore: |
     *

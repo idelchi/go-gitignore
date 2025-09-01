@@ -1,0 +1,536 @@
+- name: fuzzy test cases
+  description: Character class range reversal quirk [1-0]? should ignore directory 10 (range reversed acts like literal?)
+  gitignore: |
+    [1-0]?
+  cases:
+    - path: "10"
+      dir: true
+      description: Directory '10' should be ignored by [1-0]? per git quirk
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern a**/00 with complex gitignore rules
+  gitignore: |
+    a**/00
+  cases:
+    - path: "a/b/file.txt"
+      dir: true
+      description: Should not be ignored by a**/00 pattern
+      ignored: false
+
+- name: test a**/00 pattern specifically
+  description: Understanding a**/00 pattern behavior
+  gitignore: |
+    a**/00
+  cases:
+    - path: "a00"
+      description: Should match literal a00
+      ignored: true
+    - path: "a/00"
+      description: Should match a/00 (single level)
+      ignored: true
+    - path: "a/b/00"
+      description: Should match a/b/00 (multi level)
+      ignored: true
+    - path: "a/b/file.txt"
+      dir: true
+      description: Should NOT match directory a/b/file.txt
+      ignored: false
+    - path: "a/b"
+      dir: true
+      description: Should NOT match directory a/b
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern a**/0 should match a1/x/0
+  gitignore: |
+    a**/0
+  cases:
+    - path: "a1/x/0"
+      description: Should match a**/0 pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern a** should match a0 directory
+  gitignore: |
+    a**
+  cases:
+    - path: "a0"
+      dir: true
+      description: Should match a** pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Testing what a** should match
+  gitignore: |
+    a**
+  cases:
+    - path: "a"
+      description: Should a** match file 'a'?
+      ignored: true
+    - path: "a"
+      dir: true
+      description: Should a** match directory 'a'?
+      ignored: true
+    - path: "a0"
+      description: Should match file a0
+      ignored: true
+    - path: "a0"
+      dir: true
+      description: Should match directory a0
+      ignored: true
+    - path: "ab"
+      description: Should match file ab
+      ignored: true
+    - path: "ab"
+      dir: true
+      description: Should match directory ab
+      ignored: true
+    - path: "a/file"
+      description: Should match file inside a/
+      ignored: true
+    - path: "a/dir"
+      dir: true
+      description: Should match directory inside a/
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0***// should match 0 directory
+  gitignore: |
+    0***/
+  cases:
+    - path: "0"
+      dir: true
+      description: Should match 0***/ pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0***// should match 0 directory
+  gitignore: |
+    0***//
+  cases:
+    - path: "0"
+      dir: true
+      description: Should match 0***// pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern *?/0 should not match 0/x/0
+  gitignore: |
+    *?/0
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: Should NOT match *?/0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0/** should ignore directory 0/0
+  gitignore: |
+    0/**
+  cases:
+    - path: "0/0"
+      dir: true
+      description: 0/** should match nested directory 0/0
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/* should match 0
+  gitignore: |
+    0**/**/*
+  cases:
+    - path: "0"
+      dir: false
+      description: Should match 0**/**/* pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Testing what 0**/**/* matches
+  gitignore: |
+    0**/**/*
+  cases:
+    - path: "0"
+      description: Should 0**/**/* match file 0?
+      ignored: true
+    - path: "00"
+      description: Should 0**/**/* match file 00?
+      ignored: true
+    - path: "01"
+      description: Should 0**/**/* match file 01?
+      ignored: true
+    - path: "0abc"
+      description: Should 0**/**/* match file 0abc?
+      ignored: true
+    - path: "0/file"
+      description: Should 0**/**/* match 0/file?
+      ignored: true
+    - path: "0/x/file"
+      description: Should 0**/**/* match 0/x/file?
+      ignored: true
+    - path: "notmatch"
+      description: Should 0**/**/* match notmatch?
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern ?\* should not match 0
+  gitignore: |
+    ?\*
+  cases:
+    - path: "0"
+      dir: false
+      description: Should NOT match ?\* pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/*0 should not match path 0
+  gitignore: |
+    0**/**/*0
+  cases:
+    - path: "0"
+      dir: false
+      description: Should NOT match 0**/**/*0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/ should match directory 0
+  gitignore: |
+    0**/**/
+  cases:
+    - path: "0"
+      dir: true
+      description: Should match 0**/**/ pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**// should ignore directory 0
+  gitignore: |
+    0**/**//
+  cases:
+    - path: "0"
+      dir: true
+      description: Should ignore 0**/**// pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern \/B should not match file B
+  gitignore: |
+    \/B
+  cases:
+    - path: "B"
+      dir: false
+      description: Should NOT match \/B pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**/**0// should not match directory 0
+  gitignore: |
+    0**/**0//
+  cases:
+    - path: "0"
+      dir: true
+      description: Should NOT match 0**/**0// pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0\/ should not match directory 0
+  gitignore: |
+    0\/
+  cases:
+    - path: "0"
+      dir: true
+      description: Should NOT match 0\/ pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [0-?] should not ignore file -
+  gitignore: |
+    [0-?]
+  cases:
+    - path: "-"
+      dir: false
+      description: Should NOT match [0-?] pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [/0]? should match directory 00
+  gitignore: |
+    [/0]?
+  cases:
+    - path: "00"
+      dir: true
+      description: Should match [/0]? pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**//x should match path 0/x/0
+  gitignore: |
+    0**/**//x
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: Should match 0**/**//x pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern **//0 should not match directory 0
+  gitignore: |
+    **//0
+  cases:
+    - path: "0"
+      dir: true
+      description: Should NOT match **//0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern **//0 should not match file 0/0 (fuzz discovered)
+  gitignore: |
+    **//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: Should NOT match **//0 pattern (fuzz parity)
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [?-0] should not match directory 0 (fuzz discovered parity case)
+  gitignore: |
+    [?-0]
+  cases:
+    - path: "0"
+      dir: true
+      description: Directory '0' should NOT be ignored by [?-0]
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern **/0//0 should not match file 0/0 (fuzz discovered parity case)
+  gitignore: |
+    **/0//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: File '0/0' should NOT be ignored by **/0//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern *0**//0 should not match file 0/0 (fuzz discovered parity case)
+  gitignore: |
+    *0**//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: File '0/0' should NOT be ignored by *0**//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 00/**//0 should not match file 00/0 (fuzz discovered parity case)
+  gitignore: |
+    00/**//0
+  cases:
+    - path: "00/0"
+      dir: false
+      description: File '00/0' should NOT be ignored by 00/**//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern [1-0]? should not match directory -0 (fuzz discovered parity case)
+  gitignore: |
+    [1-0]?
+  cases:
+    - path: "-0"
+      dir: true
+      description: Directory '-0' should NOT be ignored by [1-0]?
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**//0 should match path 0/0
+  gitignore: |
+    0**//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: Should match 0**//0 pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**//0 should not match path 00/0
+  gitignore: |
+    0**//0
+  cases:
+    - path: "00/0"
+      dir: false
+      description: Should NOT match 0**//0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0/**//0 should not match path 0/x/0
+  gitignore: |
+    0/**//0
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: Should NOT match 0/**//0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: 000000?0//0 vs path 00000000/0 expected not ignored"
+  gitignore: |
+    000000?0//0
+  cases:
+    - path: "00000000/0"
+      dir: false
+      description: Should not be ignored per git
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**/**//0 should match file 0/0
+  gitignore: |
+    0**/**//0
+  cases:
+    - path: "0/0"
+      dir: false
+      description: Should match 0**/**//0 pattern
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern *0**//x should not match directory 0/x/0
+  gitignore: |
+    *0**//x
+  cases:
+    - path: "0/x/0"
+      dir: true
+      description: Should NOT match *0**//x pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: Pattern 0**//x/0 should match file 0/x/0 (fuzz discovered)
+  gitignore: |
+    0**//x/0
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: File '0/x/0' should be ignored by 0**//x/0
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**//**/x should cause 0/x/0 to be ignored via contents-only semantics
+  gitignore: |
+    0**//**/x
+  cases:
+    - path: "0/x/0"
+      dir: false
+      description: File '0/x/0' should be ignored by 0**//**/x (x directory ignored => parent exclusion)
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**/0 should match file 00
+  gitignore: |
+    0**/**/0
+  cases:
+    - path: "00"
+      dir: false
+      description: Should match 0**/**/0 pattern (zero-width matches)
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 0**/**//0 should not match file 00/0
+  gitignore: |
+    0**/**//0
+  cases:
+    - path: "00/0"
+      dir: false
+      description: Should NOT match 0**/**//0 pattern
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: base with single-star before recursive tail (0*0**//0) should not ignore 00/0/0/"
+  gitignore: |
+    0*0**//0
+  cases:
+    - path: "00/0/0"
+      dir: true
+      description: Git reports not ignored for 0*0**//0
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: bracket class with leading ']' should ignore 0"
+  gitignore: |
+    []01?]
+  cases:
+    - path: "0"
+      dir: false
+      description: Git reports ignored for []01?]
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern */** should not match single file
+  gitignore: |
+    */**
+  cases:
+    - path: "0"
+      dir: false
+      description: Git reports not ignored for */** vs single file
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: pattern 0**0//0 vs path 000/0/0 (dir)"
+  gitignore: |
+    0**0//0
+  cases:
+    - path: "000/0/0"
+      dir: true
+      description: Git reports not ignored
+      ignored: false
+
+- name: fuzzy test cases
+  description: Bare **// should be inert and not ignore unrelated directory '0' (fuzz repro)
+  gitignore: |
+    **//
+  cases:
+    - path: "0"
+      dir: true
+      description: Directory '0' should not be ignored; bare **// inert
+      ignored: false
+
+- name: fuzzy test cases
+  description: Rooted directory-only wildcard '/*/' should ignore single root entry directory '0'
+  gitignore: |
+    /*/
+  cases:
+    - path: "0"
+      dir: true
+      description: Rooted dir-only wildcard should match root directory name
+      ignored: true
+
+- name: fuzzy test cases
+  description: Pattern 00**//0 should not match path 00/x/0 (treat double slash literally)
+  gitignore: |
+    00**//0
+  cases:
+    - path: "00/x/0"
+      dir: true
+      description: Should NOT be ignored; double slash prevents match
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: sequence !*.log build/ /0// !*.log !*.log should NOT ignore directory 0"
+  gitignore: |
+    !*.log
+    build/
+    /0//
+    !*.log
+    !*.log
+  cases:
+    - path: "0"
+      dir: true
+      description: Directory 0 should not be ignored because /0// is treated literally (double trailing slash inert)
+      ignored: false
+
+- name: fuzzy test cases
+  description: "Fuzz repro: pattern ***/* should match single file 0 (parity with Git)"
+  gitignore: |
+    ***/*
+  cases:
+    - path: "0"
+      dir: false
+      description: File '0' should be ignored by pattern ***/*
+      ignored: true

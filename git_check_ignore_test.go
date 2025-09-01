@@ -15,8 +15,6 @@ import (
 )
 
 // TestGitCheckIgnore validates YAML test specifications against actual Git check-ignore behavior.
-//
-//nolint:gocognit	// Long and complex setup is warranted.
 func TestGitCheckIgnore(t *testing.T) {
 	t.Parallel()
 

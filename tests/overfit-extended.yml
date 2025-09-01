@@ -1,0 +1,531 @@
+- name: double slash edge cases
+  gitignore: |
+    node_modules**//
+    src**//
+    test**//
+  cases:
+    - path: "node_modules"
+      ignored: false
+    - path: "node_modules"
+      dir: true
+      ignored: true
+    - path: "src" 
+      ignored: false
+    - path: "src"
+      dir: true
+      ignored: true
+    - path: "test"
+      ignored: false
+    - path: "test"
+      dir: true
+      ignored: true
+    - path: "node_modules_backup"
+      ignored: false
+    - path: "node_modules_backup"
+      dir: true
+      ignored: false
+    - path: "src/file.js"
+      ignored: true
+    - path: "test/spec.js"
+      ignored: true
+
+- name: mixed wildcard and double slash
+  gitignore: |
+    *cache**//
+    temp*data**//
+    [abc]build**//
+  cases:
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: false
+    - path: "xcache"
+      ignored: false
+    - path: "xcache" 
+      dir: true
+      ignored: false
+    - path: "tempdata"
+      ignored: false
+    - path: "tempdata"
+      dir: true
+      ignored: false
+    - path: "temp123data"
+      ignored: false
+    - path: "temp123data"
+      dir: true
+      ignored: false
+    - path: "abuild"
+      ignored: false
+    - path: "abuild"
+      dir: true
+      ignored: false
+
+- name: complex literal prefix double slash
+  gitignore: |
+    very_long_directory_name**//
+    a**//
+    x**//
+    final**//
+  cases:
+    - path: "very_long_directory_name"
+      ignored: false
+    - path: "very_long_directory_name"
+      dir: true
+      ignored: true
+    - path: "a"
+      ignored: false
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "x"
+      ignored: false
+    - path: "x"
+      dir: true
+      ignored: true
+    - path: "final"
+      ignored: false
+    - path: "final"
+      dir: true
+      ignored: true
+    - path: "very_long_directory_name_extended"
+      ignored: false
+    - path: "very_long_directory_name_extended"
+      dir: true
+      ignored: false
+    - path: "ab"
+      ignored: false
+    - path: "ab"
+      dir: true
+      ignored: false
+
+- name: double slash with single slash comparison
+  gitignore: |
+    build**//
+    dist/
+  cases:
+    - path: "build"
+      ignored: false
+    - path: "build"
+      dir: true
+      ignored: true
+    - path: "dist"
+      ignored: false
+    - path: "dist"
+      dir: true
+      ignored: true
+    - path: "build/output.js"
+      ignored: true
+    - path: "dist/bundle.js"
+      ignored: true
+
+- name: multiple double slash patterns interaction
+  gitignore: |
+    cache**//
+    !cache_important**//
+    logs**//
+    temp**//
+  cases:
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: true
+    - path: "cache_important"
+      ignored: false
+    - path: "cache_important"
+      dir: true
+      ignored: false
+    - path: "logs"
+      ignored: false
+    - path: "logs"
+      dir: true
+      ignored: true
+    - path: "temp"
+      ignored: false
+    - path: "temp"
+      dir: true
+      ignored: true
+
+- name: rooted double slash patterns
+  gitignore: |
+    /root_cache**//
+    /root_temp**//
+  cases:
+    - path: "root_cache"
+      ignored: false
+    - path: "root_cache"
+      dir: true
+      ignored: true
+    - path: "root_temp"
+      ignored: false
+    - path: "root_temp"
+      dir: true
+      ignored: true
+    - path: "sub/root_cache"
+      ignored: false
+    - path: "sub/root_cache"
+      dir: true
+      ignored: false
+    - path: "sub/root_temp"
+      ignored: false
+    - path: "sub/root_temp"
+      dir: true
+      ignored: false
+
+- name: numeric and special character double slash
+  gitignore: |
+    123**//
+    cache_2023**//
+    build-prod**//
+  cases:
+    - path: "123"
+      ignored: false
+    - path: "123"
+      dir: true
+      ignored: true
+    - path: "cache_2023"
+      ignored: false
+    - path: "cache_2023"
+      dir: true
+      ignored: true
+    - path: "build-prod"
+      ignored: false
+    - path: "build-prod"
+      dir: true
+      ignored: true
+    - path: "1234"
+      ignored: false
+    - path: "1234"
+      dir: true
+      ignored: false
+
+- name: double slash with glob patterns
+  gitignore: |
+    cache**//
+    **/*temp*
+    build/**
+  cases:
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: true
+    - path: "temp"
+      ignored: true
+    - path: "temp"
+      dir: true
+      ignored: true
+    - path: "mytemp"
+      ignored: true
+    - path: "tempfile"
+      ignored: true
+    - path: "build"
+      ignored: false
+    - path: "build"
+      dir: true
+      ignored: false
+    - path: "build/file.js"
+      ignored: true
+    - path: "build/sub/file.js"
+      ignored: true
+
+- name: edge case paths and double slash
+  gitignore: |
+    a**//
+    ab**//
+    abc**//
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "ab"
+      ignored: false
+    - path: "ab"
+      dir: true
+      ignored: true
+    - path: "abc"
+      ignored: false
+    - path: "abc"
+      dir: true
+      ignored: true
+    - path: "abcd"
+      ignored: false
+    - path: "abcd"
+      dir: true
+      ignored: false
+    - path: "aa"
+      ignored: false
+    - path: "aa"
+      dir: true
+      ignored: false
+
+- name: stress test with many patterns
+  gitignore: |
+    build**//
+    dist**//
+    node_modules**//
+    cache**//
+    tmp**//
+    temp**//
+    logs**//
+    output**//
+    target**//
+    bin**//
+  cases:
+    - path: "build"
+      ignored: false
+    - path: "build"
+      dir: true
+      ignored: true
+    - path: "dist"
+      ignored: false
+    - path: "dist"
+      dir: true
+      ignored: true
+    - path: "node_modules"
+      ignored: false
+    - path: "node_modules"
+      dir: true
+      ignored: true
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: true
+    - path: "unknown"
+      ignored: false
+    - path: "unknown"
+      dir: true
+      ignored: false
+    - path: "build_backup"
+      ignored: false
+    - path: "build_backup"
+      dir: true
+      ignored: false
+
+- name: complex nested double slash patterns
+  gitignore: |
+    src/**//
+    src/main/**//
+    build/output/**//
+  cases:
+    - path: "src"
+      ignored: false
+    - path: "src"
+      dir: true
+      ignored: false
+    - path: "src/main"
+      ignored: false
+    - path: "src/main"
+      dir: true
+      ignored: false
+    - path: "build/output"
+      ignored: false
+    - path: "build/output"
+      dir: true
+      ignored: false
+    - path: "src/test"
+      ignored: false
+    - path: "src/test"
+      dir: true
+      ignored: false
+    - path: "src/file.js"
+      ignored: false
+    - path: "src/main/App.js"
+      ignored: false
+    - path: "build/output/bundle.js"
+      ignored: false
+
+- name: double slash with special characters
+  gitignore: |
+    build-2023**//
+    cache_v1.2**//
+    temp.old**//
+    log[debug]**//
+  cases:
+    - path: "build-2023"
+      ignored: false
+    - path: "build-2023"
+      dir: true
+      ignored: true
+    - path: "cache_v1.2"
+      ignored: false
+    - path: "cache_v1.2"
+      dir: true
+      ignored: true
+    - path: "temp.old"
+      ignored: false
+    - path: "temp.old"
+      dir: true
+      ignored: true
+    - path: "log[debug]"
+      ignored: false
+    - path: "log[debug]"
+      dir: true
+      ignored: false
+    - path: "build-2024"
+      ignored: false
+    - path: "build-2024"
+      dir: true
+      ignored: false
+
+- name: mixed double slash and glob patterns stress test
+  gitignore: |
+    cache**//
+    **temp**
+    logs/**
+    **/debug**//
+  cases:
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: true
+    - path: "temp"
+      ignored: true
+    - path: "temp"
+      dir: true
+      ignored: true
+    - path: "mytemp"
+      ignored: true
+    - path: "tempfile"
+      ignored: true
+    - path: "logs"
+      ignored: false
+    - path: "logs"
+      dir: true
+      ignored: false
+    - path: "logs/file.log"
+      ignored: true
+    - path: "debug"
+      ignored: false
+    - path: "debug"
+      dir: true
+      ignored: false
+    - path: "src/debug"
+      ignored: false
+    - path: "src/debug"
+      dir: true
+      ignored: false
+    - path: "cache/file.tmp"
+      ignored: true
+    - path: "src/debug/info.log"
+      ignored: false
+
+- name: deep nesting with double slash
+  gitignore: |
+    a/b/c/**//
+    x/y/**//
+  cases:
+    - path: "a/b/c"
+      ignored: false
+    - path: "a/b/c"
+      dir: true
+      ignored: false
+    - path: "x/y"
+      ignored: false
+    - path: "x/y"
+      dir: true
+      ignored: false
+    - path: "a/b"
+      ignored: false
+    - path: "a/b"
+      dir: true
+      ignored: false
+    - path: "a/b/c/file.txt"
+      ignored: false
+    - path: "x/y/data.json"
+      ignored: false
+    - path: "x/z"
+      ignored: false
+    - path: "x/z"
+      dir: true
+      ignored: false
+
+- name: double slash edge cases with similar names
+  gitignore: |
+    test**//
+    test1**//
+    test_old**//
+  cases:
+    - path: "test"
+      ignored: false
+    - path: "test"
+      dir: true
+      ignored: true
+    - path: "test1"
+      ignored: false
+    - path: "test1"
+      dir: true
+      ignored: true
+    - path: "test_old"
+      ignored: false
+    - path: "test_old"
+      dir: true
+      ignored: true
+    - path: "testing"
+      ignored: false
+    - path: "testing"
+      dir: true
+      ignored: false
+    - path: "test2"
+      ignored: false
+    - path: "test2"
+      dir: true
+      ignored: false
+    - path: "test_new"
+      ignored: false
+    - path: "test_new"
+      dir: true
+      ignored: false
+
+- name: performance stress test many double slash patterns
+  gitignore: |
+    build**//
+    dist**//
+    node_modules**//
+    cache**//
+    tmp**//
+    temp**//
+    logs**//
+    output**//
+    target**//
+    bin**//
+    obj**//
+    debug**//
+    release**//
+    test**//
+    tests**//
+    spec**//
+    docs**//
+    doc**//
+    backup**//
+    old**//
+  cases:
+    - path: "build"
+      ignored: false
+    - path: "build"
+      dir: true
+      ignored: true
+    - path: "src"
+      ignored: false
+    - path: "src"
+      dir: true
+      ignored: false
+    - path: "cache/file"
+      ignored: true
+    - path: "unknown_dir"
+      ignored: false
+    - path: "unknown_dir"
+      dir: true
+      ignored: false
+    - path: "build_scripts"
+      ignored: false
+    - path: "build_scripts"
+      dir: true
+      ignored: false
+    - path: "node_modules/package"
+      ignored: true

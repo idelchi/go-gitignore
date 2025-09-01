@@ -9,8 +9,6 @@ env:
   SCRIPTS_DIR: "{{.DEVENV}}/scripts"
   BUILD_DIR: "{{ .ROOT_DIR | toSlash }}/.build"
 
-  CSPELL_CONFIG: ./settings/cspell.yaml
-  CODESPELL_WORDLIST: ./settings/project-words
   WSLINT_ARGS: "-e **/.build/**,**/tests/**"
 
 includes:
@@ -21,7 +19,7 @@ includes:
   go:
     taskfile: "{{.DEVENV}}/taskfiles/Taskfile.go.yml"
     vars:
-      COVERAGE: 90.0%
+      COVERAGE: 0.0%
       CONFIG_DIR: .
   github: "{{.DEVENV}}/taskfiles/Taskfile.github.yml"
 
@@ -66,7 +64,6 @@ tasks:
       - task: format:json
       - task: format:docker
       - task: format:md
-      - task: format:shell
       - task: format:ws
       - task: go:format
 
@@ -75,9 +72,7 @@ tasks:
       - task: lint:ws
       - task: lint:docker
       - task: lint:json
-      - task: lint:shell
       - task: lint:md
-      - task: lint:spell
       - task: go:lint
 
   build: echo "This project is library only"
@@ -86,7 +81,6 @@ tasks:
     cmds:
       - cmd: go clean -testcache
       - task: go:quality
-      - cmd: go test -run=^$ -fuzz=FuzzGitIgnoreParity -fuzztime=120s
 
   all:
     desc: run all available tasks

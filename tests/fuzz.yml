@@ -1,0 +1,547 @@
+- name: fuzzy test cases
+  gitignore: |
+    [0[]
+  cases:
+    - path: "0"
+      description: Should match the expression [0[]]
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    [1[]
+  cases:
+    - path: "0"
+      description: Should not match the expression [1[]]
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    [1[0]
+  cases:
+    - path: "0"
+      description: Should match the expression [1[0]
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    \\0*
+  cases:
+    - path: "0"
+      description: Should not match the expression \\0*
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    a**/0
+  cases:
+    - path: "a0/1"
+      description: Should match the expression a**/0
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    **/0
+  cases:
+    - path: "00"
+      description: Should not match the expression **/0
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    a**/0
+  cases:
+    - path: a00
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    0/***
+  cases:
+    - path: "0"
+      description: Should match the expression 0/***
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    [//0]
+  cases:
+    - path: "0"
+      description: Should match the expression [//0]
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    *0**/*
+  cases:
+    - path: "0"
+      description: Should not match the expression *0**/*
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    0**/*
+  cases:
+    - path: "0"
+      description: Should match the expression 0**/*
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    ?
+  cases:
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "a"
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    ??
+  cases:
+    - path: "a"
+      dir: true
+      ignored: false
+    - path: "a"
+      ignored: false
+    - path: "aa"
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    ???
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "aa"
+      ignored: false
+    - path: "aaa"
+      ignored: true
+    - path: "a"
+      dir: true
+      ignored: false
+    - path: "aa"
+      dir: true
+      ignored: false
+    - path: "aaa"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    **/*
+  cases:
+    - path: "00"
+      ignored: true
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    ?**/*
+  cases:
+    - path: "00"
+      ignored: false
+    - path: "0"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    *0**/**
+  cases:
+    - path: "00"
+      ignored: false
+    - path: "0"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    0**/**
+  cases:
+    - path: "00"
+      ignored: true
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    0***/**
+  cases:
+    - path: "00"
+      ignored: true
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    0****/***
+  cases:
+    - path: "00"
+      ignored: true
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    0*****/*****
+  cases:
+    - path: "00"
+      ignored: true
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    **0*****/*****
+  cases:
+    - path: "00"
+      ignored: false
+    - path: "00"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    *0**//
+  cases:
+    - path: "0"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    0**//
+  cases:
+    - path: "0"
+      ignored: false
+    - path: "0"
+      dir: true
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    abc**//
+  cases:
+    - path: "abc"
+      description: Should not match file with literal prefix + ** + //
+      ignored: false
+    - path: "abc"
+      dir: true
+      description: Should match directory with literal prefix + ** + //
+      ignored: true
+    - path: "abc/file"
+      description: Should match contents inside directory
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    test**//
+  cases:
+    - path: "test"
+      ignored: false
+    - path: "test"
+      dir: true
+      ignored: true
+    - path: "test/subdir"
+      dir: true
+      ignored: true
+    - path: "test/file.txt"
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    *ab**//
+  cases:
+    - path: "ab"
+      description: Non-literal prefix + ** + // should use normal matching
+      ignored: false
+    - path: "ab"
+      dir: true
+      ignored: false
+    - path: "xab"
+      ignored: false
+    - path: "xab"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    dir//
+  cases:
+    - path: "dir"
+      description: Simple literal + // should not match file
+      ignored: false
+    - path: "dir"
+      dir: true
+      description: Simple literal + // should match directory
+      ignored: false
+    - path: "dir/file"
+      description: Should match contents inside
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    1**//
+  cases:
+    - path: "1"
+      ignored: false
+    - path: "1"
+      dir: true
+      ignored: true
+    - path: "10"
+      description: Should not match different file
+      ignored: false
+    - path: "10"
+      description: Should not match different directory
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    foo**//
+  cases:
+    - path: "foo"
+      description: Literal prefix foo** with // should not match file
+      ignored: false
+    - path: "foo"
+      dir: true
+      description: Should match exact directory
+      ignored: true
+    - path: "food"
+      description: Should not match similar files
+      ignored: false
+    - path: "food"
+      dir: true
+      description: Should not match similar directories
+      ignored: false
+    - path: "foo/bar"
+      description: Should match contents inside
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    ?oo**//
+  cases:
+    - path: "foo"
+      description: Wildcard prefix should never match
+      ignored: false
+    - path: "foo"
+      dir: true
+      ignored: false
+    - path: "boo"
+      ignored: false
+    - path: "boo"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    build//
+  cases:
+    - path: "build"
+      description: Simple literal with // should never match
+      ignored: false
+    - path: "build"
+      dir: true
+      ignored: false
+    - path: "build/file"
+      description: Should not match contents
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    src**//
+    lib**//
+  cases:
+    - path: "src"
+      ignored: false
+    - path: "src"
+      dir: true
+      description: Multiple patterns - src should match
+      ignored: true
+    - path: "lib"
+      ignored: false
+    - path: "lib"
+      dir: true
+      description: Multiple patterns - lib should match
+      ignored: true
+    - path: "bin"
+      description: Should not match unrelated directories
+      ignored: false
+    - path: "bin"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    a**//
+  cases:
+    - path: "a"
+      ignored: false
+    - path: "a"
+      dir: true
+      ignored: true
+    - path: "ab"
+      description: Should not match longer strings
+      ignored: false
+    - path: "ab"
+      dir: true
+      ignored: false
+    - path: "abc"
+      ignored: false
+    - path: "abc"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    x*y**//
+  cases:
+    - path: "xy"
+      description: Complex wildcard pattern should never match
+      ignored: false
+    - path: "xy"
+      dir: true
+      ignored: false
+    - path: "xay"
+      ignored: false
+    - path: "xay"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    temp**//
+    *.tmp
+  cases:
+    - path: "temp"
+      description: Mixed patterns - temp directory should match
+      ignored: false
+    - path: "temp"
+      dir: true
+      ignored: true
+    - path: "file.tmp"
+      description: Mixed patterns - tmp files should match
+      ignored: true
+    - path: "temp.tmp"
+      description: Both patterns could apply
+      ignored: true
+
+- name: fuzzy test cases
+  gitignore: |
+    [abc]**//
+  cases:
+    - path: "a"
+      description: Character class with ** and // should never match
+      ignored: false
+    - path: "a"
+      dir: true
+      ignored: false
+    - path: "b"
+      ignored: false
+    - path: "b"
+      dir: true
+      ignored: false
+    - path: "c"
+      ignored: false
+    - path: "c"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    cache**//
+  cases:
+    - path: "cache"
+      ignored: false
+    - path: "cache"
+      dir: true
+      ignored: true
+    - path: "cached"
+      description: Should not match partial matches
+      ignored: false
+    - path: "cached"
+      dir: true
+      ignored: false
+    - path: "cache_old"
+      ignored: false
+    - path: "cache_old"
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    /?*0
+  cases:
+    - path: 0/0
+      ignored: false
+    - path: 0/0
+      dir: true
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    aa**/0
+  cases:
+    - path: aa/x/0
+      ignored: true
+
+    - path: aa/x/0
+      dir: true
+      ignored: true
+
+- name: escape sequence tests
+  gitignore: |
+    \\0*
+  cases:
+    - path: "0"
+      description: Test if \\0* matches just "0"
+      ignored: false
+    - path: "\\0"
+      description: Test if \\0* matches double backslash-0  
+      ignored: true
+    - path: "\\0abc"
+      description: Test if \\0* matches backslash-0 + more chars
+      ignored: true
+    - path: "\\000"
+      description: Test if \\0* matches backslash + multiple 0s
+      ignored: true
+
+- name: more escape tests  
+  gitignore: |
+    \\\\**
+  cases:
+    - path: "\\anything"
+      description: Test if \\\\** matches literal backslash + anything
+      ignored: false
+    - path: "anything"
+      description: Test if \\\\** matches without backslash
+      ignored: false
+    - path: "\\\\"
+      description: Test if \\\\** matches just double backslash
+      ignored: true
+    - path: "\\\\subdir/file"
+      description: Test if \\\\** matches backslash + path
+      ignored: true
+
+- name: complex escape tests
+  gitignore: |
+    dir\\\**
+  cases:
+    - path: "dir\\**"
+      description: Test if dir\\\** matches dir\**
+      ignored: true
+    - path: "dir\\anything"
+      description: Test if dir\\\** matches dir\ + anything
+      ignored: false
+    - path: "dir**"
+      description: Test if dir\\\** matches without backslash
+      ignored: false

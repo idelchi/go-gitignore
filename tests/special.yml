@@ -1,0 +1,249 @@
+# The `?` wildcard matches Unicode characters rather than bytes.
+# This differs from Git which requires `??` to match two-byte characters like `ć`.
+
+- name: fuzzy test cases
+  gitignore: |
+    ?
+  cases:
+    - path: ć
+      description: Is multibyte
+      dir: true
+      ignored: false
+    - path: ć
+      description: Is multibyte
+      ignored: false
+
+- name: fuzzy test cases
+  gitignore: |
+    ??
+  cases:
+    - path: ć
+      description: Should match the expression ??
+      dir: true
+      ignored: true
+    - path: ć
+      description: Should match the expression ??
+      ignored: true
+
+- name: various multibyte characters single question mark
+  gitignore: |
+    ?
+  cases:
+    - path: é
+      description: e-acute (2 bytes) should not match single ?
+      ignored: false
+    - path: é
+      dir: true
+      ignored: false
+    - path: ñ
+      description: n-tilde (2 bytes) should not match single ?
+      ignored: false
+    - path: ñ
+      dir: true
+      ignored: false
+    - path: ü
+      description: u-umlaut (2 bytes) should not match single ?
+      ignored: false
+    - path: ß
+      description: German eszett (2 bytes) should not match single ?
+      ignored: false
+
+- name: various multibyte characters double question mark  
+  gitignore: |
+    ??
+  cases:
+    - path: é
+      description: e-acute (2 bytes) should match ??
+      ignored: true
+    - path: é
+      dir: true
+      ignored: true
+    - path: ñ
+      description: n-tilde (2 bytes) should match ??
+      ignored: true
+    - path: ñ
+      dir: true
+      ignored: true
+    - path: ü
+      description: u-umlaut (2 bytes) should match ??
+      ignored: true
+    - path: ß
+      description: German eszett (2 bytes) should match ??
+      ignored: true
+
+- name: three byte unicode characters
+  gitignore: |
+    ???
+  cases:
+    - path: ₽
+      description: Ruble symbol (3 bytes) should match ???
+      ignored: true
+    - path: ₽
+      dir: true
+      ignored: true
+    - path: €
+      description: Euro symbol (3 bytes) should match ???
+      ignored: true
+    - path: ♠
+      description: Spade symbol (3 bytes) should match ???
+      ignored: true
+
+- name: four byte unicode characters
+  gitignore: |
+    ????
+  cases:
+    - path: 🚀
+      description: Rocket emoji (4 bytes) should match ????
+      ignored: true
+    - path: 🚀
+      dir: true
+      ignored: true
+    - path: 🎉
+      description: Party emoji (4 bytes) should match ????
+      ignored: true
+    - path: 💻
+      description: Computer emoji (4 bytes) should match ????
+      ignored: true
+
+- name: mixed ascii and unicode with question marks
+  gitignore: |
+    file?.txt
+    data??.json
+    test???.log
+  cases:
+    - path: "filea.txt"
+      description: ASCII 'a' (1 byte) should match file?.txt
+      ignored: true
+    - path: "file1.txt"
+      description: ASCII '1' (1 byte) should match file?.txt
+      ignored: true
+    - path: "fileć.txt"
+      description: Unicode ć (2 bytes) should not match file?.txt
+      ignored: false
+    - path: "dataab.json"
+      description: ASCII 'ab' (2 bytes) should match data??.json
+      ignored: true
+    - path: "dataé.json" 
+      description: Unicode é (2 bytes) should match data??.json
+      ignored: true
+    - path: "dataćx.json"
+      description: ć (2 bytes) + x (1 byte) should not match data??.json  
+      ignored: false
+    - path: "testabc.log"
+      description: ASCII 'abc' (3 bytes) should match test???.log
+      ignored: true
+    - path: "testéx.log"
+      description: é (2 bytes) + x (1 byte) should match test???.log
+      ignored: true
+    - path: "test€.log"
+      description: Euro € (3 bytes) should match test???.log
+      ignored: true
+
+- name: complex patterns with unicode
+  gitignore: |
+    ??.?
+    src/??/file.js
+    [a-z]??.*
+  cases:
+    - path: "ab.c"
+      description: ASCII pattern should match ??.?
+      ignored: true
+    - path: "éx.y"
+      description: Mixed unicode should not match ??.? (5 bytes vs 4)
+      ignored: false
+    - path: "ć.z"
+      description: Unicode ć should match ??.? (2+1 bytes)
+      ignored: true
+    - path: "src/ab/file.js"
+      description: ASCII path should match src/??/file.js
+      ignored: true
+    - path: "src/éx/file.js"
+      description: Mixed unicode path should not match src/??/file.js (éx is 3 bytes)
+      ignored: false
+    - path: "src/€/file.js"
+      description: 3-byte unicode should not match src/??/file.js
+      ignored: false
+    - path: "aéx.txt"
+      description: a + é (2 bytes) + x should not match [a-z]??.* (4 bytes vs 3)
+      ignored: false
+    - path: "zab.log"
+      description: z + a + b should match [a-z]??.*
+      ignored: true
+    - path: "1éx.txt"
+      description: Should not match [a-z]??.* (starts with number)
+      ignored: false
+
+- name: escaped question marks with unicode
+  gitignore: |
+    file\?.txt
+    data\?\?.json
+  cases:
+    - path: "file?.txt"
+      description: Literal ? should match file\?.txt
+      ignored: true
+    - path: "filea.txt"
+      description: Should not match escaped question mark
+      ignored: false
+    - path: "data??.json"
+      description: Literal ?? should match data\?\?.json  
+      ignored: true
+    - path: "dataab.json"
+      description: Should not match escaped question marks
+      ignored: false
+    - path: "dataéx.json"
+      description: Should not match escaped question marks
+      ignored: false
+
+- name: boundary cases unicode
+  gitignore: |
+    ?
+    ??
+    ???
+  cases:
+    - path: a
+      description: ASCII single byte should match ?
+      ignored: true
+    - path: ć
+      description: 2-byte unicode should not match ? but should match ??
+      ignored: true
+    - path: €
+      description: 3-byte unicode should not match ? or ?? but should match ???
+      ignored: true
+    - path: 🚀
+      description: 4-byte unicode should not match ?, ??, or ???
+      ignored: false
+
+- name: stress test many unicode patterns
+  gitignore: |
+    ?
+    ??
+    ???
+    ????
+    file?.txt
+    data??.json
+    test???.log
+    dir????/
+    ?.?
+    ??.??
+    ???.???
+  cases:
+    - path: a
+      ignored: true
+    - path: ć
+      ignored: true
+    - path: €
+      ignored: true
+    - path: 🚀
+      ignored: true
+    - path: "file1.txt"
+      ignored: true
+    - path: "dataéx.json"
+      ignored: false
+    - path: "test€ab.log"
+      ignored: false
+    - path: "a.b"
+      ignored: true
+    - path: "éx.ab"
+      ignored: false
+    - path: "€ab.éxy"
+      ignored: false
